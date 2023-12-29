@@ -3,7 +3,7 @@ import numpy as np
 from pykrx import stock
 import time
 import sys
-sys.path.append("E:/Project/202410/www/source/boot/common/db")
+sys.path.append("E:/Project/202410/www/boot/common/db")
 from DBConnect import DBConnect as db
 # pylint: disable-all
 # flake8: noqa

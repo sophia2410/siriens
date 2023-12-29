@@ -4,7 +4,7 @@
 import requests
 from bs4 import BeautifulSoup
 import sys
-sys.path.append("E:/Project/202410/www/source/boot/common/python")
+sys.path.append("E:/Project/202410/www/boot/common/python")
 from crawling_news import crawling_news
 
 # 뉴스 가져오기

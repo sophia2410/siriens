@@ -7,7 +7,7 @@ from threading import Timer
 import requests
 import pymysql
 import sys
-sys.path.append("E:/Project/202410/www/source/boot/common/db")
+sys.path.append("E:/Project/202410/www/boot/common/db")
 from DBConnect import DBConnect as db
 
 class DBUpdater :

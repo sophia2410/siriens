@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 from datetime import datetime
 import pymysql
 import sys
-sys.path.append("E:/Project/202410/www/source/boot/common/python")
+sys.path.append("E:/Project/202410/www/boot/common/python")
 from crawling_news import crawling_news
 import re
 
