@@ -73,7 +73,7 @@ if(isset($_POST['proc_fg'])) {
 				ON B.code = A.code
 				WHERE A.trade_date = '".$trade_date."'
 				AND A.cha_fg = 'MC000'
-				AND A.tot_trade_amt >= 500";
+				AND (A.tot_trade_amt >= 500 OR (A.close_rate > 29 AND A.tot_trade_amt >= 300))";
 
 		echo $qry."<br><br>";
 		$mysqli->query($qry);
@@ -112,7 +112,7 @@ if(isset($_POST['proc_fg'])) {
 		$qry = "UPDATE scenario A
 				INNER JOIN daily_price B
 				ON  B.date = A.trade_date
-				and B.code = A.code
+				AND B.code = A.code
 				INNER JOIN (SELECT * FROM scenario WHERE trade_date = (SELECT MAX(trade_date) FROM scenario WHERE trade_date < '$trade_date')) C
 				ON C.code = A.code
 				SET A.close_rate = CASE WHEN A.close_rate IS NULL OR A.close_rate = '' THEN B.close_rate ELSE A.close_rate END
@@ -164,15 +164,15 @@ if(isset($_POST['proc_fg'])) {
 							mavg224,
 							$sub_query0 AS min_diff,
 							CASE
-								WHEN $sub_query0 = ABS(close_amt - mavg3) THEN '3일선'
-								WHEN $sub_query0 = ABS(close_amt - mavg5) THEN '5일선'
-								WHEN $sub_query0 = ABS(close_amt - mavg8) THEN '8일선'
-								WHEN $sub_query0 = ABS(close_amt - mavg10) THEN '10일선'
-								WHEN $sub_query0 = ABS(close_amt - mavg15) THEN '15일선'
-								WHEN $sub_query0 = ABS(close_amt - mavg20) THEN '20일선'
-								WHEN $sub_query0 = ABS(close_amt - mavg60) THEN '60일선'
-								WHEN $sub_query0 = ABS(close_amt - mavg120) THEN '120일선'
-								WHEN $sub_query0 = ABS(close_amt - mavg224) THEN '224일선'
+								WHEN $sub_query0 = ABS(close_amt - mavg3) THEN '3'
+								WHEN $sub_query0 = ABS(close_amt - mavg5) THEN '5'
+								WHEN $sub_query0 = ABS(close_amt - mavg8) THEN '8'
+								WHEN $sub_query0 = ABS(close_amt - mavg10) THEN '10'
+								WHEN $sub_query0 = ABS(close_amt - mavg15) THEN '15'
+								WHEN $sub_query0 = ABS(close_amt - mavg20) THEN '20'
+								WHEN $sub_query0 = ABS(close_amt - mavg60) THEN '60'
+								WHEN $sub_query0 = ABS(close_amt - mavg120) THEN '120'
+								WHEN $sub_query0 = ABS(close_amt - mavg224) THEN '224'
 							END AS closest,
 							CASE
 								WHEN close_amt > CASE WHEN $sub_query0 = ABS(close_amt - mavg3) THEN mavg3 END THEN '△'
@@ -193,7 +193,7 @@ if(isset($_POST['proc_fg'])) {
 								WHEN close_amt < CASE WHEN $sub_query0 = ABS(close_amt - mavg120) THEN mavg120 END THEN '▽'
 								WHEN close_amt > CASE WHEN $sub_query0 = ABS(close_amt - mavg224) THEN mavg224 END THEN '△'
 								WHEN close_amt < CASE WHEN $sub_query0 = ABS(close_amt - mavg224) THEN mavg224 END THEN '▽'
-								ELSE 'equal'
+								ELSE '='
 							END AS compare
 						FROM (
 								SELECT 
@@ -296,20 +296,50 @@ if(isset($_POST['proc_fg'])) {
 		$qry = "INSERT INTO scenario
 				( trade_date
 				, code
-				, buysell_reason
+				, buysell_category
 				, buysell_review
 				, create_dtime
 				)
 				values 
 				('".$_POST['trade_date']."'
 				,'".$_POST['code']."'
-				,'".$_POST['buysell_reason']."'
+				,'".$_POST['buysell_category']."'
 				,'".$_POST['buysell_review']."'
 				, now()
 				)";
 
 		echo $qry."<br><br>";
 		$mysqli->query($qry);
+	} else if($_POST['proc_fg'] == 'saveTheme') {
+		for($i=0; $i<$_POST['cnt']; $i++){
+			// 시그널이브닝 테마,이슈,키워드 변경 정보 업데이트
+			$sector		= 'sector'.$i;
+			$theme		= 'theme'.$i;
+			$issue		= 'issue'.$i;
+			$hot_theme	= 'hot_theme'.$i;
+			$tobecontinued	= 'tobecontinued'.$i;
+			$theme_comment	= 'theme_comment'.$i;
+			$org_sector	= 'org_sector'.$i;
+			$org_theme	= 'org_theme'.$i;
+			$org_issue	= 'org_issue'.$i;
+
+			$hot_theme = isset($_POST[$hot_theme]) ? 'Y' : 'N';
+			$tobecontinued = isset($_POST[$tobecontinued]) ? 'Y' : 'N';
+
+			$qry = "UPDATE scenario
+					SET sector		= '".$_POST[$sector]."'
+					,	theme		= '".$_POST[$theme]."'
+					,	issue		= '".$_POST[$issue]."'
+					, 	hot_theme	= '$hot_theme'
+					, 	tobecontinued= '$tobecontinued'
+					, 	theme_comment= '".$_POST[$theme_comment]."'
+					WHERE trade_date ='".$_POST['trade_date']."'
+					AND sector  ='".$_POST[$org_sector]."' 
+					AND theme  ='".$_POST[$org_theme]."' 
+					AND issue  ='".$_POST[$org_issue]."'";
+			echo $qry."<br>";
+			$mysqli->query($qry);
+		}
 	}
 }
 

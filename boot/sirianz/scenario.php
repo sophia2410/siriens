@@ -110,10 +110,12 @@ function search() {
 
 // 거래일자 선택후 데이터 가져오기
 function getData() {
-	key_val  = document.getElementById('search_date').options[document.getElementById("search_date").selectedIndex].value;
 
-	// 자식프레임에 있는 함수 호출하기
-	document.getElementById("iframeR").contentWindow.getData(key_val);
+	key_val  = document.getElementById('search_date').options[document.getElementById("search_date").selectedIndex].value;
+	if(confirm(key_val+'데이터를 가져오시겠습니까?')) {
+		// 자식프레임에 있는 함수 호출하기
+		document.getElementById("iframeR").contentWindow.getData(key_val);
+	}
 }
 
 // 종목 선택 시 오른쪽 프레임에 내역 조회

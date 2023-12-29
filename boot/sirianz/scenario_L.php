@@ -24,7 +24,7 @@ $query = " SELECT Z.*
 						, A.volume
 						, A.tot_trade_amt
 						, A.market_cap
-						, A.issue
+						, CASE WHEN A.theme is null OR  A.theme = '' THEN A.sector ELSE A.theme END uprsn
 						, A.stock_keyword
 						, A.tracking_yn
 						, A.tracking_reason
@@ -46,12 +46,12 @@ $query = " SELECT Z.*
 					AND D.last_yn = 'Y'
 					LEFT OUTER JOIN sirianz_report E
 					ON E.report_date = A.trade_date
-					WHERE A.trade_date >= (select DATE_ADD('$search_date', INTERVAL -20 DAY) yyyymmdd)
+					WHERE A.trade_date >= (select DATE_FORMAT(DATE_ADD('$search_date', INTERVAL -30 DAY), '%Y%m%d'))
 					AND   A.trade_date <= '$search_date'
 					$search_buy_pick
 				 ) Z
 			ORDER BY Z.trade_date desc, Z.tracking_day, Z.buy_pick desc,  Z.tot_trade_amt desc, SUBSTR(Z.tracking_index,1,8) desc";
-// echo "<pre>$query</pre>";
+echo "<pre>$query</pre>";
 $result = $mysqli->query($query);
 ?>
 
@@ -67,8 +67,11 @@ $result = $mysqli->query($query);
 			if($row['evening_subject'] != '') 
 				echo "<tr class='table-info  text-dark' align=left><th colspan=6>'".$row['evening_subject']."</th></tr>";
 		}
+
+		$bgstyle = ($row['tracking_day'] > 0) ? "background-color:#F6F6F6;" : "";
+		echo "<tr style='$bgstyle'>";
 		echo "<td class='text-danger' align=right>".$row['buy_pick']." </td>" ;
-		echo "<td class='text-danger' align=center>".$row['issue']." </td>" ;
+		echo "<td class='text-danger' align=center>".$row['uprsn']." </td>" ;
 		echo "<td><a href=\"javascript:callFrameRS('".$row['trade_date']."','".$row['code']."','".$row['name']."','".$row['tracking_index']."')\"><b>".$row['name']."</b> [".$row['mavg']." / ".$row['status']."]</a></td>";
 		echo "<td class='text-danger' align=right>".$row['close_rate']." %</td>" ;
 		echo "<td class='text-danger' align=right>".number_format($row['tot_trade_amt'])." </td>" ;

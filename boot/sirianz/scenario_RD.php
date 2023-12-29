@@ -102,10 +102,10 @@ $brWidth = (isset($_GET['brWidth'])) ? $_GET['brWidth'] : '1800';
 		// 			</div>
 		// 		</div>
 		// 	</div>";
-			  
-		echo "<div class='card-body h5 mb-0 font-weight-bold text-gray-800'>▷ 1일차 매매 대상 종목</div>";
 
-		// 1일차 매매 시나리오
+		// 1일차 매매 대상
+		echo "<div class='h5 font-weight-bold text-gray-800' style=' margin:0px; margin-top:10px; margin-bottom:10px;'>▷ 1일차 매매 대상 종목</div>";
+
 		$query = "	SELECT STR_TO_DATE(A.trade_date, '%Y%m%d') trade_date_str
 						, A.trade_date
 						, A.code
@@ -116,7 +116,7 @@ $brWidth = (isset($_GET['brWidth'])) ? $_GET['brWidth'] : '1800';
 						, CASE WHEN A.tot_trade_amt >= 1000 THEN CONCAT('<font color=red><b>',A.tot_trade_amt,'억</b></font>') ELSE  CONCAT(A.tot_trade_amt,'억') END tot_trade_amt
 						, A.volume
 						, A.market_cap
-						, A.issue
+						, CASE WHEN A.theme is null OR  A.theme = '' THEN A.sector ELSE A.theme END uprsn
 						, A.stock_keyword
 						, A.last_0day
 						, A.tracking_index
@@ -135,7 +135,7 @@ $brWidth = (isset($_GET['brWidth'])) ? $_GET['brWidth'] : '1800';
 						<div class='row no-gutters align-items-center'>
 							<div class='col mr-0'>
 								<div class='font-weight-bold text-primary text-uppercase mb-1'>
-								 ".$row['name']." (".$row['issue'].") ".$row['close_rate']." / ".$row['tot_trade_amt']."
+								 ".$row['name']." (".$row['uprsn'].") ".$row['close_rate']." / ".$row['tot_trade_amt']."
 								</div>
 								<div style='margin: 0;'>
 									<img class='img-fluid' src='https://ssl.pstatic.net/imgfinance/chart/item/candle/day/".$row['code'].".png?sidcode=1681518352718'>
@@ -154,11 +154,11 @@ $brWidth = (isset($_GET['brWidth'])) ? $_GET['brWidth'] : '1800';
 		}
 		echo "</div>";
 
+		// 오늘의 매매복기
 		$query = "	SELECT STR_TO_DATE(A.trade_date, '%Y%m%d') trade_date_str
 						, A.trade_date
-						, A.buysell_reason
+						, A.buysell_category
 						, A.buysell_review
-						, A.remark
 						, A.tracking_index
 					FROM scenario A
 					WHERE A.trade_date = '$trade_date'
@@ -170,10 +170,10 @@ $brWidth = (isset($_GET['brWidth'])) ? $_GET['brWidth'] : '1800';
 
 		echo "<table class='table table-sm text-dark'>";
 		echo "<tr align=left>";
-		echo "<td width='100px'> [매매복기] </td>";
-		echo "<td width='80px'> 매매이유 </td>";
-		echo "<td><input type=text name='buysell_reason' value='1일차매매' readonly></td>";
-		echo "<td><input type=button class='btn btn-danger btn-sm' onclick=\"save()\" value='저장'></td>";
+		echo "<td width='200px' class='h5 mb-0 font-weight-bold text-gray-800'> ▷ 매매복기</td>";
+		echo "<td width='80px'> 매매유형 </td>";
+		echo "<td><input type=text name='buysell_category' value='1일차매매' readonly></td>";
+		echo "<td><input type=button class='btn btn-danger btn-sm' onclick=\"saveDR()\" value='저장'></td>";
 		echo "</tr>";
 		echo "<tr align=left>";
 		echo "<td colspan=4 style='height:155px;'>";
@@ -182,10 +182,69 @@ $brWidth = (isset($_GET['brWidth'])) ? $_GET['brWidth'] : '1800';
 		echo "</tr>";
 		echo "</table>";
 
+		// 오늘의 테마
+		echo "<div class='row' style='width:96%;'>";
+		echo "<div class='font-weight-bold text-gray-800' style='width:87%; margin:0px; margin-top:10px; margin-bottom:10px;'>▷ 오늘의 테마</div>";
+		echo "<div style='float:right;'><input type=button class='btn btn-danger btn-sm' onclick=\"saveTM()\" value='저장'></div>";
+		echo "</div>";
+
+		$i=0;
+		$r=0;
+		$prd_fg = '';
+	
+		echo "<div>";
+		echo "<table style='width:95%;' class='table table-bordered small table-success table-sm'>";
+		echo "<tr align=center>";
+		echo "<th width=60>Hot?</th>";
+		echo "<th width=120>섹터</th>";
+		echo "<th width=120>테마</th>";
+		echo "<th width=300>이슈</th>";
+		echo "<th width=60>또?</th>";
+		echo "<th>COMMENT</th>";
+		echo "</tr>";
+	
+		$query = " 	SELECT A.sector
+						,  A.theme
+						,  A.issue
+						,  A.hot_theme
+						,  A.tobecontinued
+						,  A.theme_comment
+					FROM scenario A
+					WHERE A.trade_date = '$trade_date'
+					AND A.last_0day = '$trade_date' -- 오늘 0일차 종목만
+					AND A.code != 'DAY'
+					GROUP BY A.sector
+						,  A.theme
+						,  A.issue";
+		// echo "<pre>$query</pre>";
+		$result = $mysqli->query($query);
+	
+		$i=0;
+		while($row = $result->fetch_array(MYSQLI_BOTH)) {
+			
+			$checked1 = ($row['hot_theme'] == 'Y') ? " checked" : "";
+			$checked2 = ($row['tobecontinued'] == 'Y') ? " checked" : "";
+
+			echo "<tr align=center>";
+			echo "<td><input type=checkbox class=hot_theme name=hot_theme$i value='Y' $checked1></td>";
+			echo "<td><input type=text name=sector$i value=\"".$row['sector']."\"></td>";
+			echo "<td><input type=text name=theme$i value=\"".$row['theme']."\"></td>";
+			echo "<td><input type=text name=issue$i style='width: 300px;' value=\"".$row['issue']."\"></td>";
+			echo "<td><input type=checkbox class=tobecontinued name=tobecontinued$i value='Y' $checked2></td>";
+			echo "<td><input type=text name=theme_comment$i style='width:95%;' value=\"".$row['theme_comment']."\"></td>";
+			echo "<input type=hidden name=org_sector$i value=\"".$row['sector']."\">";
+			echo "<input type=hidden name=org_theme$i value=\"".$row['theme']."\">";
+			echo "<input type=hidden name=org_issue$i value=\"".$row['issue']."\">";
+			echo "</tr>";
+			$i++;
+		}
+		echo "</table>";
+		echo "</div>";
 	}
 ?>
 <input type=hidden name=proc_fg>
 <input type=hidden name=trade_date value=<?=$trade_date?>>
+<input type=hidden name=cnt value=<?=$i?>>
 <input type=hidden name=code value='DAY'>
 </form>
 <iframe name="saveFrame" src="scenario_script.php" style='border:0px;' width=1000 height=700>
@@ -193,9 +252,17 @@ $brWidth = (isset($_GET['brWidth'])) ? $_GET['brWidth'] : '1800';
 </body>
 <script>
 // 일자 매매복기 저장
-function save() {
+function saveDR() {
 	form = document.form1;
 	form.proc_fg.value = 'saveDayReview';
+	form.target = "saveFrame";
+	form.submit();
+}
+
+// 일자 매매복기 저장
+function saveTM() {
+	form = document.form1;
+	form.proc_fg.value = 'saveTheme';
 	form.target = "saveFrame";
 	form.submit();
 }
