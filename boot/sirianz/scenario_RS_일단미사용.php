@@ -30,7 +30,7 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 <?php
 $code = (isset($_GET['code'])) ? $_GET['code'] : '';
 $name = (isset($_GET['name'])) ? $_GET['name'] : '';
-$trade_date = (isset($_GET['trade_date'])) ? $_GET['trade_date'] : '';
+$scenario_date = (isset($_GET['scenario_date'])) ? $_GET['scenario_date'] : '';
 $start_date = (isset($_GET['tracking_index'])) ? substr($_GET['tracking_index'],0, 8) : ''; 
 
 $brWidth = (isset($_GET['brWidth'])) ? $_GET['brWidth'] : '1800';
@@ -40,7 +40,7 @@ echo "<h4><font color=red><b>★ 질문 : 왜 더 가야하지? 눌림 주고 �
 <body>
 <form name="form1" method='POST' action='scenario_script.php'>
 <?php
-	if($trade_date == ''){
+	if($scenario_date == ''){
 		echo "<h3></h3>";
 	} else {
 
@@ -99,7 +99,7 @@ echo "<h4><font color=red><b>★ 질문 : 왜 더 가야하지? 눌림 주고 �
 						, A.dt_ratio
 					FROM mochaten A
 					WHERE A.code =  '$code'
-					AND A.trade_date = (SELECT MAX(trade_date) FROM mochaten WHERE code = '$code' and trade_date >= '$start_date' AND trade_date <= '$trade_date')" ;
+					AND A.trade_date = (SELECT MAX(trade_date) FROM mochaten WHERE code = '$code' and trade_date >= '$start_date' AND trade_date <= '$scenario_date')" ;
 
 		// echo "<pre>$query</pre>";
 		$result = $mysqli->query($query);
@@ -128,19 +128,19 @@ echo "<h4><font color=red><b>★ 질문 : 왜 더 가야하지? 눌림 주고 �
 			echo "</td></tr>";
 		echo "</table>";
 
-		$sub_query = "SELECT DATE_FORMAT(DATE_ADD('$trade_date', INTERVAL 1 DAY), '%Y%m%d') date, close FROM daily_price 
-					WHERE date = (select max(date) from daily_price where date <= '$trade_date' AND code = '$code' limit 1)
+		$sub_query = "SELECT DATE_FORMAT(DATE_ADD('$scenario_date', INTERVAL 1 DAY), '%Y%m%d') date, close FROM daily_price 
+					WHERE date = (select max(date) from daily_price where date <= '$scenario_date' AND code = '$code' limit 1)
 					AND code = '$code'
 					UNION ALL
 					SELECT date, close FROM daily_price
 					WHERE code = '$code'
-					AND date <= (select max(date) from daily_price where date <= '$trade_date' AND code = '$code' limit 1)
-					AND date > (select DATE_FORMAT(DATE_ADD('$trade_date', INTERVAL -1 YEAR), '%Y%m%d'))
+					AND date <= (select max(date) from daily_price where date <= '$scenario_date' AND code = '$code' limit 1)
+					AND date > (select DATE_FORMAT(DATE_ADD('$scenario_date', INTERVAL -1 YEAR), '%Y%m%d'))
 					ORDER BY date DESC ";
 
 		$query = "SELECT 
 						(SELECT close FROM daily_price 
-						WHERE date = '$trade_date'
+						WHERE date = '$scenario_date'
 						AND code = '$code'
 						) AS close_amt, 
 						(SELECT ROUND(AVG(close),0) 
@@ -219,8 +219,8 @@ echo "<h4><font color=red><b>★ 질문 : 왜 더 가야하지? 눌림 주고 �
 				<td width=85%'>";
 
 					// 당일 시나리오
-					$query = "	SELECT STR_TO_DATE(A.trade_date, '%Y%m%d') trade_date_str
-									, A.trade_date
+					$query = "	SELECT STR_TO_DATE(A.scenario_date, '%Y%m%d') scenario_date_str
+									, A.scenario_date
 									, A.code
 									, A.name
 									, A.mavg
@@ -229,10 +229,10 @@ echo "<h4><font color=red><b>★ 질문 : 왜 더 가야하지? 눌림 주고 �
 									, CASE WHEN A.tot_trade_amt >= 1000 THEN CONCAT('<font color=red><b>',A.tot_trade_amt,'억</b></font>') ELSE  CONCAT(A.tot_trade_amt,'억') END tot_trade_amt
 									, A.volume
 									, A.market_cap
-									, CASE WHEN A.sector IS NOT NULL THEN A.sector ELSE (SELECT sector FROM scenario WHERE trade_date < '$trade_date' AND code = A.code ORDER BY trade_date DESC LIMIT 1) END sector
-									, CASE WHEN A.theme IS NOT NULL THEN A.theme ELSE (SELECT theme FROM scenario WHERE trade_date < '$trade_date' AND code = A.code ORDER BY trade_date DESC LIMIT 1) END theme
-									, CASE WHEN A.issue IS NOT NULL THEN A.issue ELSE (SELECT issue FROM scenario WHERE trade_date < '$trade_date' AND code = A.code ORDER BY trade_date DESC LIMIT 1) END issue
-									, CASE WHEN A.stock_keyword IS NOT NULL THEN A.stock_keyword ELSE (SELECT stock_keyword FROM scenario WHERE trade_date < '$trade_date' AND code = A.code ORDER BY trade_date DESC LIMIT 1) END stock_keyword
+									, CASE WHEN A.sector IS NOT NULL THEN A.sector ELSE (SELECT sector FROM sophia_scenario WHERE scenario_date < '$scenario_date' AND code = A.code ORDER BY scenario_date DESC LIMIT 1) END sector
+									, CASE WHEN A.theme IS NOT NULL THEN A.theme ELSE (SELECT theme FROM sophia_scenario WHERE scenario_date < '$scenario_date' AND code = A.code ORDER BY scenario_date DESC LIMIT 1) END theme
+									, CASE WHEN A.issue IS NOT NULL THEN A.issue ELSE (SELECT issue FROM sophia_scenario WHERE scenario_date < '$scenario_date' AND code = A.code ORDER BY scenario_date DESC LIMIT 1) END issue
+									, CASE WHEN A.stock_keyword IS NOT NULL THEN A.stock_keyword ELSE (SELECT stock_keyword FROM sophia_scenario WHERE scenario_date < '$scenario_date' AND code = A.code ORDER BY scenario_date DESC LIMIT 1) END stock_keyword
 									, A.tracking_yn
 									, A.tracking_reason
 									, A.buy_pick
@@ -241,15 +241,15 @@ echo "<h4><font color=red><b>★ 질문 : 왜 더 가야하지? 눌림 주고 �
 									, A.buysell_yn
 									, A.buysell_review
 									, A.tracking_index
-								FROM scenario A
-								WHERE A.trade_date = '$trade_date'
+								FROM sophia_scenario A
+								WHERE A.scenario_date = '$scenario_date'
 								AND A.code = '$code'";
 
 					// echo "<pre>$query</pre>";
 					$result = $mysqli->query($query);
 					$row = $result->fetch_array(MYSQLI_BOTH);
 
-					$trade_date_str = $row['trade_date_str'];
+					$scenario_date_str = $row['scenario_date_str'];
 					$mavg           = $row['mavg'];
 					$status         = $row['status'];
 					$close_rate     = $row['close_rate'];
@@ -264,7 +264,8 @@ echo "<h4><font color=red><b>★ 질문 : 왜 더 가야하지? 눌림 주고 �
 					$scenario       = $row['scenario'];
 					$buy_band       = $row['buy_band'];
 					$buysell_review = $row['buysell_review'];
-					
+					$buysell_category= $row['buysell_category'];
+
 					if($row['buy_pick'] == 'Y') {
 						$checkY = 'checked';
 						$checkN = '';
@@ -293,7 +294,7 @@ echo "<h4><font color=red><b>★ 질문 : 왜 더 가야하지? 눌림 주고 �
 					
 					echo "<table class='table table-sm table-warning table-text-dark' border=0>";
 					echo "<tr align=left>";
-					echo "<td colspan=2><b>$trade_date_str</b> <input type=hidden name=tracking_index value='".$row['tracking_index']."'> &nbsp;&nbsp;&nbsp;&nbsp;";
+					echo "<td colspan=2><b>$scenario_date_str</b> <input type=hidden name=tracking_index value='".$row['tracking_index']."'> &nbsp;&nbsp;&nbsp;&nbsp;";
 					echo "$close_rate &nbsp;&nbsp;&nbsp;&nbsp; $tot_trade_amt </td>";
 					echo "<td> 차트상태 </td>";
 					echo "<td>$mavg &nbsp;&nbsp; <input type=text name=status value='$status'></td>";
@@ -336,13 +337,13 @@ echo "<h4><font color=red><b>★ 질문 : 왜 더 가야하지? 눌림 주고 �
 					echo "</tr>";
 					echo "<tr align=left>";
 					echo "<td> 매매유형 </td>";
-					echo "<td><input type=text name='buysell_category' readonly></td>";
+					echo "<td><input type=text name='buysell_category' value='$stock_keyword'></td>";
 					echo "</tr>";
 					echo "</table>";
 
 					// 이전 시나리오 보기
-					$query = "	SELECT STR_TO_DATE(A.trade_date, '%Y%m%d') trade_date_str
-									, A.trade_date
+					$query = "	SELECT STR_TO_DATE(A.scenario_date, '%Y%m%d') scenario_date_str
+									, A.scenario_date
 									, A.code
 									, A.name
 									, A.mavg
@@ -361,10 +362,10 @@ echo "<h4><font color=red><b>★ 질문 : 왜 더 가야하지? 눌림 주고 �
 									, CASE WHEN A.buysell_yn = 'Y' THEN '매매' ELSE '' END buysell_yn
 									, A.buysell_review
 									, A.tracking_index
-								FROM scenario A
-								INNER JOIN (SELECT tracking_index FROM scenario WHERE trade_date = '$trade_date' AND code = '$code') B
+								FROM sophia_scenario A
+								INNER JOIN (SELECT tracking_index FROM sophia_scenario WHERE scenario_date = '$scenario_date' AND code = '$code') B
 								ON B.tracking_index = A.tracking_index
-								ORDER BY A.trade_date DESC";
+								ORDER BY A.scenario_date DESC";
 
 					// echo "<pre>$query</pre>";
 					$result = $mysqli->query($query);
@@ -372,7 +373,7 @@ echo "<h4><font color=red><b>★ 질문 : 왜 더 가야하지? 눌림 주고 �
 					echo "<table class='table table-sm table-bordered small text-dark' style='font-size:90%'>";
 					while($row = $result->fetch_array(MYSQLI_BOTH)) {
 						echo "<tr>";
-						echo "<td rowspan=4 style='width:110px;height:12px;' align=center>".$row['trade_date_str']."</td>";
+						echo "<td rowspan=4 style='width:110px;height:12px;' align=center>".$row['scenario_date_str']."</td>";
 						echo "<td colspan=2>".$row['close_rate']." / ".$row['tot_trade_amt']." &nbsp;&nbsp;&nbsp; ".$row['issue']." &nbsp;&nbsp;&nbsp; ".$row['stock_keyword']." &nbsp;&nbsp;&nbsp; ";
 							echo "차트 : ".$row['mavg']." &nbsp;&nbsp; ".$row['status']." &nbsp;&nbsp;&nbsp; ".$row['buy_pick']."</td>";
 						echo "</tr>";
@@ -404,7 +405,7 @@ echo "<h4><font color=red><b>★ 질문 : 왜 더 가야하지? 눌림 주고 �
 
 ?>
 <input type=hidden name=proc_fg>
-<input type=hidden name=trade_date value=<?=$trade_date?>>
+<input type=hidden name=scenario_date value=<?=$scenario_date?>>
 <input type=hidden name=code value=<?=$code?>>
 </form>
 <iframe name="saveFrame" src="scenario_script.php" style='border:0px;' width=1000 height=700>
@@ -424,7 +425,7 @@ function save() {
 function getData(date) {
 	form = document.form1;
 	form.proc_fg.value = 'getData';
-	form.trade_date.value = date;
+	form.scenario_date.value = date;
 	form.target = "saveFrame";
 	form.submit();
 }

@@ -28,7 +28,7 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 </head>
 
 <?php
-$trade_date = (isset($_GET['trade_date'])) ? $_GET['trade_date'] : '';
+$scenario_date = (isset($_GET['scenario_date'])) ? $_GET['scenario_date'] : '';
 
 $brWidth = (isset($_GET['brWidth'])) ? $_GET['brWidth'] : '1800';
 ?>
@@ -37,7 +37,7 @@ $brWidth = (isset($_GET['brWidth'])) ? $_GET['brWidth'] : '1800';
 <form name="form1" method='POST' action='scenario_script.php'>
 
 <?php
-	if($trade_date == ''){
+	if($scenario_date == ''){
 		echo "<h3></h3>";
 	} else {
 
@@ -54,7 +54,7 @@ $brWidth = (isset($_GET['brWidth'])) ? $_GET['brWidth'] : '1800';
 					LEFT OUTER JOIN market_index C
 					ON C.date = A.date
 					AND C.market_fg = 'KOSDAQ'
-					WHERE A.date = '$trade_date'";
+					WHERE A.date = '$scenario_date'";
 
 		$result = $mysqli->query($query);
 		$row = $result->fetch_array(MYSQLI_BOTH);
@@ -103,29 +103,30 @@ $brWidth = (isset($_GET['brWidth'])) ? $_GET['brWidth'] : '1800';
 		// 		</div>
 		// 	</div>";
 
-		// 1일차 매매 대상
-		echo "<div class='h5 font-weight-bold text-gray-800' style=' margin:0px; margin-top:10px; margin-bottom:10px;'>▷ 1일차 매매 대상 종목</div>";
+		// 매매고려 종목
+		echo "<div class='h5 font-weight-bold text-gray-800' style=' margin:0px; margin-top:10px; margin-bottom:10px;'>▷ 매매 고려 종목</div>";
 
-		$query = "	SELECT STR_TO_DATE(A.trade_date, '%Y%m%d') trade_date_str
-						, A.trade_date
+		$query = "	SELECT STR_TO_DATE(A.scenario_date, '%Y%m%d') scenario_date_str
+						, A.scenario_date
 						, A.code
 						, A.name
 						, A.mavg
 						, A.status
-						, CASE WHEN A.close_rate >= 0 THEN CONCAT('<font color=red> ▲',A.close_rate,'% </font>') ELSE  CONCAT('<font color=blue> ▼',A.close_rate,'% </font>') END close_rate
-						, CASE WHEN A.tot_trade_amt >= 1000 THEN CONCAT('<font color=red><b>',A.tot_trade_amt,'억</b></font>') ELSE  CONCAT(A.tot_trade_amt,'억') END tot_trade_amt
-						, A.volume
-						, A.market_cap
-						, CASE WHEN A.theme is null OR  A.theme = '' THEN A.sector ELSE A.theme END uprsn
-						, A.stock_keyword
-						, A.last_0day
-						, A.tracking_index
-					FROM scenario A
-					INNER JOIN (SELECT MAX(date) pre_date FROM calendar WHERE date < '$trade_date') B
-					ON A.trade_date = B.pre_date
-					WHERE A.status LIKE '0일차%'
-					ORDER BY A.tot_trade_amt DESC";
+						, CASE WHEN B.close_rate >= 0 THEN CONCAT('<font color=red> ▲',B.close_rate,'% </font>') ELSE  CONCAT('<font color=blue> ▼',B.close_rate,'% </font>') END close_rate
+						, CASE WHEN B.tot_trade_amt >= 1000 THEN CONCAT('<font color=red><b>',B.tot_trade_amt,'억</b></font>') ELSE  CONCAT(B.tot_trade_amt,'억') END tot_trade_amt
+						, B.volume
+						, B.market_cap
+						, CASE WHEN B.theme is null OR  B.theme = '' THEN B.sector ELSE B.theme END uprsn
+						, B.stock_keyword
+						, A.watchlist_date
+					FROM sophia_scenario A
+					INNER JOIN sophia_watchlist B
+					ON A.watchlist_date = B.watchlist_date
+					AND A.code = B.code
+					WHERE A.scenario_date = '$scenario_date'
+					ORDER BY A.watchlist_date DESC, B.tot_trade_amt DESC";
 
+		// echo "<pre>$query</pre>";
 		$result = $mysqli->query($query);
 		echo "<div class='row'>";
 		$i=0;
@@ -155,13 +156,12 @@ $brWidth = (isset($_GET['brWidth'])) ? $_GET['brWidth'] : '1800';
 		echo "</div>";
 
 		// 오늘의 매매복기
-		$query = "	SELECT STR_TO_DATE(A.trade_date, '%Y%m%d') trade_date_str
-						, A.trade_date
+		$query = "	SELECT STR_TO_DATE(A.scenario_date, '%Y%m%d') scenario_date_str
+						, A.scenario_date
 						, A.buysell_category
 						, A.buysell_review
-						, A.tracking_index
-					FROM scenario A
-					WHERE A.trade_date = '$trade_date'
+					FROM sophia_scenario A
+					WHERE A.scenario_date = '$scenario_date'
 					AND A.code = 'DAY'";
 
 		$result = $mysqli->query($query);
@@ -199,19 +199,16 @@ $brWidth = (isset($_GET['brWidth'])) ? $_GET['brWidth'] : '1800';
 		echo "<th width=120>섹터</th>";
 		echo "<th width=120>테마</th>";
 		echo "<th width=300>이슈</th>";
-		echo "<th width=60>또?</th>";
 		echo "<th>COMMENT</th>";
 		echo "</tr>";
-	
+
 		$query = " 	SELECT A.sector
 						,  A.theme
 						,  A.issue
 						,  A.hot_theme
-						,  A.tobecontinued
 						,  A.theme_comment
-					FROM scenario A
-					WHERE A.trade_date = '$trade_date'
-					AND A.last_0day = '$trade_date' -- 오늘 0일차 종목만
+					FROM sophia_watchlist A
+					WHERE A.watchlist_date = '$scenario_date'
 					AND A.code != 'DAY'
 					GROUP BY A.sector
 						,  A.theme
@@ -223,14 +220,12 @@ $brWidth = (isset($_GET['brWidth'])) ? $_GET['brWidth'] : '1800';
 		while($row = $result->fetch_array(MYSQLI_BOTH)) {
 			
 			$checked1 = ($row['hot_theme'] == 'Y') ? " checked" : "";
-			$checked2 = ($row['tobecontinued'] == 'Y') ? " checked" : "";
 
 			echo "<tr align=center>";
 			echo "<td><input type=checkbox class=hot_theme name=hot_theme$i value='Y' $checked1></td>";
 			echo "<td><input type=text name=sector$i value=\"".$row['sector']."\"></td>";
 			echo "<td><input type=text name=theme$i value=\"".$row['theme']."\"></td>";
 			echo "<td><input type=text name=issue$i style='width: 300px;' value=\"".$row['issue']."\"></td>";
-			echo "<td><input type=checkbox class=tobecontinued name=tobecontinued$i value='Y' $checked2></td>";
 			echo "<td><input type=text name=theme_comment$i style='width:95%;' value=\"".$row['theme_comment']."\"></td>";
 			echo "<input type=hidden name=org_sector$i value=\"".$row['sector']."\">";
 			echo "<input type=hidden name=org_theme$i value=\"".$row['theme']."\">";
@@ -243,7 +238,7 @@ $brWidth = (isset($_GET['brWidth'])) ? $_GET['brWidth'] : '1800';
 	}
 ?>
 <input type=hidden name=proc_fg>
-<input type=hidden name=trade_date value=<?=$trade_date?>>
+<input type=hidden name=scenario_date value=<?=$scenario_date?>>
 <input type=hidden name=cnt value=<?=$i?>>
 <input type=hidden name=code value='DAY'>
 </form>
@@ -271,7 +266,7 @@ function saveTM() {
 function getData(date) {
 	form = document.form1;
 	form.proc_fg.value = 'getData';
-	form.trade_date.value = date;
+	form.scenario_date.value = date;
 	form.target = "saveFrame";
 	form.submit();
 }

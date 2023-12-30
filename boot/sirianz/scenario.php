@@ -2,7 +2,7 @@
     require($_SERVER['DOCUMENT_ROOT']."/boot/common/top.php");
 	require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 
-$trade_date = (isset($_GET['search_date'])   ) ? $_GET['search_date'] : date('Ymd',time());
+$scenario_date = (isset($_GET['search_date'])   ) ? $_GET['search_date'] : date('Ymd',time());
 ?>
 </head>
 
@@ -28,10 +28,10 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_sirianz.php");
 				<select id="search_date" class="select" style='width:120px;'>
 				<?php
 					$query = " SELECT date
-									, CASE WHEN B.trade_date is null THEN '' ELSE '(Y)' END regi_scenario
+									, CASE WHEN B.scenario_date is null THEN '' ELSE '(Y)' END regi_scenario
 								FROM calendar A
-								LEFT OUTER JOIN (SELECT trade_date FROM scenario GROUP BY trade_date) B
-								ON B.trade_date = A.date
+								LEFT OUTER JOIN (SELECT scenario_date FROM sophia_scenario GROUP BY scenario_date) B
+								ON B.scenario_date = A.date
 								WHERE date <= (select DATE_FORMAT(now(), '%Y%m%d'))
 								AND date >= '20231001' -- 시나리오 등록 시작일
 								ORDER BY date DESC";
@@ -42,7 +42,7 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_sirianz.php");
 					$i=0;
 					while($row = $result->fetch_array(MYSQLI_BOTH)) {
 						// 거래일자가 없는 경우는 제일 1행 선택되도록..
-						if($trade_date == $row['date']) {
+						if($scenario_date == $row['date']) {
 							$option .= "<option value='". $row['date']."' selected>".$row['date'].$row['regi_scenario']."</option>";
 						} else {
 							$option .= "<option value='". $row['date']."'>".$row['date'].$row['regi_scenario']."</option>";
@@ -52,26 +52,24 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_sirianz.php");
 					echo $option;
 				?>
 				</select>
-				<button class="btn btn-danger btn-sm" onclick="getData()">GetData</button>
+				<!-- <button class="btn btn-secondary btn-sm" onclick="getData()">GetData</button>
 				&nbsp;
-				<!-- <select id="tracking_yn" class="select">
-					<option value='Y' selected>추적Y</option>
-					<option value='N'>추적N</option>
-				</select> -->
 
 				<select id="buy_pick" class="select">
 					<option value='' selected>매매?</option>
 					<option value='Y'>Y</option>
 					<option value='N'>N</option>
-				</select>
+				</select> -->
 				
 				<button class="btn btn-danger btn-sm" onclick="search()"> 조 회 </button>
+				&nbsp;&nbsp;&nbsp;
+				<button class="btn btn-info btn-sm" onclick="show()"> 테마보기 </button>
 				
 			</div>
 		</td>
 		<td style='width:75%' rowspan=2 valign=top>
 			<div style="margin: 0; border: 0; font: inherit;vertical-align: baseline; padding: 0;height: calc(100vh - 100px);">
-				<iframe id="iframeR" style="width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 30px);" src="scenario_RS.php">
+				<iframe id="iframeR" style="width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 30px);" src="scenario_CMD.php">
 				</iframe>
 			</div>
 		</td>
@@ -108,6 +106,12 @@ function search() {
 	return;
 }
 
+// 테마보기 하면 오른쪽 프레임에 관종 기준 테마가 달력으로 표시 
+function show() {
+	iframeR.src = "scenario_CMT.php";
+	return;
+}
+
 // 거래일자 선택후 데이터 가져오기
 function getData() {
 
@@ -119,16 +123,16 @@ function getData() {
 }
 
 // 종목 선택 시 오른쪽 프레임에 내역 조회
-function viewStock(date, cd, nm, idx) {
+function viewStock(wdate, sdate, cd, nm) {
 	brWidth = window.innerWidth;
-	iframeR.src = "scenario_RS.php?trade_date="+date+"&code="+cd+"&name="+nm+"&tracking_index="+idx+"&brWidth="+brWidth;
+	iframeR.src = "scenario_CMD.php?watchlist_date="+wdate+"&scenario_date="+sdate+"&code="+cd+"&name="+nm+"&brWidth="+brWidth;
 	return;
 }
 
 // 일자 선택 시 오른쪽 프레임에 내역 조회
 function viewDay(date) {
 	brWidth = window.innerWidth;
-	iframeR.src = "scenario_RD.php?trade_date="+date+"&brWidth="+brWidth;
+	iframeR.src = "scenario_RD.php?scenario_date="+date+"&brWidth="+brWidth;
 	return;
 }
 </script>

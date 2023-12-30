@@ -121,13 +121,6 @@ if($_SERVER["HTTP_HOST"] == 'localhost') {
 
             <!-- Nav Item -->
             <li class="nav-item">
-                <a class="nav-link" href="<?=$PATH?>sirianz/hotStock.php">
-                    <i class="fas fa-fw fa-gift"></i>
-                    <span>Hot Stock List </span></a>
-            </li>
-
-            <!-- Nav Item -->
-            <li class="nav-item">
                 <a class="nav-link" href="<?=$PATH?>sirianz/nomadList.php">
                     <i class="fas fa-fw fa-gift"></i>
                     <span>NOMAD List </span></a>
@@ -155,6 +148,13 @@ if($_SERVER["HTTP_HOST"] == 'localhost') {
             <div class="sidebar-heading">
                 Trading
             </div>
+
+            <!-- Nav Item -->
+            <li class="nav-item">
+                <a class="nav-link" href="<?=$PATH?>sirianz/watchList.php">
+                    <i class="fas fa-fw fa-gift"></i>
+                    <span>WatchList </span></a>
+            </li>
 
             <!-- Nav Item -->
             <li class="nav-item">
