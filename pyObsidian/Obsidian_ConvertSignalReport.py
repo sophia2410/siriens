@@ -6,6 +6,7 @@ import configparser
 import Obsidian_StockList as stli
 from datetime import datetime
 from collections import Counter
+import Obsidian_DBUpHistory_SubMdu # 실제 파일 업로드 처리하는 부분 모듈화
 
 # 설정 파일 읽기
 config = configparser.ConfigParser()
@@ -79,7 +80,9 @@ new_file_name = f'@Signal Report {date}.md'
 
 # 제목을 추가하고, 첫 행을 제거합니다.
 index = content.index(first_line)
-content[index] = f'Title:: {title}\n'  # 첫 행을 제목으로 대체합니다.
+print('title=' + title.strip() + '------------------')
+if title.strip() != '' :
+    content[index] = f'Title:: {title}\n'  # 첫 행을 제목으로 대체합니다.
 
 # 한 줄을 비우고 '@nomad'를 추가합니다.
 content.insert(index + 1, '@nomad')
@@ -187,14 +190,19 @@ new_file_path = f'D:/Obsidian/Trader Sophia/99 Inbox/{new_file_name}'  # 새 파
 with open(new_file_path, 'w', encoding='utf-8') as f:
     f.write(remove_trailing_spaces_and_blank_lines_with_spaces(''.join(content)))
 
+# 파일명에서 리포트일자를 구해옵니다.
+md_date = re.search(r'@Signal Report (\d{4}).(\d{2}).(\d{2})\(.+\).md', new_file_path).group(1) + re.search(r'@Signal Report (\d{4}).(\d{2}).(\d{2})\(.+\).md', new_file_path).group(2) + re.search(r'@Signal Report (\d{4}).(\d{2}).(\d{2})\(.+\).md', new_file_path).group(3)
+
+# Obsidian_DBUpHistory.py 파일을 실행하세요.
+# os.system('C:/Users/elf96/AppData/Local/Programs/Python/Python39/python.exe E:/Project/202410/www/PyObsidian/Obsidian_DBUpHistory.py')
+
+# 전체가 아니라 변환한 파일만 처리되도록 변경
+
+Obsidian_DBUpHistory_SubMdu.get_market_summary(new_file_path, md_date, new_file_name, cursor, db)
+
 # 처리 종료
 end_time = datetime.now()
 print(f"처리 종료 시간: {end_time}")
 
 # 데이터베이스 연결 종료
 db.close()
-
-time.sleep(4)
-
-# Obsidian_DBUpHistory.py 파일을 실행하세요.
-os.system('C:/Users/elf96/AppData/Local/Programs/Python/Python39/python.exe E:/Project/202410/www/PyObsidian/Obsidian_DBUpHistory.py')

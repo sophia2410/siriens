@@ -320,4 +320,4 @@ class DBUpdater:
 if __name__ == '__main__':
 	dbu = DBUpdater()
 	# dbu.execute_daily()
-	dbu.pykrxMarket_execute('20231220','20231221')
+	dbu.pykrxMarket_execute('20240102','20240103')

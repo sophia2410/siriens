@@ -31,13 +31,15 @@ share/python-wheels/
 MANIFEST
 
 # add Sophia
-scrap/
+scrap/*
 bak/
 image/
 Z-orgPage/
 .idea/
 *.ini
 *.txt
+*.html
+*.csv
 connect.php
 
 # PyInstaller
