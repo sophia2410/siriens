@@ -30,7 +30,7 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_sirianz.php");
 					$query = " SELECT date
 									, CASE WHEN B.scenario_date is null THEN '' ELSE '(Y)' END regi_scenario
 								FROM calendar A
-								LEFT OUTER JOIN (SELECT scenario_date FROM sophia_scenario GROUP BY scenario_date) B
+								LEFT OUTER JOIN (SELECT scenario_date FROM sirianz_scenario GROUP BY scenario_date) B
 								ON B.scenario_date = A.date
 								WHERE date <= (select DATE_FORMAT(now(), '%Y%m%d'))
 								AND date >= '20231001' -- 시나리오 등록 시작일
@@ -69,7 +69,7 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_sirianz.php");
 		</td>
 		<td style='width:75%' rowspan=2 valign=top>
 			<div style="margin: 0; border: 0; font: inherit;vertical-align: baseline; padding: 0;height: calc(100vh - 100px);">
-				<iframe id="iframeR" style="width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 30px);" src="scenario_CMD.php">
+				<iframe id="iframeR" style="width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 30px);" src="scenario_RS.php">
 				</iframe>
 			</div>
 		</td>
@@ -98,17 +98,17 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_sirianz.php");
 function search() {
 	key_val  = document.getElementById('search_date').options[document.getElementById("search_date").selectedIndex].value;
 	// key_val1 = document.getElementById('tracking_yn').options[document.getElementById("tracking_yn").selectedIndex].value;
-	key_val2 = document.getElementById('buy_pick').options[document.getElementById("buy_pick").selectedIndex].value;
+	// key_val2 = document.getElementById('buy_pick').options[document.getElementById("buy_pick").selectedIndex].value;
 
 	brWidth = window.innerWidth;
 	// iframeL.src = "scenario_L.php?search_date="+key_val+"&tracking_yn="+key_val1+"&buy_pick="+key_val2+"&brWidth="+brWidth;
-	iframeL.src = "scenario_L.php?search_date="+key_val+"&buy_pick="+key_val2+"&brWidth="+brWidth;
+	iframeL.src = "scenario_L.php?search_date="+key_val+"&brWidth="+brWidth;
 	return;
 }
 
 // 테마보기 하면 오른쪽 프레임에 관종 기준 테마가 달력으로 표시 
 function show() {
-	iframeR.src = "scenario_CMT.php";
+	iframeR.src = "scenario_RT.php";
 	return;
 }
 
@@ -125,14 +125,14 @@ function getData() {
 // 종목 선택 시 오른쪽 프레임에 내역 조회
 function viewStock(wdate, sdate, cd, nm) {
 	brWidth = window.innerWidth;
-	iframeR.src = "scenario_CMD.php?watchlist_date="+wdate+"&scenario_date="+sdate+"&code="+cd+"&name="+nm+"&brWidth="+brWidth;
+	iframeR.src = "scenario_RS.php?watchlist_date="+wdate+"&scenario_date="+sdate+"&code="+cd+"&name="+nm+"&brWidth="+brWidth;
 	return;
 }
 
 // 일자 선택 시 오른쪽 프레임에 내역 조회
 function viewDay(date) {
 	brWidth = window.innerWidth;
-	iframeR.src = "scenario_RD.php?scenario_date="+date+"&brWidth="+brWidth;
+	iframeR.src = "scenario_RD.php?search_fg=scenario&search_date="+date+"&brWidth="+brWidth;
 	return;
 }
 </script>

@@ -30,7 +30,7 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_sirianz.php");
 					$query = " SELECT date
 									, CASE WHEN B.watchlist_date is null THEN '' ELSE '(Y)' END regi_watchlist
 								FROM calendar A
-								LEFT OUTER JOIN (SELECT watchlist_date FROM sophia_watchlist GROUP BY watchlist_date) B
+								LEFT OUTER JOIN (SELECT watchlist_date FROM sirianz_watchlist GROUP BY watchlist_date) B
 								ON B.watchlist_date = A.date
 								WHERE date <= (select DATE_FORMAT(now(), '%Y%m%d'))
 								ORDER BY date DESC
@@ -65,7 +65,7 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_sirianz.php");
 		</td>
 		<td style='width:75%' rowspan=2 valign=top>
 			<div style="margin: 0; border: 0; font: inherit;vertical-align: baseline; padding: 0;height: calc(100vh - 100px);">
-				<iframe id="iframeR" style="width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 30px);" src="scenario_CMD.php">
+				<iframe id="iframeR" style="width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 30px);" src="scenario_RS.php">
 				</iframe>
 			</div>
 		</td>
@@ -98,6 +98,12 @@ function search() {
 	return;
 }
 
+// 관종등록일자 선택후 조회 - 왼쪽 프레임에 종목 리스트업
+function show() {
+	iframeR.src = "scenario_RT.php";
+	return;
+}
+
 // 관종등록일자 선택후 데이터 가져오기
 function getData() {
 
@@ -122,14 +128,14 @@ function addData() {
 // 종목 선택 시 오른쪽 프레임에 내역 조회
 function viewStock(wdate, sdate, cd, nm) {
 	brWidth = window.innerWidth;
-	iframeR.src = "scenario_CMD.php?watchlist_date="+wdate+"&scenario_date="+sdate+"&code="+cd+"&name="+nm+"&brWidth="+brWidth;
+	iframeR.src = "scenario_RS.php?watchlist_date="+wdate+"&scenario_date="+sdate+"&code="+cd+"&name="+nm+"&brWidth="+brWidth;
 	return;
 }
 
 // 일자 선택 시 오른쪽 프레임에 내역 조회
 function viewDay(date) {
 	brWidth = window.innerWidth;
-	iframeR.src = "watchlist_RD.php?watchlist_date="+date+"&brWidth="+brWidth;
+	iframeR.src = "scenario_RD.php?search_fg=watchlist&search_date="+date+"&brWidth="+brWidth;
 	return;
 }
 </script>

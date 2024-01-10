@@ -23,7 +23,7 @@ if(isset($_POST['proc_fg'])) {
 			$org_sector = $_POST['org_sector'];
 			$org_theme  = $_POST['org_theme'];
 			
-			$qry = "UPDATE sophia_watchlist
+			$qry = "UPDATE sirianz_watchlist
 			SET sector	= '$mod_sector'
 			,	theme	= '$mod_theme'
 			WHERE sector='$org_sector' 
@@ -53,7 +53,7 @@ if(isset($_POST['proc_fg'])) {
 			$watchlist_date	= 'watchlist_date'.$i;
 			$code			= 'code'.$i;
 
-			$qry = "UPDATE sophia_watchlist
+			$qry = "UPDATE sirianz_watchlist
 					SET sector		= '".$_POST[$sector]."'
 					,	theme		= '".$_POST[$theme]."'
 					,	issue		= '".$_POST[$issue]."'

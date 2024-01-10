@@ -21,7 +21,7 @@ if(isset($_POST['proc_fg'])) {
 		$watchlist_date = $_POST['watchlist_date'];
 
 		// 500억 이상 or 상한가+250억 이상 0일차 불러오기
-		$qry = "INSERT IGNORE INTO sophia_watchlist
+		$qry = "INSERT IGNORE INTO sirianz_watchlist
 				( watchlist_date
 				, code
 				, name
@@ -51,11 +51,11 @@ if(isset($_POST['proc_fg'])) {
 		echo $qry."<br><br>";
 		$mysqli->query($qry);
 
-		$qry = "UPDATE sophia_watchlist A
+		$qry = "UPDATE sirianz_watchlist A
 				INNER JOIN daily_price B
 				ON  B.date = A.watchlist_date
 				AND B.code = A.code
-				INNER JOIN (SELECT * FROM sophia_watchlist WHERE watchlist_date = (SELECT MAX(watchlist_date) FROM sophia_watchlist WHERE watchlist_date < '$watchlist_date')) C
+				INNER JOIN (SELECT * FROM sirianz_watchlist WHERE watchlist_date = (SELECT MAX(watchlist_date) FROM sirianz_watchlist WHERE watchlist_date < '$watchlist_date')) C
 				ON C.code = A.code
 				SET A.close_rate = CASE WHEN A.close_rate IS NULL OR A.close_rate = '' THEN B.close_rate ELSE A.close_rate END
 					, A.volume = CASE WHEN A.volume IS NULL OR A.volume = '' THEN round(B.volume/1000,0) ELSE A.volume END
@@ -85,7 +85,7 @@ if(isset($_POST['proc_fg'])) {
 			echo '<script>alert("종목 정보를 찾을 수 없습니다."); parent.focus();</script>';
 		}
 		else {
-			$qry = "INSERT IGNORE INTO sophia_watchlist
+			$qry = "INSERT IGNORE INTO sirianz_watchlist
 					( watchlist_date
 					, code
 					, name
@@ -109,7 +109,7 @@ if(isset($_POST['proc_fg'])) {
 					LEFT OUTER JOIN daily_price B
 					ON  B.date = '$watchlist_date'
 					AND B.code = A.code
-					LEFT OUTER JOIN (SELECT * FROM sophia_watchlist WHERE watchlist_date = (SELECT MAX(watchlist_date) FROM sophia_watchlist WHERE watchlist_date < '$watchlist_date')) C
+					LEFT OUTER JOIN (SELECT * FROM sirianz_watchlist WHERE watchlist_date = (SELECT MAX(watchlist_date) FROM sirianz_watchlist WHERE watchlist_date < '$watchlist_date')) C
 					ON C.code = A.code
 					WHERE A.code = '$code'";
 
@@ -118,7 +118,7 @@ if(isset($_POST['proc_fg'])) {
 		}
 	} else if($_POST['proc_fg'] == 'saveScenario') {
 		// 관종리스트 업데이트
-		$qry = " UPDATE sophia_watchlist
+		$qry = " UPDATE sirianz_watchlist
 					SET sector	  = '".$_POST['sector']."'
 					, theme		  = '".$_POST['theme']."'
 					, issue		  = '".$_POST['issue']."'
@@ -135,11 +135,11 @@ if(isset($_POST['proc_fg'])) {
 		if ($_POST['buy_pick'] == 'Y' || $_POST['buysell_yn'] == 'Y') {
 
 			// 시나리오 업데이트 또는 인서트
-			$qry = " INSERT INTO sophia_scenario
+			$qry = " INSERT INTO sirianz_scenario
 						(scenario_date, code, name, buy_pick, buy_band, scenario, buysell_yn, buysell_category, buysell_review, watchlist_date, create_dtime)
 					SELECT '".$_POST['scenario_date']."', code, name, '".$_POST['buy_pick']."', '".$_POST['buy_band']."', '".$_POST['scenario']."'
 						 , '".$_POST['buysell_yn']."', '".$_POST['buysell_category']."', '".$_POST['buysell_review']."', watchlist_date, now()
-					FROM  sophia_watchlist
+					FROM  sirianz_watchlist
 					WHERE watchlist_date = '".$_POST['watchlist_date']."'
 					AND   code = '".$_POST['code']."'
 					ON DUPLICATE KEY UPDATE
@@ -156,7 +156,7 @@ if(isset($_POST['proc_fg'])) {
 			$sub_query = "SELECT date, close FROM daily_price
 							WHERE code = '".$_POST['code']."'
 							AND date <= (select max(date) from daily_price where date < '".$_POST['scenario_date']."' AND code = '".$_POST['code']."' limit 1)
-							AND date > (select DATE_FORMAT(DATE_ADD('$scenario_date', INTERVAL -1 YEAR), '%Y%m%d'))
+							AND date > (select DATE_FORMAT(DATE_ADD('".$_POST['scenario_date']."', INTERVAL -1 YEAR), '%Y%m%d'))
 							ORDER BY date DESC ";
 
 			$u_query = "SELECT 
@@ -206,7 +206,7 @@ if(isset($_POST['proc_fg'])) {
 						FROM (
 								SELECT 
 									(SELECT close FROM daily_price 
-									WHERE date = '$scenario_date'
+									WHERE date = '".$_POST['scenario_date']."'
 									AND code = '$code'
 									) AS close_amt, 
 									(SELECT ROUND(AVG(close),0) 
@@ -268,7 +268,7 @@ if(isset($_POST['proc_fg'])) {
 			echo $qry."<br><br>";
 			$mysqli->query($qry);
 
-			$update = "UPDATE sophia_scenario S
+			$update = "UPDATE sirianz_scenario S
 						INNER JOIN (SELECT close_amt, closest, compare FROM ( $u_query ) AS inqry ) AS M
 						SET S.mavg = CONCAT(M.compare, M.closest)
 						WHERE S.code = '".$_POST['code']."'
@@ -278,7 +278,7 @@ if(isset($_POST['proc_fg'])) {
 			$mysqli->query($update);
 		} else {
 			// 시나리오 업데이트
-			$qry = " UPDATE sophia_scenario
+			$qry = " UPDATE sirianz_scenario
 						SET buy_pick	  = '".$_POST['buy_pick']."'
 						, buy_band		  = '".$_POST['buy_band']."'
 						, scenario		  = '".$_POST['scenario']."'
@@ -292,12 +292,12 @@ if(isset($_POST['proc_fg'])) {
 		}
 
 	} else if($_POST['proc_fg'] == 'saveDayReview') {	// 일자별 매매 복기
-		$qry = "DELETE FROM sophia_scenario WHERE scenario_date = '".$_POST['scenario_date']."' AND code = '".$_POST['code']."'";
+		$qry = "DELETE FROM sirianz_scenario WHERE scenario_date = '".$_POST['search_date']."' AND code = '".$_POST['code']."'";
 
 		echo $qry."<br><br>";
 		$mysqli->query($qry);
 
-		$qry = "INSERT INTO sophia_scenario
+		$qry = "INSERT INTO sirianz_scenario
 				( scenario_date
 				, code
 				, buysell_category
@@ -305,7 +305,7 @@ if(isset($_POST['proc_fg'])) {
 				, create_dtime
 				)
 				values 
-				('".$_POST['scenario_date']."'
+				('".$_POST['search_date']."'
 				,'".$_POST['code']."'
 				,'".$_POST['buysell_category']."'
 				,'".$_POST['buysell_review']."'
@@ -330,13 +330,13 @@ if(isset($_POST['proc_fg'])) {
 			$hot_theme = isset($_POST[$hot_theme]) ? 'Y' : 'N';
 			$tobecontinued = isset($_POST[$tobecontinued]) ? 'Y' : 'N';
 
-			$qry = "UPDATE sophia_watchlist
+			$qry = "UPDATE sirianz_watchlist
 					SET sector		= '".$_POST[$sector]."'
 					,	theme		= '".$_POST[$theme]."'
 					,	issue		= '".$_POST[$issue]."'
 					, 	hot_theme	= '$hot_theme'
 					, 	theme_comment= '".$_POST[$theme_comment]."'
-					WHERE watchlist_date ='".$_POST['watchlist_date']."'
+					WHERE watchlist_date ='".$_POST['search_date']."'
 					AND sector  ='".$_POST[$org_sector]."' 
 					AND theme  ='".$_POST[$org_theme]."' 
 					AND issue  ='".$_POST[$org_issue]."'";
@@ -352,7 +352,6 @@ if(isset($_POST['proc_fg'])) {
 			var iframeR = parent.parent.document.getElementById ("iframeR").contentWindow;
 			iframeR.location.reload ();
 		</script>';
-
 
 }
 

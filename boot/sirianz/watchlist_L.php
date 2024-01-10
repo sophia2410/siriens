@@ -29,7 +29,7 @@ $query = " SELECT Z.*
 						, A.tracking_yn
 						, CASE WHEN A.theme is null OR  A.theme = '' THEN A.sector ELSE A.theme END uprsn
 						, E.evening_subject
-					FROM sophia_watchlist A
+					FROM sirianz_watchlist A
 					LEFT OUTER JOIN market_index B
 					on B.date = A.watchlist_date
 					and B.market_fg = 'KOSPI'
@@ -62,10 +62,7 @@ $result = $mysqli->query($query);
 	while($row = $result->fetch_array(MYSQLI_BOTH)) {
 		$watchlist_date = $row['watchlist_date'];
 		if($pre_watchlist_date != $row['watchlist_date']) {
-			// 시나리오 화면 카피하면서 일자별 링크도 걸렸으나 일단 제외. 기능 고민보자. 2023.12.31
-			// echo "<tr class='table-danger  text-dark' align=left><th colspan=6><b>▶ <a href=\"javascript:callFrameRD('".$row['watchlist_date']."')\">".$row['watchlist_date_str']."</b></a> &nbsp;&nbsp; (코스피 : ".$row['kospi_index']." , 코스닥 : ".$row['kosdaq_index'].") </th></tr>";
-
-			echo "<tr class='table-danger  text-dark' align=left><th colspan=6>[관종일] <b>▶".$row['watchlist_date_str']."</b> &nbsp;&nbsp; (코스피 : ".$row['kospi_index']." , 코스닥 : ".$row['kosdaq_index'].") </th></tr>";
+			echo "<tr class='table-danger  text-dark' align=left><th colspan=6>[관종일] <b>▶ <a href=\"javascript:callFrameRD('".$row['watchlist_date']."')\">".$row['watchlist_date_str']."</b></a> &nbsp;&nbsp; (코스피 : ".$row['kospi_index']." , 코스닥 : ".$row['kosdaq_index'].") </th></tr>";
 			
 			if($row['evening_subject'] != '') 
 				echo "<tr class='table-info text-dark' align=left><th colspan=6>'".$row['evening_subject']."</th></tr>";
@@ -110,7 +107,7 @@ function callFrameRS(wdate, sdate, cd, nm) {
 	window.parent.viewStock(wdate, sdate, cd, nm);
 }
 
-// parent 함수 호출, 오른쪽 프레임 종목정보 표시
+// parent 함수 호출, 오른쪽 프레임 일자별 내용 표시
 function callFrameRD(date, cd, nm, idx) {
 	window.parent.viewDay(date, cd, nm, idx);
 }
