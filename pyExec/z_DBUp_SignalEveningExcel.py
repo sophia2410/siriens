@@ -59,7 +59,7 @@ class DBUpdater :
 			else :
 				content	= rdxls.content.values[idx].replace("'", "\\'").replace('"','\\"')
 
-			sql = f'''REPLACE INTO cafe_signal_evening
+			sql = f'''REPLACE INTO _org_signal_evening_cafe
 		              ( title
 					  ,	link
 					  , stock

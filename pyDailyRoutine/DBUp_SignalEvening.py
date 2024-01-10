@@ -336,7 +336,7 @@ def main():
 	cur = conn.cursor()
 	
 	sql = "SELECT max(date) date FROM calendar a WHERE date <= (select DATE_FORMAT(now(), '%Y%m%d'))"
-	# sql = "SELECT date FROM calendar a WHERE date = '20231219'"
+	sql = "SELECT date FROM calendar a WHERE date = '20230531'"
 	
 	df = pd.read_sql(sql, conn)
 	date = df['date'].values[0].decode('utf-8')

@@ -97,6 +97,8 @@ def crawling_hankyung(soup):
 
 	# 타이틀 공백 및 개행 처리
 	title = soup.find("h1", class_="headline")
+	if title is None:
+		title = soup.find("h1", class_="article-tit")
 	title = title.text.strip()
 
 	# 기자 이름 본문에 있어 패스
@@ -104,13 +106,20 @@ def crawling_hankyung(soup):
 
 	# 날짜 공백 처리
 	date = soup.find("div", class_="datetime")
-	date = date.text.replace('\n','').replace('.','').replace('입력','').strip()
-	time = date[9:14]
-	date = date[0:8]
+	if date is None:
+		time = ''
+		date = ''
+	else:
+		date = date.text.replace('\n','').replace('.','').replace('입력','').strip()
+		time = date[9:14]
+		date = date[0:8]
 
 	# 본문 구하기
 	content = soup.find("div", class_="article-body")
-	content = content.text.strip()
+	if content is not None:
+		content = content.text.strip()
+	else:
+		content = ''
 
 	rt = [publisher, title, name, date, time, content]
 	return rt
