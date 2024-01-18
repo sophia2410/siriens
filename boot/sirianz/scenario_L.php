@@ -33,7 +33,7 @@ $query = " SELECT Z.*
 						, CASE WHEN A.buy_pick = 'Y' THEN '<b>B</b>' ELSE '' END buy_pick
 						, (SELECT COUNT(*) FROM calendar WHERE date <= A.scenario_date and date > A.watchlist_date) tracking_day
 						, E.evening_subject
-					FROM sirianz_scenario A
+					FROM daily_watchlist_scenario A
 					LEFT OUTER JOIN market_index B
 					on B.date = A.scenario_date
 					and B.market_fg = 'KOSPI'
@@ -45,7 +45,7 @@ $query = " SELECT Z.*
 					AND D.last_yn = 'Y'
 					LEFT OUTER JOIN sirianz_report E
 					ON E.report_date = A.scenario_date
-					INNER JOIN sirianz_watchlist S
+					INNER JOIN daily_watchlist S
 					ON S.watchlist_date = A.watchlist_date
 					AND S.code = A.code
 					WHERE A.scenario_date >= (select DATE_FORMAT(DATE_ADD('$search_date', INTERVAL -30 DAY), '%Y%m%d'))

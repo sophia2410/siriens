@@ -30,7 +30,7 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_sirianz.php");
 					$query = " SELECT date
 									, CASE WHEN B.scenario_date is null THEN '' ELSE '(Y)' END regi_scenario
 								FROM calendar A
-								LEFT OUTER JOIN (SELECT scenario_date FROM sirianz_scenario GROUP BY scenario_date) B
+								LEFT OUTER JOIN (SELECT scenario_date FROM daily_watchlist_scenario GROUP BY scenario_date) B
 								ON B.scenario_date = A.date
 								WHERE date <= (select DATE_FORMAT(now(), '%Y%m%d'))
 								AND date >= '20231001' -- 시나리오 등록 시작일

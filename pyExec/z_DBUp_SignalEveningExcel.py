@@ -21,7 +21,8 @@ class DBUpdater :
 
 	def read_xlsx(self):
 		"""카페 시그널이브닝 엑셀 파일을 읽어와서 데이터프레임으로 반환"""
-		pathExl = 'E:/Project/202410/data/_Mochaten/siricafe_evening_db.xlsx'
+		# pathExl = 'E:/Project/202410/data/_Mochaten/siricafe_evening_db.xlsx'
+		pathExl = 'E:/Project/202410/data/_Mochaten/siricafe_evening_db_2302.xlsx'
 		sheetList = []
 
 		# openpyxl를 이용하여 시트명 가져오기
@@ -37,9 +38,9 @@ class DBUpdater :
 			# print('%s Sheet의 데이타 입니다.' %j)
 			# print(df)
 			# print('*' * 50)
-			rdxls = rdxls.append(df)
+			rdxls = pd.concat([rdxls, df])
 
-		rdxls = rdxls.rename(columns={'제목':'title', '링크':'link', '관련주':'stock','테마':'theme','내용':'content','일자':'evening_date'})
+		rdxls = rdxls.rename(columns={'제목':'title', '링크':'link', '관련주':'stock','테마':'theme','내용':'content','일자':'excel_date'})
 		return rdxls
 
 	def update_info(self):
@@ -48,11 +49,12 @@ class DBUpdater :
 		file=open("signal_evening.sql", "w", encoding="utf-8")
 
 		for idx in range(len(rdxls)):
+			print(rdxls.loc[idx])
 			title	= rdxls.title.values[idx].replace("'", "\\'").replace('"','\\"')
 			link	= rdxls.link.values[idx].replace("'", "\\'").replace('"','\\"')
 			stock	= rdxls.stock.values[idx].replace("'", "\\'").replace('"','\\"')
 			theme	= rdxls.theme.values[idx].replace("'", "\\'").replace('"','\\"')
-			evening_date	= rdxls.evening_date.values[idx]
+			excel_date	= rdxls.excel_date.values[idx]
 			
 			if pd.isna(rdxls.content.values[idx]) :
 				content	= ""
@@ -65,7 +67,7 @@ class DBUpdater :
 					  , stock
 					  , theme
 					  , content
-					  , evening_date
+					  , excel_date
 					  )
 		              VALUES
 		              ( '{title}'
@@ -73,7 +75,7 @@ class DBUpdater :
 					  , '{stock}'
 					  , '{theme}'
 					  , '{content}'
-					  , '{evening_date}');'''
+					  , '{excel_date}');'''
 			# print(sql)
 			file.write(sql)
 			self.curs.execute(sql)

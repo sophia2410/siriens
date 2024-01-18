@@ -123,8 +123,8 @@ if($search_fg == ''){
 						, CASE WHEN B.theme is null OR  B.theme = '' THEN B.sector ELSE B.theme END uprsn
 						, B.stock_keyword
 						, A.watchlist_date
-					FROM sirianz_scenario A
-					INNER JOIN sirianz_watchlist B
+					FROM daily_watchlist_scenario A
+					INNER JOIN daily_watchlist B
 					ON A.watchlist_date = B.watchlist_date
 					AND A.code = B.code
 					WHERE A.scenario_date = '$search_date'
@@ -164,7 +164,7 @@ if($search_fg == ''){
 						, A.scenario_date
 						, A.buysell_category
 						, A.buysell_review
-					FROM sirianz_scenario A
+					FROM daily_watchlist_scenario A
 					WHERE A.scenario_date = '$search_date'
 					AND A.code = 'DAY'";
 
@@ -213,7 +213,7 @@ if($search_fg == ''){
 					,  A.issue
 					,  A.hot_theme
 					,  A.theme_comment
-				FROM sirianz_watchlist A
+				FROM daily_watchlist A
 				WHERE A.watchlist_date = '$search_date'
 				AND A.code != 'DAY'
 				GROUP BY A.sector
@@ -253,7 +253,7 @@ if($search_fg == ''){
 					, B.stock_keyword
 					, B.watchlist_date
 				FROM (SELECT date FROM calendar WHERE date <= '$search_date' ORDER BY date desc LIMIT 6) A
-				INNER JOIN sirianz_watchlist B
+				INNER JOIN daily_watchlist B
 				ON A.date = B.watchlist_date
 				ORDER BY B.watchlist_date DESC, B.tot_trade_amt DESC";
 

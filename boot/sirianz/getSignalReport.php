@@ -8,7 +8,7 @@ $query = " SELECT CONCAT(page_date,'/',page_fg) page_seq, page_title
 			 FROM rawdata_siri_report
 			WHERE page_title != ''
 			ORDER BY page_date desc, page_fg
-			limit 100";
+			limit 300";
 $result = $mysqli->query($query);
 $cd = array();
 $nm = array();

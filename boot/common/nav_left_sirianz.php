@@ -51,7 +51,7 @@ if($_SERVER["HTTP_HOST"] == 'localhost') {
 
             <!-- Heading -->
             <div class="sidebar-heading">
-                Sirianz Data
+                Search Data
             </div>
 
             <!-- Nav Item -->
@@ -90,11 +90,11 @@ if($_SERVER["HTTP_HOST"] == 'localhost') {
             </li>
             
             <!-- Nav Item -->
-            <li class="nav-item">
+            <!-- <li class="nav-item">
                 <a class="nav-link" href="<?=$PATH?>sirianz/opsidian_StockInfo.php">
                     <i class="fas fa-fw fa-book"></i>
                     <span>For Obsidian</span></a>
-            </li>
+            </li> -->
 
             <!-- Nav Item -->
             <!-- <li class="nav-item">
@@ -109,7 +109,7 @@ if($_SERVER["HTTP_HOST"] == 'localhost') {
 
             <!-- Heading -->
             <div class="sidebar-heading">
-                Stock Study
+                Sirianz Data
             </div>
 
             <!-- Nav Item -->
@@ -121,9 +121,16 @@ if($_SERVER["HTTP_HOST"] == 'localhost') {
 
             <!-- Nav Item -->
             <li class="nav-item">
+                <a class="nav-link" href="<?=$PATH?>sirianz/sophiaWatchlist.php">
+                    <i class="fas fa-fw fa-gift"></i>
+                    <span>Sophia WatchList </span></a>
+            </li>
+
+            <!-- Nav Item -->
+            <li class="nav-item">
                 <a class="nav-link" href="<?=$PATH?>sirianz/nomadList.php">
                     <i class="fas fa-fw fa-gift"></i>
-                    <span>NOMAD List </span></a>
+                    <span>NOMAD WatchList </span></a>
             </li>
 
             <!-- Nav Item -->

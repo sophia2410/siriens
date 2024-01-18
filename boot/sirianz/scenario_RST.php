@@ -7,7 +7,7 @@ $watchlist_date = (isset($_GET['watchlist_date'])) ? $_GET['watchlist_date'] : '
 $query = "SELECT	sector,
 					theme,
 					issue
-			FROM sirianz_watchlist X
+			FROM daily_watchlist X
 			WHERE watchlist_date = '$watchlist_date'
 			AND (sector is not null AND sector != '')
 			GROUP BY sector, theme, issue";
@@ -37,14 +37,14 @@ $query = "SELECT  T.idx,
 					SELECT  'A' idx,
 						sector,
 						theme
-					FROM sirianz_watchlist X
+					FROM daily_watchlist X
 					WHERE watchlist_date >= (select DATE_FORMAT(DATE_ADD(now(), INTERVAL -5 DAY), '%Y%m%d'))
 					AND (sector is not null AND sector != '')
 					UNION ALL
 					SELECT 'B' idx,
 						sector,
 						theme
-					FROM sirianz_watchlist Y
+					FROM daily_watchlist Y
 					WHERE (sector is not null AND sector != '')
 				) T
 			GROUP BY T.idx, T.sector, T.theme

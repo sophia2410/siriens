@@ -64,7 +64,7 @@ $query = " SELECT STR_TO_DATE(A.date, '%Y%m%d') issue_date, DAYOFWEEK(A.date) - 
 								FROM (SELECT watchlist_date, hot_theme
 										, CASE WHEN theme is null OR  theme = '' THEN sector ELSE CONCAT (sector, ' > ' , theme) END today_theme
 										, SUM(tot_trade_amt) tot_trade_amt
-									  FROM sirianz_watchlist A
+									  FROM daily_watchlist A
 									  WHERE watchlist_date BETWEEN CONCAT('$issue_mon','01') AND CONCAT('$issue_mon','31')
 									  GROUP BY watchlist_date, hot_theme, theme, sector
 									  ORDER BY watchlist_date, hot_theme DESC, tot_trade_amt DESC) Z

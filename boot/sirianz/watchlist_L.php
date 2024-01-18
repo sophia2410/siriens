@@ -14,37 +14,41 @@ $scenario_date = $row['scenario_date'];
 // $search_tracking_yn = (isset($_GET['tracking_yn'])) ? "AND A.tracking_yn ='".$_GET['tracking_yn'] ."'" : "AND A.tracking_yn ='Y'";
 $search_buy_pick    = (isset($_GET['buy_pick'])    && $_GET['buy_pick']    != '') ? "AND A.buy_pick    ='".$_GET['buy_pick'] ."'" :'';
 
-$query = " SELECT Z.*
-			FROM (SELECT STR_TO_DATE(A.watchlist_date, '%Y%m%d') watchlist_date_str
-						, CASE WHEN B.close_rate >= 0 THEN CONCAT('<font color=red> ▲',B.close_rate,'% </font>') ELSE  CONCAT('<font color=blue> ▼',B.close_rate,'% </font>') END kospi_index
-						, CASE WHEN C.close_rate >= 0 THEN CONCAT('<font color=red> ▲',C.close_rate,'% </font>') ELSE  CONCAT('<font color=blue> ▼',C.close_rate,'% </font>') END kosdaq_index
-						, A.watchlist_date
-						, D.code
-						, D.name
-						, A.regi_reason
-						, A.close_rate
-						, A.volume
-						, A.tot_trade_amt
-						, A.market_cap
-						, A.tracking_yn
-						, CASE WHEN A.theme is null OR  A.theme = '' THEN A.sector ELSE A.theme END uprsn
-						, E.evening_subject
-					FROM sirianz_watchlist A
-					LEFT OUTER JOIN market_index B
-					on B.date = A.watchlist_date
-					and B.market_fg = 'KOSPI'
-					LEFT OUTER JOIN market_index C
-					on C.date = A.watchlist_date
-					and C.market_fg = 'KOSDAQ'
-					INNER JOIN stock D
-					ON D.code = A.code
-					AND D.last_yn = 'Y'
-					LEFT OUTER JOIN sirianz_report E
-					ON E.report_date = A.watchlist_date
-					WHERE A.watchlist_date >= (select DATE_FORMAT(DATE_ADD('$watchlist_date', INTERVAL -30 DAY), '%Y%m%d'))
-					AND   A.watchlist_date <= '$watchlist_date'
-				 ) Z
-			ORDER BY Z.watchlist_date desc, Z.tot_trade_amt desc";
+$query = " SELECT Y.date, STR_TO_DATE(Y.date, '%Y%m%d') watchlist_date_str, Z.*
+			 FROM calendar Y
+			 LEFT OUTER JOIN 
+					(SELECT   CASE WHEN B.close_rate >= 0 THEN CONCAT('<font color=red> ▲',B.close_rate,'% </font>') ELSE  CONCAT('<font color=blue> ▼',B.close_rate,'% </font>') END kospi_index
+							, CASE WHEN C.close_rate >= 0 THEN CONCAT('<font color=red> ▲',C.close_rate,'% </font>') ELSE  CONCAT('<font color=blue> ▼',C.close_rate,'% </font>') END kosdaq_index
+							, A.watchlist_date
+							, D.code
+							, D.name
+							, A.regi_reason
+							, A.close_rate
+							, A.volume
+							, A.tot_trade_amt
+							, A.market_cap
+							, A.tracking_yn
+							, CASE WHEN A.theme is null OR  A.theme = '' THEN A.sector ELSE A.theme END uprsn
+							, E.evening_subject
+						FROM daily_watchlist A
+						LEFT OUTER JOIN market_index B
+						on B.date = A.watchlist_date
+						and B.market_fg = 'KOSPI'
+						LEFT OUTER JOIN market_index C
+						on C.date = A.watchlist_date
+						and C.market_fg = 'KOSDAQ'
+						INNER JOIN stock D
+						ON D.code = A.code
+						AND D.last_yn = 'Y'
+						LEFT OUTER JOIN sirianz_report E
+						ON E.report_date = A.watchlist_date
+						WHERE A.watchlist_date >= (select DATE_FORMAT(DATE_ADD('$watchlist_date', INTERVAL -30 DAY), '%Y%m%d'))
+						AND   A.watchlist_date <= '$watchlist_date'
+					) Z
+			ON Y.date = Z.watchlist_date
+			WHERE Y.date >= (select DATE_FORMAT(DATE_ADD('$watchlist_date', INTERVAL -10 DAY), '%Y%m%d'))
+			AND   Y.date <= '$watchlist_date'
+			ORDER BY Y.date desc, Z.tot_trade_amt desc";
 // echo "<pre>$query</pre>";
 $result = $mysqli->query($query);
 ?>
@@ -60,10 +64,10 @@ $result = $mysqli->query($query);
 	$printed = array();
 	
 	while($row = $result->fetch_array(MYSQLI_BOTH)) {
-		$watchlist_date = $row['watchlist_date'];
-		if($pre_watchlist_date != $row['watchlist_date']) {
-			echo "<tr class='table-danger  text-dark' align=left><th colspan=6>[관종일] <b>▶ <a href=\"javascript:callFrameRD('".$row['watchlist_date']."')\">".$row['watchlist_date_str']."</b></a> &nbsp;&nbsp; (코스피 : ".$row['kospi_index']." , 코스닥 : ".$row['kosdaq_index'].") </th></tr>";
-			
+		$watchlist_date = $row['date'];
+		if($pre_watchlist_date != $row['date']) {
+			echo "<tr class='table-danger  text-dark' align=left><th colspan=6>[관종일] <b>▶ <a href=\"javascript:callFrameRD('".$row['date']."')\">".$row['watchlist_date_str']."</b></a> &nbsp;&nbsp; (코스피 : ".$row['kospi_index']." , 코스닥 : ".$row['kosdaq_index'].") ";
+			echo "<a href=\"javascript:callFrameRV('".$row['date']."')\"><img style='width:30px;' src='https://yunseul0907.cafe24.com/image/glassChart.png'></a></th></tr>";
 			if($row['evening_subject'] != '') 
 				echo "<tr class='table-info text-dark' align=left><th colspan=6>'".$row['evening_subject']."</th></tr>";
 		}
@@ -89,13 +93,13 @@ $result = $mysqli->query($query);
 
 		echo "<tr>";
 		echo "<td class='text-info' align=center><b>".$row['uprsn']."</b></td>" ;
-		echo "<td><a href=\"javascript:callFrameRS('".$row['watchlist_date']."','$scenario_date','".$row['code']."','".$row['name']."')\" class='$stock_class' style='$stock_style'><b>".$row['name']."</b></a></td>";
-		echo "<td>[".$row['regi_reason']."]</td>" ;
+		echo "<td><a href=\"javascript:callFrameRS('".$row['date']."','$scenario_date','".$row['code']."','".$row['name']."')\" class='$stock_class' style='$stock_style'><b>".$row['name']."</b></a></td>";
+		// echo "<td>[".$row['regi_reason']."]</td>" ;
 		echo "<td class='text-danger' align=right>".$row['close_rate']." %</td>" ;
 		echo "<td class='text-danger' align=right>".number_format($row['tot_trade_amt'])." </td>" ;
 		echo "</tr>" ;
 		
-		$pre_watchlist_date =  $row['watchlist_date'];
+		$pre_watchlist_date =  $row['date'];
 	}
 ?>
 </table>
@@ -110,6 +114,11 @@ function callFrameRS(wdate, sdate, cd, nm) {
 // parent 함수 호출, 오른쪽 프레임 일자별 내용 표시
 function callFrameRD(date, cd, nm, idx) {
 	window.parent.viewDay(date, cd, nm, idx);
+}
+
+// parent 함수 호출, 오른쪽 프레임 일자별 내용 표시
+function callFrameRV(date, cd, nm, idx) {
+	window.parent.viewReview(date, cd, nm, idx);
 }
 </script>
 </html>

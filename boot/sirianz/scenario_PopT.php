@@ -43,7 +43,7 @@ $query = "SELECT STR_TO_DATE(A.watchlist_date, '%Y%m%d') watchlist_date_str,
 				A.hot_theme,
 				A.theme_comment,
 				(SELECT title FROM rawdata_siri_report Z WHERE Z.page_date = A.watchlist_date AND Z.code = A.code ORDER BY date DESC LIMIT 1) news
-		FROM sirianz_watchlist A
+		FROM daily_watchlist A
 		WHERE sector = '$sector'
 		AND theme = '$theme'
 		ORDER BY watchlist_date DESC";

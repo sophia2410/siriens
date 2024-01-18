@@ -230,13 +230,13 @@ echo "<h4><font color=red><b>★ 질문 ★ 눌림 주고 다시 상승할 재�
 									, CASE WHEN A.tot_trade_amt >= 1000 THEN CONCAT('<font color=red><b>',A.tot_trade_amt,'억</b></font>') ELSE  CONCAT(A.tot_trade_amt,'억') END tot_trade_amt
 									, A.volume
 									, A.market_cap
-									, CASE WHEN A.sector IS NOT NULL THEN A.sector ELSE (SELECT sector FROM sirianz_watchlist WHERE watchlist_date < '$watchlist_date' AND code = A.code ORDER BY watchlist_date DESC LIMIT 1) END sector
-									, CASE WHEN A.theme IS NOT NULL THEN A.theme ELSE (SELECT theme FROM sirianz_watchlist WHERE watchlist_date < '$watchlist_date' AND code = A.code ORDER BY watchlist_date DESC LIMIT 1) END theme
-									, CASE WHEN A.issue IS NOT NULL THEN A.issue ELSE (SELECT issue FROM sirianz_watchlist WHERE watchlist_date < '$watchlist_date' AND code = A.code ORDER BY watchlist_date DESC LIMIT 1) END issue
-									, CASE WHEN A.stock_keyword IS NOT NULL THEN A.stock_keyword ELSE (SELECT stock_keyword FROM sirianz_watchlist WHERE watchlist_date < '$watchlist_date' AND code = A.code ORDER BY watchlist_date DESC LIMIT 1) END stock_keyword
+									, CASE WHEN A.sector IS NOT NULL THEN A.sector ELSE (SELECT sector FROM daily_watchlist WHERE watchlist_date < '$watchlist_date' AND code = A.code ORDER BY watchlist_date DESC LIMIT 1) END sector
+									, CASE WHEN A.theme IS NOT NULL THEN A.theme ELSE (SELECT theme FROM daily_watchlist WHERE watchlist_date < '$watchlist_date' AND code = A.code ORDER BY watchlist_date DESC LIMIT 1) END theme
+									, CASE WHEN A.issue IS NOT NULL THEN A.issue ELSE (SELECT issue FROM daily_watchlist WHERE watchlist_date < '$watchlist_date' AND code = A.code ORDER BY watchlist_date DESC LIMIT 1) END issue
+									, CASE WHEN A.stock_keyword IS NOT NULL THEN A.stock_keyword ELSE (SELECT stock_keyword FROM daily_watchlist WHERE watchlist_date < '$watchlist_date' AND code = A.code ORDER BY watchlist_date DESC LIMIT 1) END stock_keyword
 									, A.tracking_yn
 									, A.tracking_reason
-								FROM sirianz_watchlist A
+								FROM daily_watchlist A
 								WHERE A.watchlist_date = '$watchlist_date'
 								AND A.code = '$code'";
 
@@ -299,7 +299,7 @@ echo "<h4><font color=red><b>★ 질문 ★ 눌림 주고 다시 상승할 재�
 									, A.buysell_review
 									, buysell_category
 								FROM calendar B
-								LEFT OUTER JOIN sirianz_scenario A
+								LEFT OUTER JOIN daily_watchlist_scenario A
 								ON A.scenario_date =  B.date
 								AND A.code = '$code'
 								WHERE B.date = '$scenario_date'";
@@ -373,7 +373,7 @@ echo "<h4><font color=red><b>★ 질문 ★ 눌림 주고 다시 상승할 재�
 									, CASE WHEN A.buysell_yn = 'Y' THEN '매매' ELSE '' END buysell_yn
 									, A.buysell_review
 									, buysell_category
-								FROM sirianz_scenario A
+								FROM daily_watchlist_scenario A
 								WHERE A.code = '$code'
 								ORDER BY A.scenario_date DESC";
 					$result = $mysqli->query($query);
