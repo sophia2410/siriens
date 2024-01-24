@@ -17,8 +17,8 @@ $search_buy_pick    = (isset($_GET['buy_pick'])    && $_GET['buy_pick']    != ''
 $query = " SELECT Y.date, STR_TO_DATE(Y.date, '%Y%m%d') watchlist_date_str, Z.*
 			 FROM calendar Y
 			 LEFT OUTER JOIN 
-					(SELECT   CASE WHEN B.close_rate >= 0 THEN CONCAT('<font color=red> ▲',B.close_rate,'% </font>') ELSE  CONCAT('<font color=blue> ▼',B.close_rate,'% </font>') END kospi_index
-							, CASE WHEN C.close_rate >= 0 THEN CONCAT('<font color=red> ▲',C.close_rate,'% </font>') ELSE  CONCAT('<font color=blue> ▼',C.close_rate,'% </font>') END kosdaq_index
+					(SELECT   CASE WHEN B.close_rate > 0 THEN CONCAT('<font color=red> ▲',B.close_rate,'% </font>') ELSE  CONCAT('<font color=blue> ▼',ABS(B.close_rate),'% </font>') END kospi_index
+							, CASE WHEN C.close_rate > 0 THEN CONCAT('<font color=red> ▲',C.close_rate,'% </font>') ELSE  CONCAT('<font color=blue> ▼',ABS(C.close_rate),'% </font>') END kosdaq_index
 							, A.watchlist_date
 							, D.code
 							, D.name
@@ -66,10 +66,12 @@ $result = $mysqli->query($query);
 	while($row = $result->fetch_array(MYSQLI_BOTH)) {
 		$watchlist_date = $row['date'];
 		if($pre_watchlist_date != $row['date']) {
-			echo "<tr class='table-danger  text-dark' align=left><th colspan=6>[관종일] <b>▶ <a href=\"javascript:callFrameRD('".$row['date']."')\">".$row['watchlist_date_str']."</b></a> &nbsp;&nbsp; (코스피 : ".$row['kospi_index']." , 코스닥 : ".$row['kosdaq_index'].") ";
-			echo "<a href=\"javascript:callFrameRV('".$row['date']."')\"><img style='width:30px;' src='https://yunseul0907.cafe24.com/image/glassChart.png'></a></th></tr>";
+			echo "<tr class='table-danger text-dark' align=left><th colspan=4>[+] <b><a href=\"javascript:callFrameRD('".$row['date']."')\">".$row['watchlist_date_str']."</b></a>&nbsp; ";
+			echo "(코스피: ".$row['kospi_index']." , 코스닥: ".$row['kosdaq_index'].") ";
+			echo "<a href=\"javascript:callviewChart('".$row['date']."')\"><img style='width:28px; height:28px; border:solid thin' src='https://yunseul0907.cafe24.com/image/view_chart.png'></a> ";
+			echo "<a href=\"javascript:callFrameRV('".$row['date']."')\"><img style='width:28px; height:28px; border:solid thin' src='https://yunseul0907.cafe24.com/image/view_review.png'></a></th></tr>";
 			if($row['evening_subject'] != '') 
-				echo "<tr class='table-info text-dark' align=left><th colspan=6>'".$row['evening_subject']."</th></tr>";
+				echo "<tr class='table-info text-dark' align=left><th colspan=4>'".$row['evening_subject']."</th></tr>";
 		}
 		// 종목명을 변수에 저장
 		$name = $row['name'];
@@ -96,7 +98,7 @@ $result = $mysqli->query($query);
 		echo "<td><a href=\"javascript:callFrameRS('".$row['date']."','$scenario_date','".$row['code']."','".$row['name']."')\" class='$stock_class' style='$stock_style'><b>".$row['name']."</b></a></td>";
 		// echo "<td>[".$row['regi_reason']."]</td>" ;
 		echo "<td class='text-danger' align=right>".$row['close_rate']." %</td>" ;
-		echo "<td class='text-danger' align=right>".number_format($row['tot_trade_amt'])." </td>" ;
+		echo "<td class='text-danger' align=right>".number_format($row['tot_trade_amt'])."</td>" ;
 		echo "</tr>" ;
 		
 		$pre_watchlist_date =  $row['date'];
@@ -119,6 +121,11 @@ function callFrameRD(date, cd, nm, idx) {
 // parent 함수 호출, 오른쪽 프레임 일자별 내용 표시
 function callFrameRV(date, cd, nm, idx) {
 	window.parent.viewReview(date, cd, nm, idx);
+}
+
+// parent 함수 호출, 오른쪽 프레임 일자별 내용 표시
+function callviewChart(date) {
+	window.parent.viewChart(date);
 }
 </script>
 </html>

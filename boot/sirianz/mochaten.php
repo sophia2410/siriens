@@ -55,7 +55,7 @@ if(isset($_GET['mainF'])) {
 		</td>
 		<td style='width:85%' rowspan=2 valign=top>
 			<div style="margin: 0; border: 0; font: inherit;vertical-align: baseline; padding: 0;height: calc(100vh - 100px);">
-				<iframe id="iframeR" style="width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 30px);" src="mochaten_R.php">
+				<iframe id="iframeR" style="width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 30px);" src="viewChart.php?pgmId=mochaten&mochaten_date=<?=$mochaten_date?>">
 				</iframe>
 			</div>
 		</td>
@@ -86,11 +86,10 @@ function searchMochaten(code) {
 	// console.log(key_val);
 
 	brWidth = window.innerWidth;
-	if(code == ''){
-		iframeL.src = "mochaten_L.php?mochaten_date="+key_val+"&brWidth="+brWidth;
-	} else {
-		iframeL.src = "mochaten_L.php?mochaten_date="+key_val+"&brWidth="+brWidth+"&#"+code;
-	}
+	iframeL.src = "mochaten_L.php?mochaten_date="+key_val+"&brWidth="+brWidth;
+
+	showC();
+
 	return;
 }
 
@@ -98,6 +97,15 @@ function searchMochaten(code) {
 function viewMochaten(date, cd, nm) {
 	brWidth = window.innerWidth;
 	iframeR.src = "mochaten_R.php?mochaten_date="+date+"&code="+cd+"&name="+nm+"&brWidth="+brWidth;
+	return;
+}
+
+// 기간 관종 차트 모아보기
+function showC() {
+	key_val  = document.getElementById('mochaten_date').options[document.getElementById("mochaten_date").selectedIndex].value;
+
+	pgmId = 'mochaten';
+	iframeR.src = "viewChart.php?pgmId="+pgmId+"&mochaten_date="+key_val;
 	return;
 }
 </script>

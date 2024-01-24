@@ -88,10 +88,10 @@ echo "<h4><font color=red><b>★ 질문 ★ 눌림 주고 다시 상승할 재�
 
 		// echo "<pre>$query</pre>";
 		$result = $mysqli->query($query);
-
+		
 		$today_issue = "";
 		while( $row = $result->fetch_array(MYSQLI_BOTH) ){
-			$today_issue = '('.$row['date'].')'.$row['title'];
+			$today_issue = "<a href=\"javascript:popupNews('".$row['link']."')\">".'('.$row['date'].')'.$row['title']."</a>";
 		}
 
 		// 종목 시총, 부채율 등 구하기
@@ -119,7 +119,7 @@ echo "<h4><font color=red><b>★ 질문 ★ 눌림 주고 다시 상승할 재�
 		echo "<table border=1 class='table table-sm text-dark'>";
 			// 차트 -- 네이버이미지
 			echo "<tr><td style='width: 700px;' rowspan=7>";
-			echo "<h4><b><a href='stock_B.php?code=$code&name=$name' onclick='window.open(this.href, \'stock\', 'width=2500px,height=850,scrollbars=1,resizable=yes');return false;' target='_blank'>$name</b><h4>";
+			echo "<h4><b><a href='stock_B.php?code=$code&name=$name' onclick='window.open(this.href, \'stock\', 'width=2500px,height=850,scrollbars=1,resizable=yes');return false;' target='_blank'>$name</a></b><h4>";
 			echo "<img id='img_chart_area' src='https://ssl.pstatic.net/imgfinance/chart/item/candle/day/".$code.".png?sidcode=1703839838123' width='700' height='289' alt='이미지 차트' onerror='this.src='https://ssl.pstatic.net/imgstock/chart3/world2008/error_700x289.png'>";
 			echo "</td><td style='font-weight:bold;background-color:#fae4f1;'>";
 			echo " $market_cap $dt_ratio $op_ratio $lb_ratio $ref_date";
@@ -445,5 +445,9 @@ function addWatchlist(date, stock) {
 	form.submit();
 }
 
+// 뉴스보기
+function popupNews(link) {
+	window.open(link,'popupNews',"toolbar=no, location=no, directories=no, status=no, menubar=no, scrollbars=yes, resizable=no, copyhistory=no, width=1500, height=1000");
+}
 </script>
 </html>

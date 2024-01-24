@@ -22,7 +22,7 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_sirianz.php");
 
 <table style="width:100%;">
 	<tr>
-		<td style='width:23%'>
+		<td style='width:21%'>
 			<!-- Page Heading -->
 			<div style='border: 1px;'>
 				<select id="watchlist_date" class="select">
@@ -54,15 +54,15 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_sirianz.php");
 				?>
 				</select>
 				<button class="btn btn-danger btn-sm" onclick="search()"> 조 회 </button>
-				<button class="btn btn-info btn-sm" onclick="show()"> 테마보기 </button>
-				&nbsp;&nbsp;
-				<button class="btn btn-secondary btn-sm" onclick="getData()">GetData</button> || 
-				<input type=text id=stock style='width:120px' placeholder='종목코드/명'>
+				<button class="btn btn-info btn-sm" onclick="showT()"> 테 마 </button>
+				<button class="btn btn-info btn-sm" onclick="showC()"> 차 트 </button>
+				<button class="btn btn-secondary btn-sm" onclick="getData()">Get</button> ||
+				<input type=text id=stock style='width:90px' placeholder='종목코드/명'>
 				<button class="btn btn-secondary btn-sm" onclick="addData()">Add</button>
 				
 			</div>
 		</td>
-		<td style='width:77%' rowspan=2 valign=top>
+		<td style='width:79%' rowspan=2 valign=top>
 			<div style="margin: 0; border: 0; font: inherit;vertical-align: baseline; padding: 0;height: calc(100vh - 100px);">
 				<iframe id="iframeR" style="width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 30px);" src="scenario_RS.php">
 				</iframe>
@@ -97,9 +97,16 @@ function search() {
 	return;
 }
 
-// 관종등록일자 선택후 조회 - 왼쪽 프레임에 종목 리스트업
-function show() {
+// 월별 테마조회
+function showT() {
 	iframeR.src = "scenario_RT.php";
+	return;
+}
+
+// 기간 관종 차트 모아보기
+function showC() {
+	pgmId = 'watchlist';
+	iframeR.src = "viewChart.php?pgmId="+pgmId;
 	return;
 }
 
@@ -112,7 +119,6 @@ function getData() {
 		document.getElementById("iframeR").contentWindow.getWatchlist(key_val);
 	}
 }
-
 
 // 관종등록일자에 입력한 종목 추가
 function addData() {
@@ -137,12 +143,22 @@ function viewDay(date) {
 	iframeR.src = "scenario_RD.php?search_fg=watchlist&search_date="+date+"&brWidth="+brWidth;
 	return;
 }
-// 차트돋보기 선택 시 오른쪽 프레임에 내역 조회
+
+// 문서 이미지 선택 시 오른쪽 프레임에 내역 조회 - 리뷰등록
 function viewReview(date) {
 	brWidth = window.innerWidth;
 	iframeR.src = "scenario_RV.php?review_date="+date+"&brWidth="+brWidth;
 	return;
 }
+
+// 차트돋보기 선택 시 오른쪽 프레임에 내역 조회 - 차트 보기
+function viewChart(search_date) {
+	brWidth = window.innerWidth;
+	pgmId = 'watchlist';
+	iframeR.src = "viewChart.php?pgmId="+pgmId+"&search_date="+search_date+"&brWidth="+brWidth;
+	return;
+}
+
 </script>
 
 <?php

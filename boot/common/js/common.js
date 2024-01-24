@@ -67,3 +67,7 @@ function comAllUnCk(){
 		ckbx[i].checked=false;
 	}
 }
+
+function comPopupNews(link) {
+	window.open(link,'popupNews',"toolbar=no, location=no, directories=no, status=no, menubar=no, scrollbars=yes, resizable=no, copyhistory=no, width=1500, height=1000");
+}

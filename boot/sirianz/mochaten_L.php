@@ -35,7 +35,8 @@ $query = " SELECT A.mochaten_date
 		     LEFT OUTER JOIN daily_price E
 			   ON E.DATE = A.trade_date
 			  AND E.code = A.code
-			WHERE A.mochaten_date = '$mochaten_date'";
+			WHERE A.mochaten_date = '$mochaten_date'
+			ORDER BY A.cha_fg, A.tot_trade_amt DESC";
 $result = $mysqli->query($query);
 ?>
 
@@ -48,14 +49,15 @@ $result = $mysqli->query($query);
 	if($browser_width >=1500) {
 		while($row = $result->fetch_array(MYSQLI_BOTH)) {
 			if($pre_cha_fg != $row['cha_fg']) {
-				// echo "<tr class='table-danger  text-dark' align=center><th colspan=2><b>".$row['cha_fg_nm']."</b></th><td colspan=3 align=left>".$row['cha_comment']."</td></tr>";
-				echo "<tr class='table-danger  text-dark' align=left><th colspan=3><b>[".$row['cha_fg_nm']."</b>]".$row['cha_comment']."</th></tr>";
+				// echo "<tr class='table-danger  text-dark' align=center><th colspan=2><b>".$row['cha_fg_nm']."</b></th><td colspan=4 align=left>".$row['cha_comment']."</td></tr>";
+				echo "<tr class='table-danger  text-dark' align=left><th colspan=4><b>[".$row['cha_fg_nm']."</b>]".$row['cha_comment']."</th></tr>";
 			}
 			echo "<tr><td style='width:10px;'>".$row['nomad_comment_fg']."</td>";
 			echo "<td><a href=\"javascript:callFrameR('".$mochaten_date."','".$row['code']."','".$row['name']."')\">".$row['name']."</a></td>";
 			// echo "<td>".$row['sophia_grade']."</td>" ;
 			// echo "<td>".$row['sister_grade']."</td>" ;
 			echo "<td class='text-danger' align=right>".$row['close_rate']." %</td>" ;
+			echo "<td class='text-danger' align=right>".number_format($row['tot_trade_amt'])." 억</td>" ;
 			echo "</tr>" ;
 			
 			$pre_cha_fg =  $row['cha_fg'];

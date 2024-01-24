@@ -200,6 +200,8 @@ if($_SERVER["HTTP_HOST"] == 'localhost') {
 
 			if($tot_trade_amt != '') {
 				$mochaten0 = "border: thick double #f77d72;";
+			} if($stock == '') {
+				$mochaten0 = "border: thick double blue;";
 			} else {
 				$mochaten0 = "";
 			}
@@ -219,7 +221,6 @@ if($_SERVER["HTTP_HOST"] == 'localhost') {
 				<td><input type=checkbox name=today_pick$id value='Y' $checked>Pick &nbsp;<input type=checkbox name=id$i value='$id')> 삭제</td>
 				<td colspan=2><input type=text name=signal_grp$id  value='$signal_grp'  style='width:100px'><input type=text name=theme$id  value='$theme'  style='width:140px'></td>
 			";
-
 
 			$i++;
 

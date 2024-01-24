@@ -76,8 +76,8 @@ if($review_date == ''){
 			echo "<input type=button class='btn btn-danger btn-sm' onclick=saveRV() value='리뷰저장'></div>";
 			echo "</div>";
 			
-			echo "<div class='row' style='margin-left:10px;width:96%;'>";
-			echo "<td><textarea name='day_issue_status' style='width:96%;' placeholder='시장리뷰'>".$day_issue_status."</textarea></td>";
+			echo "<div class='row' style='margin-left:10px;margin-bottom:10px;width:96%;'>";
+			echo "<td><textarea name='day_issue_status' style='width:96%;height:80px' placeholder='시장리뷰'>".$day_issue_status."</textarea>";
 			echo "</div>";
 		echo "</div>";
 
@@ -107,7 +107,8 @@ if($review_date == ''){
 	// 리뷰종목 리스트
 	$orderby = "A.review_date DESC, B.tot_trade_amt DESC";
 	$orderby = "B.sector, B.theme, A.review_date DESC, C.close_rate DESC";
-	$orderby = "R.group_sum DESC, B.tot_trade_amt DESC";
+	$orderby = "X.sector_sum DESC, R.group_sum DESC, B.tot_trade_amt DESC";
+
 	$query="SELECT STR_TO_DATE(A.review_date, '%Y%m%d') review_date_str
 				, A.review_date
 				, A.code
@@ -129,13 +130,15 @@ if($review_date == ''){
 				, A.win_loss_review
 				, CASE WHEN B.close_rate >= 0 THEN CONCAT('[0일차] <font color=red> ▲',B.close_rate,'% </font>') ELSE  CONCAT('0일차 <font color=blue> ▼',B.close_rate,'% </font>') END close_rate
 				, CASE WHEN B.tot_trade_amt >= 1000 THEN CONCAT('<font color=red><b>',B.tot_trade_amt,'억</b></font>') ELSE  CONCAT(B.tot_trade_amt,'억') END tot_trade_amt
-				, CASE WHEN C.date <=A.review_date THEN CONCAT('[1일차] 시가', C.open_rate, '%, 고가 ', C.high_rate, '% 저가', C.low_rate, '% 종가', C.close_rate,'% ') ELSE '' END nextday_rate
+				, CONCAT('[시총] ',B.market_cap, '억 ') market_cap
+				, CASE WHEN C.date <=A.review_date THEN CONCAT('[1일차] (시) ', C.open_rate, '%, (고) ', C.high_rate, '% (저) ', C.low_rate, '% (종) ', C.close_rate,'%  / ') ELSE '' END nextday_rate
 				, CASE WHEN C.date <=A.review_date THEN CONCAT('',ROUND(C.amount/100000000,0),'억') ELSE '' END nextday_amt
 				, B.volume
 				, CASE WHEN B.theme is null OR  B.theme = '' THEN B.sector ELSE B.theme END uprsn
 				, B.issue
 				, B.watchlist_date
 				, R.group_sum
+				, X.sector_sum
 			FROM daily_watchlist_review A
 			INNER JOIN daily_watchlist B
 			ON A.watchlist_date = B.watchlist_date
@@ -152,7 +155,16 @@ if($review_date == ''){
 							GROUP BY G.sector, G.theme
 						) R
 			ON B.sector = R.sector
-			AND B.theme = R.theme
+			AND B.theme  = R.theme
+			INNER JOIN (	SELECT G.sector, SUM(G.tot_trade_amt) AS sector_sum, MAX(G.watchlist_date) AS sector_max_date
+							FROM daily_watchlist_review S
+							INNER JOIN daily_watchlist G
+							ON S.watchlist_date = G.watchlist_date
+							AND S.code = G.code
+							WHERE S.review_date = '$review_date'
+							GROUP BY G.sector
+						) X
+			ON B.sector = X.sector
 			WHERE A.review_date = '$review_date'
 			ORDER BY $orderby";
 
@@ -161,6 +173,13 @@ if($review_date == ''){
 
 	$i=0;
 	while($row = $result->fetch_array(MYSQLI_BOTH)) {
+		if($i>0) {
+			//종목 구별하기 위한 tr 추가
+			echo "<tr align=center>";
+				echo "<td colspan=6 style='padding:0px; height:2px; background-color:#888888'></td>";
+			echo "</tr>";
+		}
+
 		$checked1 = ($row['pick_yn'] == 'Y') ? " checked" : "";
 		$checked2 = ($row['win_yn']  == 'Y') ? " checked" : "";
 		$checked3 = ($row['sell_yn'] == 'Y') ? " checked" : "";
@@ -182,28 +201,36 @@ if($review_date == ''){
 		if($row['pick_yn'] == 'Y') $trclass = 'table-info';
 		else  $trclass = 'table-secondary';
 		echo "<tr align=center class=table-hover>";
-			echo "<td rowspan=2 class='$trclass h6'><br><b>".$row['name']."</b></td>";
+			echo "<td rowspan=3 class='$trclass h6'><br><b>".$row['name']."</b></td>";
 			echo "<td width=100>".$row['review_date_str']."</td>";
 			echo "<td width=250>".$row['uprsn']."</td>";
-			echo "<td>".$row['issue']."</td>";
-			echo "<td colspan=2>".$row['close_rate'].$row['tot_trade_amt']." &nbsp; ".$row['nextday_rate'].$row['nextday_amt']."</td>";
+			echo "<td><input type=text style='width:95%; border: solid thin #f77d72;' name=mavg$i placeholder='차트자리요약' value='".$row['mavg']."'></td>";
+			echo "<td colspan=2>".$row['close_rate'].$row['tot_trade_amt']." &nbsp; ".$row['market_cap']." &nbsp; ".$row['nextday_rate'].$row['nextday_amt']."</td>";
+		echo "</tr>";
+		// 등록하면서 재료,차트점수는 수치로는 등록을 안해서 일단 화면에서 제외하기 24.01.18
+		// echo "<tr align=center class=table-hover'>";
+		// 	echo "<td colspan=2><input type=text style='width:95%; border: solid thin #f77d72;' name=mavg$i placeholder='인접이평선' value='".$row['mavg']."'>";
+		// 	echo "<input type=text style='width:47%' name=issue_score$i placeholder='재료점수(1-10)' value=".$row['issue_score'].">";
+		// 	echo "<input type=text style='width:47%' name=chart_score$i placeholder='차트점수(1-10)' value=".$row['chart_score']."></td>";
+		// 	echo "<td><textarea name='issue_status$i' style='width:95%; height:85px;' placeholder='재료코멘트'>".$row['issue_status']."</textarea></td>";
+		// 	echo "<td colspan=2><textarea name='chart_status$i' style='width:95%; height:85px;' placeholder='차트코멘트'>".$row['chart_status']."</textarea></td>";
+		// echo "</tr>";
+		echo "<tr align=center class=table-hover'>";
+			echo "<td colspan=2 align=left> &nbsp; ".$row['issue']."</td>";
+			echo "<td colspan=3 rowspan=2><textarea name='chart_status$i' style='width:99%; height:75px;' placeholder='차트코멘트'>".$row['chart_status']."</textarea></td>";
 		echo "</tr>";
 		echo "<tr align=center class=table-hover'>";
-			echo "<td colspan=2><input type=text style='width:95%; border: solid thin #f77d72;' name=mavg$i placeholder='인접이평선' value='".$row['mavg']."'>";
-			echo "<input type=text style='width:47%' name=issue_score$i placeholder='재료점수(1-10)' value=".$row['issue_score'].">";
-			echo "<input type=text style='width:47%' name=chart_score$i placeholder='차트점수(1-10)' value=".$row['chart_score']."></td>";
-			echo "<td><textarea name='issue_status$i' style='width:95%; height:85px;' placeholder='재료코멘트'>".$row['issue_status']."</textarea></td>";
-			echo "<td colspan=2><textarea name='chart_status$i' style='width:95%; height:85px;' placeholder='차트코멘트'>".$row['chart_status']."</textarea></td>";
+			echo "<td colspan=2><textarea name='issue_status$i' style='width:95%;' placeholder='재료코멘트'>".$row['issue_status']."</textarea></td>";
 		echo "</tr>";
 		echo "<tr align=center>";
 			echo "<td>매매대상픽? <input type=checkbox name=pick_yn$i value='Y' $checked1><br>트래킹종료? <input type=checkbox name=traking_yn$i value='N'></td>";
 			echo "<td align=left class='$buytdclass'>매수? $buy_yn<br>";
 			echo "매도? <input type=checkbox name=sell_yn$i value='Y' $checked3></td>";
 			
-			echo "<td><textarea name='feat$i' style='width:95%; border: solid medium silver;' placeholder='빌리언/차읽남'>".$row['feat']."</textarea>";
-			echo "<td><textarea name='buysell_review$i' style='width:95%; height:60px; border: solid medium silver;' placeholder='매매리뷰'>".$row['buysell_review']."</textarea>";
-			echo "<td>수익? <input type=checkbox name=win_yn$i value='Y' $checked2></td>";
-			echo "<td><textarea name='win_loss_review$i' style='width:95%; height:60px; border: solid medium silver;' placeholder='성공실패복기'>".$row['win_loss_review']."</textarea>";
+			echo "<td><textarea name='feat$i' style='width:95%; height:60px; ;' placeholder='빌리언/차읽남'>".$row['feat']."</textarea>";
+			echo "<td><textarea name='buysell_review$i' style='width:95%; height:60px; ;' placeholder='매매리뷰'>".$row['buysell_review']."</textarea>";
+			echo "<td width=80>수익? <input type=checkbox name=win_yn$i value='Y' $checked2></td>";
+			echo "<td><textarea name='win_loss_review$i' style='width:95%; height:60px; ;' placeholder='성공실패복기'>".$row['win_loss_review']."</textarea>";
 			echo "	  <input type=hidden name=code$i value=".$row['code']."></td>";
 		echo "</tr>";
 		$i++;

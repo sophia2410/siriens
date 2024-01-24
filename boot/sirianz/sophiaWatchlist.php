@@ -2,7 +2,8 @@
     require($_SERVER['DOCUMENT_ROOT']."/boot/common/top.php");
 	require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 
-$watchlist_date = (isset($_GET['watchlist_date'])   ) ? $_GET['watchlist_date'] : date('Ymd',time());
+$key_val   = (isset($_GET['key_val'])  ) ? $_GET['key_val']   : '';
+$mainFrame = (isset($_GET['mainFrame'])) ? $_GET['mainFrame'] : '';
 ?>
 </head>
 
@@ -11,7 +12,9 @@ $watchlist_date = (isset($_GET['watchlist_date'])   ) ? $_GET['watchlist_date'] 
 <div id="wrapper">
 	
 <?php
-require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_sirianz.php");
+if (!$mainFrame) {
+	require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_sirianz.php");
+}
 ?>
 
 <!-- Content Wrapper -->
@@ -22,15 +25,24 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_sirianz.php");
 
 <table style="width:100%;">
 	<tr>
-		<td>
-			<div style="margin: 0; border: 0; font: inherit;vertical-align: baseline; padding: 0;height: calc(100vh - 100px);">
-				<iframe id="iframeL" style="width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 100px);" src="sophiaWatchlist_L.php">
+		<td style='width:12%'>
+			<!-- Page Heading -->
+			<div style='border: 1px;'>
+				<input type=text id=stock_nm name=stock_nm style='width:70%' placeholder='종목' onkeydown="if(event.keyCode==13) search()">
+				<button class="btn btn-danger btn-sm" id=search onclick="search()"> 조 회 </button>
+			</div>
+		</td>
+		<td rowspan=2 style='width:88%'>
+			<div style="margin: 0; border: 1; font: inherit;vertical-align: baseline; padding: 0;height: calc(100vh - 70px);">
+				<iframe id="iframeR" scrolling="no" style="width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 70px); overflow:hidden;" src="viewChart.php">
 				</iframe>
 			</div>
 		</td>
-		<td style='width:90%' valign=top>
-			<div style="margin: 0; border: 0; font: inherit;vertical-align: baseline; padding: 0;height: calc(100vh - 100px);">
-				<iframe id="iframeR" style="width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 30px);" src="sophiaWatchlist_R.php">
+	</tr>
+	<tr>
+		<td>
+			<div style="margin: 0; border: 1; font: inherit;vertical-align: baseline; padding: 0;height: calc(100vh - 70px);">
+				<iframe id="iframeL" style="width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 70px);" src="sophiaWatchlist_L.php">
 				</iframe>
 			</div>
 		</td>
@@ -47,13 +59,21 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_sirianz.php");
 </body>
 
 <script>
-// 섹터 등 선택 시 오른쪽 프레임에 내역 조회
-function viewStock(sector, theme, category) {
+// 종목, 
+function search() {
+	stock_nm  = document.getElementById('stock_nm').value;
 	brWidth = window.innerWidth;
-	iframeR.src = "sophiaWatchlist_R.php?sector="+sector+"&theme="+theme+"&category="+category+"&brWidth="+brWidth;
+	iframeL.src = "sophiaWatchlist_L.php?stock_nm="+stock_nm+"&brWidth="+brWidth;
 	return;
 }
 
+// 섹터 등 선택 시 오른쪽 프레임에 내역 조회
+function viewChart(sector, theme, category) {
+	brWidth = window.innerWidth;
+	pgmId = 'sophiaWatchlist';
+	iframeR.src = "viewChart.php?pgmId="+pgmId+"&sector="+sector+"&theme="+theme+"&category="+category+"&brWidth="+brWidth;
+	return;
+}
 </script>
 
 <?php

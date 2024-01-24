@@ -57,11 +57,13 @@ if(isset($_POST['proc_fg'])) {
 				INNER JOIN daily_price B
 				ON  B.date = A.watchlist_date
 				AND B.code = A.code
-				INNER JOIN (SELECT * FROM daily_watchlist WHERE watchlist_date = (SELECT MAX(watchlist_date) FROM daily_watchlist WHERE watchlist_date < '$watchlist_date')) C
+				INNER JOIN (SELECT * FROM daily_watchlist WHERE (watchlist_date, code) IN (SELECT MAX(watchlist_date), code FROM daily_watchlist WHERE watchlist_date < '$watchlist_date' GROUP BY code)) C
 				ON C.code = A.code
 				SET A.close_rate = CASE WHEN A.close_rate IS NULL OR A.close_rate = '' THEN B.close_rate ELSE A.close_rate END
 					, A.volume = CASE WHEN A.volume IS NULL OR A.volume = '' THEN round(B.volume/1000,0) ELSE A.volume END
 					, A.tot_trade_amt = CASE WHEN A.tot_trade_amt IS NULL OR A.tot_trade_amt = '' THEN round(B.amount/100000000,0) ELSE A.tot_trade_amt END
+					, A.sector =  C.sector
+					, A.theme =  C.theme
 					, A.issue =  C.issue
 					, A.stock_keyword =  C.stock_keyword
 					, A.tracking_reason =  C.tracking_reason
@@ -378,11 +380,11 @@ if(isset($_POST['proc_fg'])) {
 				INNER JOIN (SELECT * FROM daily_watchlist_review WHERE review_date = (SELECT MAX(review_date) FROM daily_watchlist_review WHERE review_date < '$review_date')) C
 				ON C.code = A.code
 				SET   A.issue_status = CASE WHEN (A.issue_status = '' OR A.issue_status IS NULL)  AND C.issue_status!='' THEN C.issue_status ELSE A.issue_status END
-					, A.chart_status = CASE WHEN (A.chart_status = '' OR A.chart_status IS NULL)  AND C.chart_status!='' THEN CONCAT('(',substr(C.review_date,5,4),')',C.chart_status) ELSE A.chart_status END
+					, A.chart_status = CASE WHEN (A.chart_status = '' OR A.chart_status IS NULL)  AND C.chart_status!='' THEN C.chart_status ELSE A.chart_status END
 					, A.pick_yn 	 = CASE WHEN A.pick_yn = '' OR A.pick_yn  IS NULL THEN C.pick_yn ELSE A.pick_yn END
 					, A.buy_yn 	 	 = CASE WHEN A.buy_yn = ''   OR A.buy_yn   IS NULL THEN CASE WHEN C.sell_yn = 'Y' THEN '' ELSE C.buy_yn   END ELSE A.buy_yn END   -- 전일 매도인 경우는 매수처리 하지 않기
 					, A.buy_date 	 = CASE WHEN A.buy_date = '' OR A.buy_date IS NULL THEN CASE WHEN C.sell_yn = 'Y' THEN '' ELSE C.buy_date END ELSE A.buy_date END -- 전일 매도인 경우는 매수일자처리 하지 않기
-					, A.buysell_review= CASE WHEN (A.buysell_review = '' OR A.buysell_review IS NULL) AND C.buysell_review!='' THEN CASE WHEN C.sell_yn = 'Y' THEN '' ELSE C.buysell_review END ELSE A.buysell_review END
+					, A.buysell_review= CASE WHEN (A.buysell_review = '' OR A.buysell_review IS NULL) AND C.buysell_review!='' THEN CASE WHEN (C.buy_yn = '' or C.sell_yn = 'Y') THEN '' ELSE C.buysell_review END ELSE A.buysell_review END
 					, A.feat 	 	  = CASE WHEN A.feat = '' OR A.feat IS NULL THEN C.feat ELSE A.feat END
 				WHERE A.review_date   = '$review_date'";
 
@@ -396,8 +398,6 @@ if(isset($_POST['proc_fg'])) {
 					(review_date, code, name, issue_status, create_dtime)
 				SELECT '$review_date', 'DAY', '거래일리뷰', '".$_POST['day_issue_status']."', now()
 				FROM  daily_watchlist_review
-				WHERE review_date = '$review_date'
-				AND   code = 'DAY'
 				ON DUPLICATE KEY UPDATE
 				issue_status = '".$_POST['day_issue_status']."'";
 
@@ -410,9 +410,9 @@ if(isset($_POST['proc_fg'])) {
 			$code = 'code'.$i;
 			$mavg = 'mavg'.$i;
 			$issue_status = 'issue_status'.$i;
-			$issue_score  = 'issue_score'.$i;
 			$chart_status = 'chart_status'.$i;
-			$chart_score  = 'chart_score'.$i;
+			// $issue_score  = 'issue_score'.$i;
+			// $chart_score  = 'chart_score'.$i;
 			$pick_yn	= 'pick_yn'.$i;
 			$buy_yn 	= 'buy_yn'.$i;
 			$sell_yn 	= 'sell_yn'.$i;
@@ -445,9 +445,7 @@ if(isset($_POST['proc_fg'])) {
 			$qry = "UPDATE daily_watchlist_review A
 					SET mavg			= '".$_POST[$mavg]."'
 					,	issue_status	= '".$_POST[$issue_status]."'
-					,	issue_score		= '".$_POST[$issue_score]."'
 					,	chart_status	= '".$_POST[$chart_status]."'
-					,	chart_score		= '".$_POST[$chart_score]."'
 					,	pick_yn			= '$check_pick'
 					,	feat			= '".$_POST[$feat]."'
 					,	buy_yn			=  $buy_check
