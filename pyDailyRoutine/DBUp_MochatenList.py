@@ -31,8 +31,8 @@ class DBUpdater :
 		df = pd.read_sql(sql, self.conn)
 		trade_date = df['date'][0].decode('utf-8')
 		
-		# mochaten_date = '20240116'
-		# trade_date = '20240115'
+		# mochaten_date = '20240123'
+		# trade_date = '20240122'
 
 		pathExl = 'E:/Project/202410/data/_Mochaten/' +  mochaten_date + '.xlsx'
 		rdxls = pd.read_excel(pathExl, engine = 'openpyxl')
