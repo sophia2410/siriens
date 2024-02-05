@@ -1,4 +1,4 @@
-# 시장 정리 모아보기
+# 시장 정리 모아보기 :: stock_history 테이블 읽어서 텍스트 파일 작성
 import pymysql
 import configparser
 

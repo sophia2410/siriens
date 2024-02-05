@@ -36,8 +36,8 @@ def get_market_summary(md_path, md_date, md_file, cursor, db):
     lines = market_summary.split('\n')
 
     # 해당 일자에 등록된 히스토리가 있으면 삭제, 재등록 합니다.
-    sql_query = f"DELETE FROM stock_history WHERE date='{md_date}'"
-    # print(f"Executing: {sql_query}")
+    sql_query = f"DELETE FROM stock_history WHERE date='{date}'"
+    print(f"Executing: {sql_query}")
     cursor.execute(sql_query)
     # 각 줄에 대해 반복적으로 처리합니다.
 

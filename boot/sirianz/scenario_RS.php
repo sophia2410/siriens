@@ -131,19 +131,21 @@ echo "<h4><font color=red><b>★ 질문 ★ 눌림 주고 다시 상승할 재�
 			echo "</td></tr>";
 		echo "</table>";
 
-		$sub_query = "SELECT DATE_FORMAT(DATE_ADD('$watchlist_date', INTERVAL 1 DAY), '%Y%m%d') date, close FROM daily_price 
-					WHERE date = (select max(date) from daily_price where date <= '$watchlist_date' AND code = '$code' limit 1)
+
+		// 예상이평가는 시나리오일자 기준으로 구해오기! 2023.01.27
+		$sub_query = "SELECT DATE_FORMAT(DATE_ADD('$scenario_date', INTERVAL 1 DAY), '%Y%m%d') date, close FROM daily_price 
+					WHERE date = (select max(date) from daily_price where date <= '$scenario_date' AND code = '$code' limit 1)
 					AND code = '$code'
 					UNION ALL
 					SELECT date, close FROM daily_price
 					WHERE code = '$code'
-					AND date <= (select max(date) from daily_price where date <= '$watchlist_date' AND code = '$code' limit 1)
-					AND date > (select DATE_FORMAT(DATE_ADD('$watchlist_date', INTERVAL -1 YEAR), '%Y%m%d'))
+					AND date <= (select max(date) from daily_price where date <= '$scenario_date' AND code = '$code' limit 1)
+					AND date > (select DATE_FORMAT(DATE_ADD('$scenario_date', INTERVAL -1 YEAR), '%Y%m%d'))
 					ORDER BY date DESC ";
 
 		$query = "SELECT 
 						(SELECT close FROM daily_price 
-						WHERE date = '$watchlist_date'
+						WHERE date = (select max(date) from daily_price where date <= '$scenario_date' AND code = '$code' limit 1)
 						AND code = '$code'
 						) AS close_amt, 
 						(SELECT ROUND(AVG(close),0) 
@@ -234,6 +236,7 @@ echo "<h4><font color=red><b>★ 질문 ★ 눌림 주고 다시 상승할 재�
 									, CASE WHEN A.theme IS NOT NULL THEN A.theme ELSE (SELECT theme FROM daily_watchlist WHERE watchlist_date < '$watchlist_date' AND code = A.code ORDER BY watchlist_date DESC LIMIT 1) END theme
 									, CASE WHEN A.issue IS NOT NULL THEN A.issue ELSE (SELECT issue FROM daily_watchlist WHERE watchlist_date < '$watchlist_date' AND code = A.code ORDER BY watchlist_date DESC LIMIT 1) END issue
 									, CASE WHEN A.stock_keyword IS NOT NULL THEN A.stock_keyword ELSE (SELECT stock_keyword FROM daily_watchlist WHERE watchlist_date < '$watchlist_date' AND code = A.code ORDER BY watchlist_date DESC LIMIT 1) END stock_keyword
+									, A.hot_stock
 									, A.tracking_yn
 									, A.tracking_reason
 								FROM daily_watchlist A
@@ -253,8 +256,16 @@ echo "<h4><font color=red><b>★ 질문 ★ 눌림 주고 다시 상승할 재�
 					$theme 			= $row['theme'];
 					$issue 			= $row['issue'];
 					$stock_keyword  = $row['stock_keyword'];
+					$hot_stock      = $row['hot_stock'];
 					$tracking_yn    = $row['tracking_yn'];
 					$tracking_reason= $row['tracking_reason'];
+
+					if($row['hot_stock'] == 'Y') {
+						$select = 'selected';
+					} else {
+						$select = '';
+					}
+					$hot_stock = "<input type=checkbox name=hot_stock value='Y' $select>대장주";
 
 					if($row['tracking_yn'] == 'Y') {
 						$checkY = 'checked';
@@ -278,15 +289,16 @@ echo "<h4><font color=red><b>★ 질문 ★ 눌림 주고 다시 상승할 재�
 					echo "<input type=text name=theme value='$theme' style='width:20%;'>";
 					echo "<input type=text name=issue value='$issue' style='width:30%;'>";
 					echo "<input type=text name=stock_keyword value='$stock_keyword' style='width:35%;'></td>";
+					echo "<td>$hot_stock</td>";
 					echo "<td><input type=button class='btn btn-danger btn-sm' onclick=\"save()\" value='저장'></td>";
 					echo "</tr>";
 					echo "<tr align=left>";
 					echo "<td> 트래킹 </td>";
 					echo "<td>$tracking_yn</td>";
 					echo "<td>이유</td>";
-					echo "<td colspan=6 style='width:70%;height:40px;'><textarea name='tracking_reason' style='width:99%; height:40px;'>$tracking_reason</textarea></td>";
+					echo "<td colspan=5 style='width:70%;height:40px;'><textarea name='tracking_reason' style='width:99%; height:40px;'>$tracking_reason</textarea></td>";
 					echo "<tr align=left style='background-color:white'>";
-					echo "<td colspan=7></td>";
+					echo "<td colspan=8></td>";
 					echo "</tr>";
 
 					// 다음 영업일 시나리오 보기
@@ -336,26 +348,26 @@ echo "<h4><font color=red><b>★ 질문 ★ 눌림 주고 다시 상승할 재�
 					echo "<tr align=left>";
 					echo "<td class='text-info' colspan=2 style='width:110px;'> [예정일] <b>$scenario_date_str</b></td>";
 					echo "<td>(예상이평가)</td>";
-					echo "<td colspan=8>[종가] $close_amt &nbsp; [3] $mavg3 &nbsp; [5] $mavg5 &nbsp; [8] $mavg8 &nbsp; [10] $mavg10 &nbsp; [15] $mavg15 &nbsp; [20] $mavg20 &nbsp; [60] $mavg60 &nbsp; [120] $mavg120 &nbsp; [224] $mavg224</td>";
+					echo "<td colspan=5>[종가] $close_amt &nbsp; [3] $mavg3 &nbsp; [5] $mavg5 &nbsp; [8] $mavg8 &nbsp; [10] $mavg10 &nbsp; [15] $mavg15 &nbsp; [20] $mavg20 &nbsp; [60] $mavg60 &nbsp; [120] $mavg120 &nbsp; [224] $mavg224</td>";
 					echo "</tr>";
 					echo "<tr align=left>";
 					echo "<td> 매매고려</td>";
 					echo "<td>$buy_pick</td>";
 					echo "<td rowspan=2> 시나리오</td>";
-					echo "<td rowspan=2 colspan=4 style='height:80px;'><textarea name='scenario' style='width:99%; height:99%'>$scenario</textarea></td>";
+					echo "<td rowspan=2 colspan=5 style='height:80px;'><textarea name='scenario' style='width:99%; height:99%'>$scenario</textarea></td>";
 					echo "</tr>";
 					echo "<tr align=left>";
 					echo "<td> 매수밴드</td>";
 					echo "<td style='height:80px;'><textarea name='buy_band' style='width:99%; height:80px;'>$buy_band</textarea></td>";
 					echo "</tr>";
 					echo "<tr align=left style='background-color:white'>";
-					echo "<td colspan=7></td>";
+					echo "<td colspan=8></td>";
 					echo "</tr>";
 					echo "<tr align=left>";
 					echo "<td> 매매여부 </td>";
 					echo "<td>$buysell_yn</td>";
 					echo "<td rowspan=2> 복기 </td>";
-					echo "<td rowspan=2 colspan=4 style='height:40px;'><textarea name='buysell_review' style='width:99%; height:60px;'>$buysell_review</textarea></td>";
+					echo "<td rowspan=2 colspan=5 style='height:40px;'><textarea name='buysell_review' style='width:99%; height:60px;'>$buysell_review</textarea></td>";
 					echo "</tr>";
 					echo "<tr align=left>";
 					echo "<td> 매매유형 </td>";

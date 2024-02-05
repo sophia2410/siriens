@@ -73,18 +73,27 @@ def crawling_sedaily(soup):
 	title = soup.find("title")
 	title = title.text.split('|')[0]
 
-	# 기자이름, 뉴스일시 구해와서 나누기
 	art_info = soup.find_all("span", class_="url_txt")
-	name = art_info[2].text.split()[0] 
+	if art_info:
+		# 기자이름, 뉴스일시 구해와서 나누기
+		name = art_info[2].text.split()[0]
+		
+		# 날짜 공백으로 잘라서 구해오기
+		date = art_info[0].text.split()
+		time = date[1][0:5] 
+		date = date[0].replace('-','').replace('입력','')
+	else:
+		name = ''
+		date = ''
+		time = ''
 
-	# 날짜 공백으로 잘라서 구해오기
-	date = art_info[0].text.split()
-	time = date[1][0:5] 
-	date = date[0].replace('-','').replace('입력','')
 
 	# 본문구해오기
 	content = soup.find("div", class_="article_view")
-	content = content.text.strip()
+	if content:
+		content = content.text.strip()
+	else:
+		content= ''
 
 	rt = [publisher, title, name, date, time, content]
 	return rt

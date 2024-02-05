@@ -193,11 +193,11 @@ with open(new_file_path, 'w', encoding='utf-8') as f:
 # 파일명에서 리포트일자를 구해옵니다.
 md_date = re.search(r'@Signal Report (\d{4}).(\d{2}).(\d{2})\(.+\).md', new_file_path).group(1) + re.search(r'@Signal Report (\d{4}).(\d{2}).(\d{2})\(.+\).md', new_file_path).group(2) + re.search(r'@Signal Report (\d{4}).(\d{2}).(\d{2})\(.+\).md', new_file_path).group(3)
 
+
 # Obsidian_DBUpHistory.py 파일을 실행하세요.
 # os.system('C:/Users/elf96/AppData/Local/Programs/Python/Python39/python.exe E:/Project/202410/www/PyObsidian/Obsidian_DBUpHistory.py')
-
+print(new_file_path + md_date + new_file_name)
 # 전체가 아니라 변환한 파일만 처리되도록 변경
-
 Obsidian_DBUpHistory_SubMdu.get_market_summary(new_file_path, md_date, new_file_name, cursor, db)
 
 # 처리 종료

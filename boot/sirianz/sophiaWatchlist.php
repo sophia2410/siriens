@@ -68,10 +68,10 @@ function search() {
 }
 
 // 섹터 등 선택 시 오른쪽 프레임에 내역 조회
-function viewChart(sector, theme, category) {
+function viewChart(sector, theme, category, getRearData) {
 	brWidth = window.innerWidth;
 	pgmId = 'sophiaWatchlist';
-	iframeR.src = "viewChart.php?pgmId="+pgmId+"&sector="+sector+"&theme="+theme+"&category="+category+"&brWidth="+brWidth;
+	iframeR.src = "viewChart.php?pgmId="+pgmId+"&sector="+sector+"&theme="+theme+"&category="+category+"&getRearData="+getRearData+"&brWidth="+brWidth;
 	return;
 }
 </script>

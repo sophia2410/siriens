@@ -55,6 +55,11 @@ num_rows = len(cds)
 for cd in cds:
 	code = cd[0].decode('utf-8')
 
+	# 과거 일자 데이터 지우고 시작
+	sql = "DELETEfrom temporary_price where crawling_dtime< (select DATE_FORMAT(now(), '%Y%m%d'))"
+	# 쿼리 실행
+	cursor.execute(sql, (code))
+
 	# 과거 구해온 가격 정보 지우기
 	sql = '''DELETE FROM temporary_price WHERE code = %s'''
 	# 쿼리 실행
