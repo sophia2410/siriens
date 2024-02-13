@@ -68,9 +68,15 @@ function search() {
 }
 
 // 섹터 등 선택 시 오른쪽 프레임에 내역 조회
-function viewChart(sector, theme, category, getRearData) {
+function viewChart(data_fg, sector, theme, category, getRearData) {
 	brWidth = window.innerWidth;
-	pgmId = 'sophiaWatchlist';
+	if(data_fg == 'kiwoomapi' && sector == '예상체결')
+		pgmId = 'kiwoomapi_opt10029';
+	else if(data_fg == 'kiwoomapi' && sector == '실시간대량체결')
+		pgmId = 'kiwoomapi_realtime';
+	else if(data_fg == 'watchlist')
+		pgmId = 'sophiaWatchlist';
+
 	iframeR.src = "viewChart.php?pgmId="+pgmId+"&sector="+sector+"&theme="+theme+"&category="+category+"&getRearData="+getRearData+"&brWidth="+brWidth;
 	return;
 }

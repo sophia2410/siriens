@@ -32,11 +32,11 @@ print(f"처리 시작 시간: {start_time}")
 folder_path = 'D:/Obsidian/Trader Sophia/10 Database/WatchList'
 
 # 특정 파일만 처리할 것인지 플래그
-# only_specific_file = True
 only_specific_file = False
+# only_specific_file = True
 
 # 특정 파일 이름 
-specific_file_name = "0 당일관종.md"
+specific_file_name = "0 당일관종☆.md"
 # specific_file_name = "정책.md"
 
 # 전체 파일을 처리하는 경우, 관종 삭제 후 재등록 되도록 한다.

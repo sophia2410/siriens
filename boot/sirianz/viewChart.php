@@ -58,9 +58,35 @@ switch ($viewFg) {
 }
 
 date_default_timezone_set('Asia/Seoul');
-
 $now = date('H:i:s');  // 현재 시간을 구함
 $day_of_week = date('N');  // 현재 요일을 구함 (1: 월요일, 2: 화요일, ..., 7: 일요일)
+
+
+// 실시간 데이터를 구하는 시간인 경우는 
+$query = " SELECT date
+			FROM calendar
+			WHERE date = DATE_FORMAT(now(), '%Y%m%d')";
+
+$result = $mysqli->query($query);
+$row = $result->fetch_array(MYSQLI_BOTH);
+
+if(isset($row['date']) AND ($now >= '09:00:0' && $now <= '19:00:00')) {
+	// 당일 시세 정보 등록전에는 실시간 등록 정보에서 받아오기..
+	$trade_qry = "
+		, CONCAT('*',  DATE_FORMAT(concat(Z.date, Z.time), '%m/%d %H:%i')) trade_date
+		, Z.price trade_price
+		, CASE WHEN Z.rate >= 0 THEN CONCAT('<font color=red> +',Z.rate,'% </font>') ELSE  CONCAT('<font color=blue> -',ABS(Z.rate),'% </font>') END trade_rate_str
+		, FLOOR(Z.acc_trade_amount/100) acc_trade_amount";
+	$trade_table = "kiwoom_realtime";
+} else {
+	// 당일 시세 정보 가져오기
+	$trade_qry = "
+	, DATE_FORMAT(Z.date, '%m/%d') trade_date
+	, Z.close trade_price
+	, CASE WHEN Z.close_rate >= 0 THEN CONCAT('<font color=red> +',Z.close_rate,'% </font>') ELSE  CONCAT('<font color=blue> -',ABS(Z.close_rate),'% </font>') END trade_rate_str
+	, FLOOR(Z.amount/100000000) acc_trade_amount";
+	$trade_table = "daily_price";
+}
 
 // $pgmId sophiaWatchlist 만 실행되도록 함. + 테마정보가 있는 경우만 실행되도록 추가 수정. 24.01.24
 if ($pgmId == 'sophiaWatchlist' && $getRearData == 'Y') {
@@ -80,6 +106,7 @@ if ($pgmId == 'sophiaWatchlist' && $getRearData == 'Y') {
 	$col_st = "col-xl-3";
 	$row_div = 4;
 }
+
 ?>
 
 <body>
@@ -99,7 +126,117 @@ if($pgmId == ''){
 	echo "<h3></h3>";
 } else {
 
-	if($pgmId == 'sophiaWatchlist') {
+	$query = "SELECT max(date) base_date FROM calendar WHERE date <=(SELECT DATE_FORMAT(DATE_ADD(now(), INTERVAL 0 DAY), '%Y%m%d'))";
+	$result = $mysqli->query($query);
+	$row = $result->fetch_array(MYSQLI_BOTH);
+	$base_date = $row['base_date'];
+
+	if($pgmId == 'kiwoomapi_opt10029') {
+		$filename = $pgmId."_예상체결";
+		$file_orderby = "ORDER BY V.opt10029_fg, V.market_fg, V.trade_rate_str DESC";
+		$query = "SELECT CONCAT(' [ ' , K.opt10029_fg, '-', S.market_fg,' ] ') AS group_key
+						, K.opt10029_fg
+						, S.market_fg
+						, S.code 
+						, S.name
+						, K.sell_remain
+						, K.avg_close
+						, CASE WHEN talent_fg != '' THEN CONCAT('<font color=violet><b>',talent_fg,'</b></font>') ELSE '' END talent_fg
+						, A.sector, A.sort_theme, A.sort_stock, A.news_title, A.news_link
+						, CASE WHEN B.theme is null OR  B.theme = '' THEN B.sector ELSE B.theme END uprsn
+						, CASE WHEN B.watchlist_date IS NOT NULL THEN CONCAT(' &nbsp; <font color=gray>',STR_TO_DATE(B.watchlist_date, '%Y%m%d'),'</font>') ELSE '' END watchlist_date_str
+						, CASE WHEN B.close_rate >= 0 THEN CONCAT('<font color=red> ▲',B.close_rate,'% </font>') ELSE  CONCAT('<font color=blue> ▼',ABS(B.close_rate),'% </font>') END close_rate_str
+						, CASE WHEN B.tot_trade_amt >= 1000 THEN CONCAT('<font color=red><b>',FORMAT(B.tot_trade_amt,0),'억</b></font>') ELSE  CONCAT(B.tot_trade_amt,'억') END tot_trade_amt_str
+						, B.tot_trade_amt
+						, CONCAT('*',  DATE_FORMAT(concat(K.date, K.sell_remain), '%m/%d %H:%i')) trade_date
+						, K.exp_price trade_price
+						, CASE WHEN K.rate >= 0 THEN CONCAT('<font color=red> +',K.rate,'% </font>') ELSE  CONCAT('<font color=blue> -',ABS(K.rate),'% </font>') END trade_rate_str
+						, '' acc_trade_amount
+					FROM (	SELECT 
+								'224' opt10029_fg,
+								k.date, 
+								k.code, 
+								k.rate,
+								k.exp_price, 
+								k.base_price,
+								k.sell_remain,
+								dp.avg_close
+							FROM 
+								(SELECT 
+									code, 
+									AVG(close) AS avg_close 
+								FROM 
+									daily_price 
+								WHERE
+									date > DATE_FORMAT('$base_date', '%Y%m%d') - INTERVAL 224 DAY AND
+									code IN (SELECT code FROM kiwoom_opt10029 WHERE date = '$base_date')
+								GROUP BY 
+									code
+								) AS dp
+									JOIN 
+										kiwoom_opt10029 AS k
+									ON 
+										dp.code = k.code
+									WHERE 
+										k.date = '$base_date' AND
+										((k.base_price < dp.avg_close AND k.exp_price >= dp.avg_close) OR 
+										k.exp_price BETWEEN dp.avg_close * 0.97 AND dp.avg_close * 1.03)
+							UNION ALL
+							SELECT 
+								'ALL' opt10029_fg,
+								date, 
+								code, 
+								rate,
+								exp_price, 
+								base_price,
+								sell_remain,
+								0 avg_close
+							FROM
+								kiwoom_opt10029
+							WHERE
+								date = '$base_date'
+							) K
+					INNER JOIN kiwoom_stock S
+					ON S.code = K.code
+					LEFT OUTER JOIN (SELECT * FROM watchlist_sophia WHERE (CONCAT(sector,theme,category), code) IN (SELECT MIN(CONCAT(sector,theme,category)), code FROM watchlist_sophia  GROUP BY code)) A
+					ON A.code = K.code
+					LEFT OUTER JOIN (SELECT * FROM daily_watchlist WHERE (watchlist_date, code) IN (SELECT MAX(watchlist_date), code FROM daily_watchlist  GROUP BY code)) B
+					ON B.code = K.code
+					ORDER BY K.opt10029_fg, S.market_fg, K.rate DESC";
+	} else if($pgmId == 'kiwoomapi_realtime') {
+		$filename = $pgmId."_실시간대량체결";
+		$file_orderby = "ORDER BY SUBSTR(K.first_time,1,4) DESC, K.acc_volume DESC";
+		$query = "SELECT '실시간대량체결포착' group_key
+						, K.first_time
+						, S.market_fg
+						, S.code 
+						, S.name
+						, K.acc_volume
+						, K.acc_trade_amount
+						, CASE WHEN talent_fg != '' THEN CONCAT('<font color=violet><b>',talent_fg,'</b></font>') ELSE '' END talent_fg
+						, A.sector, A.sort_theme, A.sort_stock, A.news_title, A.news_link
+						, CASE WHEN B.theme is null OR  B.theme = '' THEN B.sector ELSE B.theme END uprsn
+						, CASE WHEN B.watchlist_date IS NOT NULL THEN CONCAT(' &nbsp; <font color=gray>',STR_TO_DATE(B.watchlist_date, '%Y%m%d'),'</font>') ELSE '' END watchlist_date_str
+						, CASE WHEN B.close_rate >= 0 THEN CONCAT('<font color=red> ▲',B.close_rate,'% </font>') ELSE  CONCAT('<font color=blue> ▼',ABS(B.close_rate),'% </font>') END close_rate_str
+						, CASE WHEN B.tot_trade_amt >= 1000 THEN CONCAT('<font color=red><b>',FORMAT(B.tot_trade_amt,0),'억</b></font>') ELSE  CONCAT(B.tot_trade_amt,'억') END tot_trade_amt_str
+						, B.tot_trade_amt
+						, CONCAT('*',  DATE_FORMAT(concat(K.date, K.first_time), '%m/%d %H:%i')) trade_date
+						, K.price trade_price
+						, CASE WHEN K.rate >= 0 THEN CONCAT('<font color=red> +',K.rate,'% </font>') ELSE  CONCAT('<font color=blue> -',ABS(K.rate),'% </font>') END trade_rate_str
+						, ROUND(K.acc_trade_amount/100) acc_trade_amount
+					FROM kiwoom_realtime K
+					INNER JOIN kiwoom_stock S
+					ON S.code = K.code
+					LEFT OUTER JOIN (SELECT * FROM watchlist_sophia WHERE (CONCAT(sector,theme,category), code) IN (SELECT MIN(CONCAT(sector,theme,category)), code FROM watchlist_sophia  GROUP BY code)) A
+					ON A.code = K.code
+					LEFT OUTER JOIN (SELECT * FROM daily_watchlist WHERE (watchlist_date, code) IN (SELECT MAX(watchlist_date), code FROM daily_watchlist  GROUP BY code)) B
+					ON B.code = K.code
+					WHERE K.date = '$base_date'
+					AND S.market_fg in ('KOSPI', 'KOSDAQ')
+					AND S.name not like '%ETN%'
+					ORDER BY SUBSTR(K.first_time,1,4) DESC, K.acc_volume DESC";
+
+	} else if($pgmId == 'sophiaWatchlist') {
 		$filename = $pgmId."_".str_replace(' ','_',$sector);
 		$file_orderby = "ORDER BY V.sector, V.sort_theme, V.sort_stock";
 
@@ -113,16 +250,13 @@ if($pgmId == ''){
 						, CASE WHEN B.close_rate >= 0 THEN CONCAT('<font color=red> ▲',B.close_rate,'% </font>') ELSE  CONCAT('<font color=blue> ▼',ABS(B.close_rate),'% </font>') END close_rate_str
 						, CASE WHEN B.tot_trade_amt >= 1000 THEN CONCAT('<font color=red><b>',FORMAT(B.tot_trade_amt,0),'억</b></font>') ELSE  CONCAT(B.tot_trade_amt,'억') END tot_trade_amt_str
 						, B.tot_trade_amt
-						, CONCAT('*', Z.date,' ', Z.time) realtime_date
-						, Z.price realtime_price
-						, CASE WHEN Z.rate >= 0 THEN CONCAT('<font color=red> +',Z.rate,'% </font>') ELSE  CONCAT('<font color=blue> -',ABS(Z.rate),'% </font>') END realtime_rate_str
-						, Z.acc_trade_amount realtime_trade_amount
+						$trade_qry
 					FROM watchlist_sophia A
 					LEFT OUTER JOIN (SELECT * FROM daily_watchlist WHERE (watchlist_date, code) IN (SELECT MAX(watchlist_date), code FROM daily_watchlist  GROUP BY code)) B
 					ON A.code = B.code
-					LEFT OUTER JOIN kiwoom_realtime Z
+					LEFT OUTER JOIN $trade_table Z
 					ON Z.code = A.code
-					AND Z.date = (select max(date) from calendar where date <=(select DATE_FORMAT(DATE_ADD(now(), INTERVAL 0 DAY), '%Y%m%d')))
+					AND Z.date = '$base_date'
 					WHERE A.sector = '$sector'
 					AND A.theme LIKE CASE WHEN '$theme' != '' THEN '%".$theme."%' ELSE '%' END
 					AND A.category LIKE CASE WHEN '$category' != '' THEN '%".$category."%' ELSE '%' END
@@ -159,12 +293,10 @@ if($pgmId == ''){
 						, CASE WHEN B.theme is null OR  B.theme = '' THEN B.sector ELSE B.theme END uprsn
 						, B.stock_keyword
 						, B.watchlist_date
-						, STR_TO_DATE(Z.date, '%Y%m%d') realtime_date
-						, Z.close realtime_price
-						, CASE WHEN Z.close_rate >= 0 THEN CONCAT('<font color=red> +',Z.close_rate,'% </font>') ELSE  CONCAT('<font color=blue> -',ABS(Z.close_rate),'% </font>') END realtime_rate_str
 						, X.sector_max_date
 						, X.sector_sum
 						, R.group_sum
+						$trade_qry
 					FROM (SELECT date FROM calendar WHERE date <= '$search_date' ORDER BY date desc LIMIT 30) A
 					INNER JOIN daily_watchlist B
 					ON A.date = B.watchlist_date
@@ -184,9 +316,9 @@ if($pgmId == ''){
 									GROUP BY G.sector
 								) X
 					ON B.sector = X.sector
-					LEFT OUTER JOIN daily_price Z
+					LEFT OUTER JOIN $trade_table Z
 					ON Z.code = B.code
-					AND Z.date = (select max(date) from calendar where date <=(select DATE_FORMAT(DATE_ADD(now(), INTERVAL 0 DAY), '%Y%m%d')))
+					AND Z.date = '$base_date'
 					ORDER BY $orderby";
 	} else if($pgmId == 'mochaten') {
 		$filename = $pgmId."_".$mochaten_date;
@@ -205,9 +337,7 @@ if($pgmId == ''){
 						 , Q.uprsn
 						 , Q.stock_keyword
 						 , Q.watchlist_date
-						 , STR_TO_DATE(Z.date, '%Y%m%d') realtime_date
-						 , Z.close realtime_price
-						 , CASE WHEN Z.close_rate >= 0 THEN CONCAT('<font color=red> +',Z.close_rate,'% </font>') ELSE  CONCAT('<font color=blue> -',ABS(Z.close_rate),'% </font>') END realtime_rate_str
+						 $trade_qry
 					FROM (	SELECT A.cha_fg
 								, C.nm cha_fg_nm
 								, C.nm_sub1 cha_comment
@@ -227,9 +357,9 @@ if($pgmId == ''){
 							ON C.cd = A.cha_fg
 							WHERE A.mochaten_date = '$mochaten_date'
 						) Q
-					LEFT OUTER JOIN daily_price Z
+					LEFT OUTER JOIN $trade_table Z
 					ON Z.code = Q.code
-					AND Z.date = (select max(date) from calendar where date <=(select DATE_FORMAT(DATE_ADD(now(), INTERVAL 0 DAY), '%Y%m%d')))
+					AND Z.date = '$base_date'
 					ORDER BY cha_fg, tot_trade_amt DESC";
 	}
 	// echo "<pre>$query</pre>";
@@ -255,15 +385,14 @@ if($pgmId == ''){
 		if($row['watchlist_date_str'] != '') {
 			$info_0day =" <font class='h5'><b>(".$row['uprsn'].")</b> ".$row['watchlist_date_str']." &nbsp; ".$row['close_rate_str']." / ".$row['tot_trade_amt_str']."</font>";
 		} else {
-			$info_0day = "";
+			$info_0day = "<font class='h5'>&nbsp</font>";
 		}
 		
 		$realtime_data = "";
-		if($row['realtime_date'] != '') {
-			$realtime_data = "<font class='h5'>".$row['realtime_rate_str']." </font> &nbsp";
-			$realtime_data .= "<font class='text-dark'>".number_format($row['realtime_price'])." &nbsp ".$row['realtime_date']."</font> ";
+		if($row['trade_date'] != '') {
+			$realtime_data = "<font class='h5'>".$row['trade_rate_str']." </font> &nbsp";
+			$realtime_data .= "<font class='text-dark'>".number_format($row['trade_price'])." &nbsp ".number_format($row['acc_trade_amount'])." &nbsp ".$row['trade_date']."</font> ";
 		}
-		
 
 		// echo "<div class='col-xl-3 col-md-6 mb-4' style='margin: 0; margin-left:10px margin-right:10px'>
 		echo "<div class='$col_st col-md-6 mb-4' style='margin: 0;'>

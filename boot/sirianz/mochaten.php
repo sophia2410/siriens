@@ -33,7 +33,7 @@ if(isset($_GET['mainF'])) {
 
 <table style="width:100%;">
 	<tr>
-		<td style='width:15%'>
+		<td style='width:13%'>
 			<!-- Page Heading -->
 			<div style='border: 1px;' class="card-header py-3">
 				<select id="mochaten_date" class="select" style='width:60%;'>
@@ -53,7 +53,7 @@ if(isset($_GET['mainF'])) {
 				<button class="btn btn-danger btn-sm" onclick="searchMochaten()"> 조 회 </button>
 			</div>
 		</td>
-		<td style='width:85%' rowspan=2 valign=top>
+		<td style='width:87%' rowspan=2 valign=top>
 			<div style="margin: 0; border: 0; font: inherit;vertical-align: baseline; padding: 0;height: calc(100vh - 100px);">
 				<iframe id="iframeR" style="width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 30px);" src="viewChart.php?pgmId=mochaten&mochaten_date=<?=$mochaten_date?>">
 				</iframe>

@@ -1,11 +1,8 @@
 import re
-import os
-import time
 import pymysql
 import configparser
 import Obsidian_StockList as stli
 from datetime import datetime
-from collections import Counter
 import Obsidian_DBUpHistory_SubMdu # 실제 파일 업로드 처리하는 부분 모듈화
 
 # 설정 파일 읽기
@@ -62,7 +59,7 @@ start_time = datetime.now()
 print(f"처리 시작 시간: {start_time}")
 
 file_path = 'D:/Obsidian/Trader Sophia/99 Inbox/rawfile_signalreport.md'  # 파일 경로를 지정합니다.
-# file_path = 'D:/Obsidian/Trader Sophia/99 Inbox/rawfile_signalreport_bakup/rawfile_signalreport_231107.md'  # 파일 경로를 지정합니다.
+# file_path = 'D:/Obsidian/Trader Sophia/99 Inbox/rawfile_signalreport_bakup/rawfile_signalreport_240208.md'  # 파일 경로를 지정합니다.
 
 with open(file_path, 'r', encoding='utf-8') as f:
     content = f.readlines()
@@ -100,6 +97,8 @@ content = [re.sub(r'<br><br>-', '\n-', line) for line in content]  # "<br><br>" 
 content = [re.sub(r'<br><br>', '', line) for line in content]  # "<br><br>" 제거
 content = [re.sub(r'<br>\s*<br>', '\n', line) for line in content]  # 각 줄의 첫 번째 "<br>" 제거
 content = [re.sub(r'nomad:', '> nomad : ', line, flags=re.MULTILINE) for line in content]  # 첫 번째 'nomad' '> nomad' 로 변경
+content = [re.sub(r'(?<!\n)(◼)', r'\n\1', line) for line in content] # ◻ 앞에 줄바꿈 문자 추가
+content = [re.sub(r'(?<!\n)(◻)', r'\n\1', line) for line in content] # ◻ 앞에 줄바꿈 문자 추가
 # content = [remove_angle_brackets(line) for line in content]  # 각 줄의 첫 번째 '<단어>' 제거  # Obsidian_ConvertPDFSignalReport 실행시만
 
 # 전체 내용을 하나의 문자열로 합칩니다.
@@ -194,7 +193,7 @@ with open(new_file_path, 'w', encoding='utf-8') as f:
 md_date = re.search(r'@Signal Report (\d{4}).(\d{2}).(\d{2})\(.+\).md', new_file_path).group(1) + re.search(r'@Signal Report (\d{4}).(\d{2}).(\d{2})\(.+\).md', new_file_path).group(2) + re.search(r'@Signal Report (\d{4}).(\d{2}).(\d{2})\(.+\).md', new_file_path).group(3)
 
 
-# Obsidian_DBUpHistory.py 파일을 실행하세요.
+# Obsidian_DBUpHistory.py 파일 실행
 # os.system('C:/Users/elf96/AppData/Local/Programs/Python/Python39/python.exe E:/Project/202410/www/PyObsidian/Obsidian_DBUpHistory.py')
 print(new_file_path + md_date + new_file_name)
 # 전체가 아니라 변환한 파일만 처리되도록 변경

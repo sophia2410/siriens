@@ -11,6 +11,8 @@
 
     <title>202410 - Dashboard</title>
     <?php
+        date_default_timezone_set('Asia/Seoul');
+
         if($_SERVER["HTTP_HOST"] == 'localhost') {
             $PATH = "http://localhost";
         } else {

@@ -157,6 +157,25 @@ $name = (isset($_GET['name'])) ? $_GET['name'] : '';
 			$stock_comment .= $row['comment'];
 		}
 
+		// 종목 최대 거래량 
+		$query = "SELECT DATE_FORMAT(Z.date, '%Y/%m/%d') date
+						, Z.code
+						, floor(Z.amount / 100000000) tot_trade_amt
+						, Z.volume
+						, Z.close_rate
+					FROM daily_price Z
+					WHERE code='".$code."'
+					ORDER BY Z.amount DESC
+					LIMIT 10";
+
+		// echo "<pre>$query</pre>";
+		$result = $mysqli->query($query);
+
+		$top_amount10 = '';
+		while( $row = $result->fetch_array(MYSQLI_BOTH) ){
+			$top_amount10 .= '('.$row['date'].')'.number_format($row['tot_trade_amt']).'억 &nbsp ';
+		}
+
 		//TODAY ISSUE
 		$today_issue = '';
 
@@ -287,7 +306,7 @@ $name = (isset($_GET['name'])) ? $_GET['name'] : '';
 			echo "<div class='chartBox'><iframe data-v-5032dc6f='' width='1200px' height='650px' scrolling='no' allowtransparency='false' src='https://www.paxnet.co.kr/stock/analysis/chartPopup?abbrSymbol=".$code."'></iframe></div>";
 		} else {
 			// 차트 -- 네이버이미지
-			echo "<tr><td style='width: 700px;' rowspan=4>";
+			echo "<tr><td style='width: 700px;' rowspan=5>";
 			echo "<h4><b>$name</b><h4>";
 			echo "<img id='img_chart_area' src='https://ssl.pstatic.net/imgfinance/chart/item/candle/day/".$code.".png?sidcode=1681518352718' width='700' height='289' alt='이미지 차트' onerror='this.src='https://ssl.pstatic.net/imgstock/chart3/world2008/error_700x289.png'>";
 		}
@@ -299,6 +318,8 @@ $name = (isset($_GET['name'])) ? $_GET['name'] : '';
 			echo "$stock_keyword";
 			echo "$stock_comment";
 			echo "&nbsp;<input type=button class='btn-icon-split bg-info' value='+' onclick=popupStockComment()>";
+			echo "</td></tr><tr><td>";
+			echo "$top_amount10";
 			echo "</td></tr><tr><td>";
 			echo "$today_issue";
 			echo "</td></tr>";
