@@ -2,7 +2,8 @@
     require($_SERVER['DOCUMENT_ROOT']."/boot/common/top.php");
 	require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 ?>
-<title>Kiwoom-실시간</title>
+
+<title>Kiwoom-예상체결</title>
 </head>
 
 <body id="page-top">
@@ -26,14 +27,19 @@
 		$result = $mysqli->query($query);
 		$row = $result->fetch_array(MYSQLI_BOTH);
 		echo "<input type=text id=date   name=date   style='width:120px' value='". $row['date']."'>";
-		echo "<input type=text id=minute name=minute style='width:60px' onkeydown=\"if(event.keyCode==13) search()\">";
 	?>
 
 	<button class="btn btn-danger btn-sm" onclick="search()"> 조 회 </button> &nbsp;&nbsp;
 </div>
 <table style="width:100%;">
 	<tr>
-	<td>
+	<td style="width:17%;">
+		<div style="margin: 0; border: 0; font: inherit;vertical-align: baseline; padding: 0;height: calc(100vh - 100px);">
+			<iframe id="iframeL" style="width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 100px);" src="kiwoomOpt10029_L.php">
+			</iframe>
+		</div>
+	</td>
+	<td style="width:83%;">
 		<div style="margin: 0; border: 0; font: inherit;vertical-align: baseline; padding: 0;height: calc(100vh - 100px);">
 			<iframe id="iframeR" style="width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 100px);" src="kiwoomRealtime_B.php">
 			</iframe>
@@ -57,9 +63,20 @@ window.onload = function() {
 
 function search(sortBy='amount_last_min') {
 	date   = document.getElementById('date').value;
-	minute   = document.getElementById('minute').value;
 
-	iframeR.src = "kiwoomRealtime_B.php?date="+date+"&minute="+minute+"&sortBy="+sortBy;
+	iframeL.src = "kiwoomOpt10029_L.php?date="+date;
+	iframeR.src = "kiwoomRealtime_B.php?date="+date+"&sortBy="+sortBy;
+	return;
+}
+
+// 섹터 등 선택 시 오른쪽 프레임에 내역 조회
+function viewRealtime(sector, theme, sortBy='amount_last_min') {
+	date   = document.getElementById('date').value;
+
+	var encodedSector = encodeURIComponent(sector);
+	var encodedTheme = encodeURIComponent(theme);
+
+	iframeR.src = "kiwoomRealtime_B.php?date="+date+"&minute="+minute+"&sector="+encodedSector+"&theme="+encodedTheme+"&sortBy="+sortBy;
 	return;
 }
 </script>

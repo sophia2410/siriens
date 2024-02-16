@@ -40,14 +40,25 @@ $result = $mysqli->query($query);
 			echo "</tr>";
 		}
 
+		// // theme / category 출력
+		// echo "<tr>";
+
+		// if($pre_theme != $row['sector'].$row['theme'])
+		// 	echo "<td><a href=\"javascript:callViewChart('".$row['data_fg']."','".$row['sector']."','".$row['theme']."','','Y')\"><b>".$row['theme']."</b></a></td>" ;
+		// else
+		// 	echo "<td>&nbsp;</td>" ;
+
+		// echo "<td><a href=\"javascript:callViewChart('".$row['data_fg']."','".$row['sector']."','".$row['theme']."','".$row['category']."','Y')\"><b>".$row['category']."</b></a></td>";
+		// echo "</tr>" ;
+		
+		// $pre_sector = $row['sector'];
+		// $pre_theme  = $row['sector'].$row['theme'];
+
+		// theme 출력
 		echo "<tr>";
 
 		if($pre_theme != $row['sector'].$row['theme'])
 			echo "<td><a href=\"javascript:callViewChart('".$row['data_fg']."','".$row['sector']."','".$row['theme']."','','Y')\"><b>".$row['theme']."</b></a></td>" ;
-		else
-			echo "<td>&nbsp;</td>" ;
-
-		echo "<td><a href=\"javascript:callViewChart('".$row['data_fg']."','".$row['sector']."','".$row['theme']."','".$row['category']."','Y')\"><b>".$row['category']."</b></a></td>";
 		echo "</tr>" ;
 		
 		$pre_sector = $row['sector'];
@@ -59,8 +70,8 @@ $result = $mysqli->query($query);
 
 <script>
 // parent 함수 호출, 오른쪽 프레임 종목정보 표시
-function callViewChart(data_fg, sector, theme, category, getRearData) {
-	window.parent.viewChart(data_fg, sector, theme, category, getRearData);
+function callViewChart(data_fg, sector, theme, category, getRealData) {
+	window.parent.viewChart(data_fg, sector, theme, category, getRealData);
 }
 </script>
 </html>

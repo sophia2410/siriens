@@ -34,7 +34,6 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_sirianz.php");
 <div id="content">
 	<div>
 		<div>
-			<label>뉴스구분</label>
 			<select id="signal_page">
 				<option value="">--choose an option--</option>
 				<?php

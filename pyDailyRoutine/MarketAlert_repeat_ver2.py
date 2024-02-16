@@ -52,7 +52,7 @@ async def check_db_and_alert():
                 ON h.code = r.code
                 WHERE r.create_dtime >= NOW() - INTERVAL 3 MINUTE
                 GROUP BY s.code, s.name
-                HAVING acc_minute_cnt >= 20;
+                HAVING acc_minute_cnt >= 50;
                 ''', (send_date,))
                 results = cursor.fetchall()
                 
@@ -83,7 +83,7 @@ async def check_db_and_alert():
                     ''', (date, send_minute, code, name, message, first_alert, '1'))
                     db.commit()
 
-                # 1분에 7회 이상 거래가 발생한 종목 조회
+                # 1분에 10회 이상 거래가 발생한 종목 조회
                 cursor.execute('''
                 SELECT r.date, r.minute, s.code, s.name, r.minute_cnt,
                        CASE WHEN h.code IS NULL THEN 'Y' ELSE '' END AS first_alert
@@ -94,7 +94,7 @@ async def check_db_and_alert():
                 ON s.code = r.code 
                 AND s.MARKET_FG IN ('KOSPI', 'KOSDAQ') 
                 WHERE r.create_dtime >= NOW() - INTERVAL 1 MINUTE
-                AND r.minute_cnt >=7;
+                AND r.minute_cnt >=10;
                 ''', (send_date,))
                 results = cursor.fetchall()
                 

@@ -8,6 +8,13 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 .small-fraction {
     font-size: 0.75em; /* 소수점 이하 값을 작게 표시 */
 }
+.cut-text {
+    max-width: 120px; /* 최대 너비 설정 */
+    white-space: nowrap; /* 텍스트를 한 줄로 표시 */
+    overflow: hidden; /* 내용이 넘칠 경우 숨김 */
+    text-overflow: ellipsis; /* 넘친 내용을 생략 부호로 표시 */
+    /* cursor: help; */ /* 마우스 오버 시 커서 모양 변경 */
+}
 </style>
 </head>
 
@@ -31,6 +38,15 @@ switch($sort) {
 		case 'amount_last_min':
 			$order = "ORDER BY amount_one_min DESC, amount_acc_day DESC";
 		break;
+}
+		
+$sector = (isset($_GET['sector']) ) ? $_GET['sector'] : '';
+$theme  = (isset($_GET['theme']) ) ? $_GET['theme'] : '';
+
+$where = '';
+if($theme != '') {
+	echo $sector."&nbsp;".$theme;
+	$where = "AND m.code IN (SELECT code FROM watchlist_sophia WHERE sector = '$sector' AND theme = '$theme')";
 }
 ?>
 
@@ -96,7 +112,7 @@ else {
 			} elseif ($amountInBillion >= 30) {
 				$color = '#bee1e6'; // 30억 이상
 			} elseif ($amountInBillion >= 10) {
-				$color = '#e2ece9'; // 10억 이상
+				$color = '#f0f4f5'; //#e2ece9'; // 10억 이상
 			} else {
 				$color = '#ffffff'; // 10억 미만
 			}
@@ -110,21 +126,20 @@ else {
 			$parts = explode('.', $formattedNumber);
 			$whole = $parts[0];
 			$fraction = $parts[1] ?? '00'; // 소수점 이하가 없는 경우 '00'으로 처리
-			
+
 			$rtAmount = "<span>".$whole.".<span class='small-fraction'>".$fraction."</span></span>";
 
 			if($bold)
 				$amountInBillion = "<b>".$rtAmount." 억</b>";
 			else
 				$amountInBillion =$rtAmount." 억";
-
 				
 			// if($bold)
 			// 	$amountInBillion = "<b>".number_format($amountInBillion, 2). " 억</b>";
 			// else
 			// 	$amountInBillion = number_format($amountInBillion, 2). " 억";
 		
-			$tdE = "<td style='background-color:".$color."' $h5> $amountInBillion </td>";
+			$tdE = "<td style='background-color:".$color."'> $amountInBillion </td>";
 		}
 
 		return $tdE;
@@ -135,7 +150,7 @@ else {
 			code, name, first_minute, last_minute,
 			CASE WHEN (amount_last_min - amount_acc_pre_time) > 0 THEN (amount_last_min - amount_acc_pre_time) ELSE 0 END AS amount_one_min,
 			amount_last_min, amount_last_1min, amount_last_2min, amount_last_3min, amount_last_4min, amount_last_5min, amount_last_6min, amount_last_7min, amount_last_8min, amount_last_9min,
-			amount_10to29min, amount_30to59min, amount_last_1hr, amount_before_1hr, rate, amount_acc_day, amount_acc_pre_time
+			amount_last_10min,amount_last_11min,amount_last_12min,amount_before_13min, rate, amount_acc_day, amount_acc_pre_time
 		FROM (
 			SELECT
 				s.code,
@@ -152,10 +167,10 @@ else {
 				MAX(CASE WHEN STR_TO_DATE(CONCAT(date, minute), '%Y%m%d%H%i') = t.specific_datetime - INTERVAL 7 MINUTE THEN acc_trade_amount ELSE 0 END) AS amount_last_7min,
 				MAX(CASE WHEN STR_TO_DATE(CONCAT(date, minute), '%Y%m%d%H%i') = t.specific_datetime - INTERVAL 8 MINUTE THEN acc_trade_amount ELSE 0 END) AS amount_last_8min,
 				MAX(CASE WHEN STR_TO_DATE(CONCAT(date, minute), '%Y%m%d%H%i') = t.specific_datetime - INTERVAL 9 MINUTE THEN acc_trade_amount ELSE 0 END) AS amount_last_9min,
-				MAX(CASE WHEN STR_TO_DATE(CONCAT(date, minute), '%Y%m%d%H%i') BETWEEN t.specific_datetime - INTERVAL 29 MINUTE AND t.specific_datetime - INTERVAL 10 MINUTE THEN acc_trade_amount ELSE 0 END) AS amount_10to29min,
-				MAX(CASE WHEN STR_TO_DATE(CONCAT(date, minute), '%Y%m%d%H%i') BETWEEN t.specific_datetime - INTERVAL 59 MINUTE AND t.specific_datetime - INTERVAL 30 MINUTE THEN acc_trade_amount ELSE 0 END) AS amount_30to59min,
-				MAX(CASE WHEN STR_TO_DATE(CONCAT(date, minute), '%Y%m%d%H%i') BETWEEN t.specific_datetime - INTERVAL 119 MINUTE AND t.specific_datetime - INTERVAL 60 MINUTE THEN acc_trade_amount ELSE 0 END) AS amount_last_1hr,
-				MAX(CASE WHEN STR_TO_DATE(CONCAT(date, minute), '%Y%m%d%H%i') <= 120 THEN acc_trade_amount ELSE 0 END) AS amount_before_1hr,
+				MAX(CASE WHEN STR_TO_DATE(CONCAT(date, minute), '%Y%m%d%H%i') = t.specific_datetime - INTERVAL 10 MINUTE THEN acc_trade_amount ELSE 0 END) AS amount_last_10min,
+				MAX(CASE WHEN STR_TO_DATE(CONCAT(date, minute), '%Y%m%d%H%i') = t.specific_datetime - INTERVAL 11 MINUTE THEN acc_trade_amount ELSE 0 END) AS amount_last_11min,
+				MAX(CASE WHEN STR_TO_DATE(CONCAT(date, minute), '%Y%m%d%H%i') = t.specific_datetime - INTERVAL 12 MINUTE THEN acc_trade_amount ELSE 0 END) AS amount_last_12min,
+				MAX(CASE WHEN STR_TO_DATE(CONCAT(date, minute), '%Y%m%d%H%i') <= t.specific_datetime - INTERVAL 13 MINUTE THEN acc_trade_amount ELSE 0 END) AS amount_before_13min,
 				(
 				SELECT m2.rate
 				FROM kiwoom_realtime_minute m2
@@ -190,10 +205,12 @@ else {
 			WHERE
 				m.date = DATE_FORMAT(t.specific_datetime, '%Y%m%d') AND -- Only considering today's data
 				m.minute <= DATE_FORMAT(t.specific_datetime, '%H%i')
+				$where
 			GROUP BY
 				s.code,
 				s.name
 			) G
+			WHERE G.amount_acc_day > 3000
 			$order 
 		";
 	// echo "<pre>$query</pre>";
@@ -201,24 +218,23 @@ else {
 
 	echo "<table class='table table-sm table-bordered text-dark'>";
 	echo "<tr align=center>";
-	echo "<th width=80>종목코드</th>";
+	echo "<th width=60>코드</th>";
 	echo "<th width=120 onclick=\"sortTable('name')\">종목명</th>";
 	echo "<th width=70  onclick=\"sortTable('rate')\">등락률</th>";
-	echo "<th width=100 onclick=\"sortTable('amount_acc_day')\" >당일누적</th>";
-	echo "<th width=100 onclick=\"sortTable('amount_last_min')\">".substr($minute,0,2).":".substr($minute,2,2)."</th>";
-	echo "<th width=100>1분전</th>";
-	echo "<th width=100>2분전</th>";
-	echo "<th width=100>3분전</th>";
-	echo "<th width=100>4분전</th>";
-	echo "<th width=100>5분전</th>";
-	echo "<th width=100>6분전</th>";
-	echo "<th width=100>7분전</th>";
-	echo "<th width=100>8분전</th>";
-	echo "<th width=100>9분전</th>";
-	echo "<th width=100>10-29분전</th>";
-	echo "<th width=100>30-59분전</th>";
-	echo "<th width=60>최초</th>";
-	echo "<th width=60>최종</th>";
+	echo "<th width=110 onclick=\"sortTable('amount_acc_day')\" >당일누적</th>";
+	echo "<th width=80 onclick=\"sortTable('amount_last_min')\">".substr($minute,0,2).":".substr($minute,2,2)."</th>";
+	echo "<th width=80>1분전</th>";
+	echo "<th width=80>2분전</th>";
+	echo "<th width=80>3분전</th>";
+	echo "<th width=80>4분전</th>";
+	echo "<th width=80>5분전</th>";
+	echo "<th width=80>6분전</th>";
+	echo "<th width=80>7분전</th>";
+	echo "<th width=80>8분전</th>";
+	echo "<th width=80>9분전</th>";
+	echo "<th width=80>10분전</th>";
+	echo "<th width=80>11분전</th>";
+	echo "<th width=80>12분전</th>";
 	echo "</tr>";
 
 	$i = 0;
@@ -236,14 +252,15 @@ else {
 			'amount_last_7min' => $row['amount_last_7min'],
 			'amount_last_8min' => $row['amount_last_8min'],
 			'amount_last_9min' => $row['amount_last_9min'],
-			'amount_10to29min' => $row['amount_10to29min'],
-			'amount_30to59min' => $row['amount_30to59min'],
-			'amount_before_1hr'=> $row['amount_before_1hr']
+			'amount_last_10min' => $row['amount_last_10min'],
+			'amount_last_11min' => $row['amount_last_11min'],
+			'amount_last_12min' => $row['amount_last_12min'],
+			'amount_before_15min' => $row['amount_before_13min']
 		];
 		
 		echo "<tr align=right>";
-			echo "<td align=center>".$row['code']."</td>";
-			echo "<td align=left class='h5'><b>".$row['name']."</b></td>";
+			echo "<td align=center class='small'>".$row['code']."</td>";
+			echo "<td align=left class='cut-text' title=".$row['name']."><b>".$row['name']."</b></td>";
 			echo "<td><b>".$row['rate']."%</b></td>";
 			$amountTdE = setAmountTdE($amounts, 'amount_acc_day', 'Y', 'Y');
 			echo $amountTdE;
@@ -267,17 +284,32 @@ else {
 			echo $amountTdE;
 			$amountTdE = setAmountTdE($amounts, 'amount_last_9min');
 			echo $amountTdE;
-			$amountTdE = setAmountTdE($amounts, 'amount_10to29min');
+			$amountTdE = setAmountTdE($amounts, 'amount_last_10min');
 			echo $amountTdE;
-			$amountTdE = setAmountTdE($amounts, 'amount_30to59min');
+			$amountTdE = setAmountTdE($amounts, 'amount_last_11min');
 			echo $amountTdE;
-			echo "<td align=center>".substr($row['first_minute'],0,2).":".substr($row['first_minute'],2,2)."</td>";
-			echo "<td align=center>".substr($row['last_minute'],0,2).":".substr($row['last_minute'],2,2)."</td>";
+			$amountTdE = setAmountTdE($amounts, 'amount_last_12min');
+			echo $amountTdE;
 		echo "</tr>";
 
 		$i++;
 	}
 	echo "</table>";
+
+	if($theme != '') {
+
+		$param = "pgmId=sophiaWatchlist&sector=".$sector."&theme=".$theme;
+		echo "<table style='width:100%'><tr>";
+		echo "<td>
+				<div style='margin: 0; border: 1; font: inherit;vertical-align: baseline; padding: 0;height: calc(100vh - 70px);'>
+					<iframe id='iframeR' scrolling='no' style='width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 70px); overflow:hidden;' src='viewChart_B.php?".$param."'>
+					</iframe>
+				</div>
+			</td>";
+		
+		echo "<table><tr>";
+
+	}
 }
 ?>
 </form>

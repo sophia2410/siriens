@@ -37,7 +37,7 @@ only_specific_file = False
 
 # 특정 파일 이름 
 specific_file_name = "0 당일관종☆.md"
-# specific_file_name = "정책.md"
+# specific_file_name = "한한령수혜.md"
 
 # 전체 파일을 처리하는 경우, 관종 삭제 후 재등록 되도록 한다.
 if only_specific_file != True:
@@ -166,7 +166,8 @@ for file_name in os.listdir(folder_path):
                 print(f"Executing: {sql % (news_content, sector, theme, category, code)}")
                 cursor.execute(sql, val)
 
-                
+sql = "UPDATE watchlist_sophia SET realtime_yn = CASE WHEN sector LIKE '%☆%' THEN 'Y' ELSE 'N' END"
+cursor.execute(sql)
 
 # 데이터베이스에 변경사항을 저장합니다.
 db.commit()

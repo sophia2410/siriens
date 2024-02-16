@@ -23,7 +23,7 @@ cur = conn.cursor()
 # 파일 읽기
 # f = open('E:/★2030100★ 꿈은 이루어진다/★ 유목민 ★/@시.리. 클래스/월급독립프로젝트_오프_1기/aStar 관심종목 1000선/아스타관심종목_카테고리입력/아스타1.csv', 'r', encoding='euc-kr')
 # 아스타5~아스타11까지의 파일 경로 리스트 만들기
-# filepaths = glob.glob('E:/★2030100★ 꿈은 이루어진다/★ 유목민 ★/@시.리. 클래스/월급독립프로젝트_오프_1기/aStar 관심종목 1000선/아스타관심종목_카테고리입력/아스타[2-9].csv') + glob.glob('E:/★2030100★ 꿈은 이루어진다/★ 유목민 ★/@시.리. 클래스/월급독립프로젝트_오프_1기/aStar 관심종목 1000선/아스타관심종목_카테고리입력/아스타1[0-1].csv')
+# filepaths = glob.glob('E:/★2030100★ 꿈은 이루어진다/★ 유목민 ★/@시.리. 클래스/월급독립프로젝트_오프_1기/aStar 관심종목 1000선/아스타관심종목_카테고리입력/아스타[1-9].csv') + glob.glob('E:/★2030100★ 꿈은 이루어진다/★ 유목민 ★/@시.리. 클래스/월급독립프로젝트_오프_1기/aStar 관심종목 1000선/아스타관심종목_카테고리입력/아스타1[0-1].csv')
 # 아스타 로 시작하는 모든 파일 읽기
 filepaths = glob.glob('E:/★2030100★ 꿈은 이루어진다/★ 유목민 ★/@시.리. 클래스/월급독립프로젝트_오프_1기/aStar 관심종목 1000선/아스타관심종목_카테고리입력/아스타*.csv')
 
@@ -36,7 +36,7 @@ for filepath in filepaths:
         datas = csv.reader(f)
         next(datas)
 
-        category_index = 1
+        category_index = 0
         subcategory_index = 1
 
         prev_category = ''
@@ -57,9 +57,10 @@ for filepath in filepaths:
             code = row[8].zfill(6)
             
             # SQL 문 작성
-            sql = "INSERT INTO astar_list (lcd_nm, mcd_nm, cd_idx, name, code) VALUES (%s, %s, %s, %s, %s)"
+            sql = "INSERT INTO watchlist_astar (sector, theme, sort_theme, stock_idx, name, code) VALUES (%s, %s, %s, %s, %s, %s)"
             # SQL 문 실행
-            cur.execute(sql, (category, subcategory, subcategory_index, row[2], code))
+            print(sql, (category, subcategory, category_index, subcategory_index, row[2], code))
+            cur.execute(sql, (category, subcategory, category_index, subcategory_index, row[2], code))
             
             subcategory_index += 1
             prev_category = category+subcategory

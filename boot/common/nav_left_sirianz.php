@@ -121,17 +121,24 @@ if($_SERVER["HTTP_HOST"] == 'localhost') {
 
             <!-- Nav Item -->
             <li class="nav-item">
+                <a class="nav-link" href="<?=$PATH?>sirianz/aStarWatchlist.php">
+                    <i class="fas fa-fw fa-gift"></i>
+                    <span>aStar WatchList </span></a>
+            </li>
+
+            <!-- Nav Item -->
+            <li class="nav-item">
                 <a class="nav-link" href="<?=$PATH?>sirianz/sophiaWatchlist.php">
                     <i class="fas fa-fw fa-gift"></i>
                     <span>Sophia WatchList </span></a>
             </li>
 
             <!-- Nav Item -->
-            <li class="nav-item">
+            <!-- <li class="nav-item">
                 <a class="nav-link" href="<?=$PATH?>sirianz/nomadList.php">
                     <i class="fas fa-fw fa-gift"></i>
                     <span>NOMAD WatchList </span></a>
-            </li>
+            </li> -->
 
             <!-- Nav Item -->
             <!-- <li class="nav-item">
@@ -160,7 +167,7 @@ if($_SERVER["HTTP_HOST"] == 'localhost') {
             <li class="nav-item">
                 <a class="nav-link" href="<?=$PATH?>sirianz/watchList.php">
                     <i class="fas fa-fw fa-gift"></i>
-                    <span>WatchList </span></a>
+                    <span>0-Day Stock </span></a>
             </li>
 
             <!-- Nav Item -->

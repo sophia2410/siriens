@@ -42,7 +42,7 @@ if (!$mainFrame) {
 	<tr>
 		<td>
 			<div style="margin: 0; border: 1; font: inherit;vertical-align: baseline; padding: 0;height: calc(100vh - 70px);">
-				<iframe id="iframeL" style="width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 70px);" src="sophiaWatchlist_L.php">
+				<iframe id="iframeL" style="width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 70px);" src="aStarWatchlist_L.php">
 				</iframe>
 			</div>
 		</td>
@@ -63,21 +63,16 @@ if (!$mainFrame) {
 function search() {
 	stock_nm  = document.getElementById('stock_nm').value;
 	brWidth = window.innerWidth;
-	iframeL.src = "sophiaWatchlist_L.php?stock_nm="+stock_nm+"&brWidth="+brWidth;
+	iframeL.src = "aStarWatchlist_L.php?stock_nm="+stock_nm+"&brWidth="+brWidth;
 	return;
 }
 
 // 섹터 등 선택 시 오른쪽 프레임에 내역 조회
-function viewChart(data_fg, sector, theme, category, getRealData) {
+function viewChart(sector, theme) {
 	brWidth = window.innerWidth;
-	if(data_fg == 'kiwoomapi' && sector == '예상체결')
-		pgmId = 'kiwoomapi_opt10029';
-	else if(data_fg == 'kiwoomapi' && sector == '실시간대량체결')
-		pgmId = 'kiwoomapi_realtime';
-	else if(data_fg == 'watchlist')
-		pgmId = 'sophiaWatchlist';
+	pgmId = 'aStarWatchlist';
 
-	iframeR.src = "viewChart.php?pgmId="+pgmId+"&sector="+sector+"&theme="+theme+"&category="+category+"&getRealData="+getRealData+"&brWidth="+brWidth;
+	iframeR.src = "viewChart.php?pgmId="+pgmId+"&sector="+sector+"&theme="+theme+"&brWidth="+brWidth;
 	return;
 }
 </script>
