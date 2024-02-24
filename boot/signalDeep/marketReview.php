@@ -9,7 +9,7 @@
 <div id="wrapper">
 
 <?php
-require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_sirianz.php");
+require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
 ?>
 
 <!-- Content Wrapper -->
@@ -64,7 +64,7 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_sirianz.php");
 if($_SERVER["HTTP_HOST"] == 'localhost') {
 	$PATH = "http://localhost";
 } else {
-	$PATH = "https://yunseul0907.cafe24.com";
+	$PATH = "https://siriens.mycafe24.com";
 }
 ?>
 

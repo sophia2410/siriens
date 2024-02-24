@@ -3,7 +3,7 @@ import pymysql
 import openpyxl
 import requests
 # 마리아DB와 연결
-conn = pymysql.connect(host='yunseul0907.cafe24.com', user='yunseul0907', password='hosting1004!', db='yunseul0907', charset='utf8')
+conn = pymysql.connect(host='siriens.mycafe24.com', user='siriens', password='hosting1004!', db='siriens', charset='utf8')
 # 커서 객체 생성
 cursor = conn.cursor()
 # 쿼리문 실행

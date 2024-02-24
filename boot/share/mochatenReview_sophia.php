@@ -31,7 +31,7 @@ $result = $mysqli->query($query);
 	
 <?php
 if(isset($_GET['mainF'])) {
-	require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_sirianz.php");
+	require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
 } else {
 	require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_share.php");
 }
@@ -127,7 +127,7 @@ $query = " SELECT A.mochaten_date
 							, lb_ratio ) A
 			 LEFT OUTER JOIN (SELECT code, chart_comment, case when chart_grade = '5' then '(★★★★★)' when chart_grade = '4' then '(★★★★)' when chart_grade = '3' then '(★★★)' when chart_grade = '2' then '(★★)' when chart_grade = '1' then '(★)' else '' end  chart_grade FROM mochaten_comment WHERE regi_id = 'sophia' AND mochaten_date = '$mochaten_date') C
 			   ON C.code = A.code
-			 LEFT OUTER JOIN (SELECT code, CONCAT('#',Y.nm, ' #',Z.issue,' #',Z.stock_connect)  AS stock_connect FROM sirianz_evening Z INNER JOIN comm_cd Y ON Y.cd = Z.theme WHERE report_date = '$trade_date') D
+			 LEFT OUTER JOIN (SELECT code, CONCAT('#',Y.nm, ' #',Z.issue,' #',Z.stock_connect)  AS stock_connect FROM siriens_evening Z INNER JOIN comm_cd Y ON Y.cd = Z.theme WHERE report_date = '$trade_date') D
 			   ON D.code = A.code
 		     LEFT OUTER JOIN (SELECT code, open_rate, high_rate, low_rate, close_rate, round(volume/1000,0) volume FROM daily_price WHERE date = '$mochaten_date') E
 			   ON E.code = A.code
@@ -199,7 +199,7 @@ function searchMochaten() {
 	key_val  = document.getElementById('mochaten_date').options[document.getElementById("mochaten_date").selectedIndex].value;
 	console.log(key_val);
 	
-	document.form1.action = "mochatenReview_sophia.php?mainF=sirianz";
+	document.form1.action = "mochatenReview_sophia.php?mainF=siriens";
 	return;
 }
 </script>

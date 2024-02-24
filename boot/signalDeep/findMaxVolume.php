@@ -11,7 +11,7 @@ $report_mon   = (isset($_GET['report_mon']) )  ? $_GET['report_mon']   : date('Y
 <div id="wrapper">
 
 <?php
-require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_sirianz.php");
+require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
 ?>
 
 <!-- Content Wrapper -->
@@ -77,7 +77,7 @@ echo "<input type=button class='btn btn-danger btn-sm' value='조 회' onclick='
 					  AND B.last_yn = 'Y'
 					LEFT OUTER JOIN (SELECT J.code
 										  , GROUP_CONCAT(K.keyword_nm ORDER BY K.keyword_fg, K.keyword_cd) last_keyword
-									   FROM sirianz_report_keyword J
+									   FROM siriens_report_keyword J
 									  INNER JOIN theme_keyword K
 										 ON K.keyword_cd = J.keyword_cd
 									  INNER JOIN (SELECT MAX(trade_date) report_date, code FROM mochaten WHERE trade_date <= (select concat(substr(yyyymmdd,1,4), substr(yyyymmdd,6,2), substr(yyyymmdd,9,2)) from (select DATE_ADD(now(), INTERVAL -1 DAY) yyyymmdd) X) AND cha_fg = 'MC000' GROUP BY code) I
@@ -89,8 +89,8 @@ echo "<input type=button class='btn btn-danger btn-sm' value='조 회' onclick='
 										, Z.code
 										, Y.today_theme_nm  infostock_theme
 										, Z.issue			infostock_issue
-									FROM sirianz_infostock Z
-									LEFT OUTER JOIN sirianz_infostock_theme Y
+									FROM siriens_infostock Z
+									LEFT OUTER JOIN siriens_infostock_theme Y
 									ON Z.today_theme_cd = Y.today_theme_cd
 									WHERE Z.report_date BETWEEN CONCAT('$report_mon','01') AND CONCAT('$report_mon','31')
 									AND Z.issue IS NOT NULL ) I
@@ -100,8 +100,8 @@ echo "<input type=button class='btn btn-danger btn-sm' value='조 회' onclick='
 										, Z.code
 										, Z.signal_grp eveninng_group
 										, Z.issue	   eveninng_issue
-									FROM sirianz_evening  Z
-									INNER JOIN (SELECT report_date, code, max(id) id FROM sirianz_evening WHERE report_date BETWEEN CONCAT('$report_mon','01') AND CONCAT('$report_mon','31') GROUP BY report_date, code) Y
+									FROM siriens_evening  Z
+									INNER JOIN (SELECT report_date, code, max(id) id FROM siriens_evening WHERE report_date BETWEEN CONCAT('$report_mon','01') AND CONCAT('$report_mon','31') GROUP BY report_date, code) Y
 									   ON Y.id = Z.id
 									WHERE Z.report_date BETWEEN CONCAT('$report_mon','01') AND CONCAT('$report_mon','31')) E
 					   ON E.report_date = A.report_date
@@ -138,7 +138,7 @@ echo "<input type=button class='btn btn-danger btn-sm' value='조 회' onclick='
 
 		echo "<tr>";
 		echo "<td align=center><input type=checkbox class=chk name=check$i value='Y'></td>";
-		echo "<td><a href='../sirianz/stock_B.php?code=".$row['code']."&name=".$row['name']."' class='"."$stock_style"."' onclick='window.open(this.href, 'stock', 'width=1800px,height=850,scrollbars=1,resizable=yes');return false;' target='_blank'>".$row['code']." - ".$row['name']."</a><input type=hidden name=code$i value=\"".$row['code']."\"></td>";
+		echo "<td><a href='../siriens/stock_B.php?code=".$row['code']."&name=".$row['name']."' class='"."$stock_style"."' onclick='window.open(this.href, 'stock', 'width=1800px,height=850,scrollbars=1,resizable=yes');return false;' target='_blank'>".$row['code']." - ".$row['name']."</a><input type=hidden name=code$i value=\"".$row['code']."\"></td>";
 		echo "<td align=right>".$row['report_date']."</td>";
 		echo "<td align=right>".$row['close_rate']."</td>";
 		echo "<td align=right>".number_format($row['volume'])."</td>";

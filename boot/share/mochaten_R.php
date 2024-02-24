@@ -268,8 +268,8 @@ $code = (isset($_GET['code'])) ? $_GET['code'] : '';
 						, '' link
 						, '' keyword
 						, '' signal_id
-					FROM sirianz_infostock A
-					LEFT OUTER JOIN sirianz_infostock_theme Z
+					FROM siriens_infostock A
+					LEFT OUTER JOIN siriens_infostock_theme Z
 					ON Z.today_theme_cd = A.today_theme_cd
 				   WHERE A.code =  '$code'
 				  UNION ALL

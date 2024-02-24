@@ -24,7 +24,7 @@ def special_char(str):
 
 def call(link):
     print('처리중....................')
-    conn = pymysql.connect(host='yunseul0907.cafe24.com', user='yunseul0907', password='hosting1004!', db='yunseul0907', charset='utf8')
+    conn = pymysql.connect(host='siriens.mycafe24.com', user='siriens', password='hosting1004!', db='siriens', charset='utf8')
     cur = conn.cursor()
 
     href = requests.get(link, headers={'User-agent': 'Mozilla/5.0'})

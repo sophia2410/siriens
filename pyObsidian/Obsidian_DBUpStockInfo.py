@@ -6,7 +6,7 @@ from datetime import datetime
 
 # 설정 파일 읽기
 config = configparser.ConfigParser()
-config.read('E:/Project/202410/www/PyObsidian/database_config.ini')
+config.read('E:/Project/202410/www/boot/common/db/database_config.ini')
 
 # MariaDB 연결
 db = pymysql.connect(
@@ -25,16 +25,31 @@ print(f"처리 시작 시간: {start_time}")
 cursor = db.cursor()
 
 # 저장된 폴더 지정
-folder_path = 'D:/Obsidian/Trader Sophia/99 Inbox/stock/'
-k=0
-# 폴더 내의 모든 파일을 순회
-for filename in os.listdir(folder_path):
+folder_path = 'D:/Obsidian/Trader Sophia/10 Database/Stock/'
+
+# 파일명을 저장한 텍스트 문서의 경로
+file_list_path = 'E:/Project/202410/www/PyObsidian/stock_dbup_list.txt'  # 예: file_list.txt에 처리할 파일명을 저장
+
+# 파일명 목록을 읽어옵니다.
+with open(file_list_path, 'r', encoding='utf-8') as file_list:
+    # 파일명을 한 줄씩 읽어 리스트에 저장하고, 각 파일명에 '.md'를 붙입니다.
+    filenames_to_process = [line.strip() + '.md' for line in file_list if line.strip()]
+
+# 파일명 목록에 있는 파일만 처리
+k = 0
+for filename in filenames_to_process:
     # 파일 경로 생성
     file_path = os.path.join(folder_path, filename)
+    
+    # 파일이 실제로 존재하는지 확인
+    if not os.path.exists(file_path):
+        print(f"File not found: {file_path}")
+        continue
+
     print('#####'+ str(k) +'##########################################################')
     k=k+1
     print(file_path)
-    
+
     # 파일 읽기
     with open(file_path, 'r', encoding='utf-8') as f:
         lines = f.readlines()
@@ -87,7 +102,9 @@ for filename in os.listdir(folder_path):
         elif "추가 정보:" in line:
             current_section = 'other'
         elif current_section == 'company_info':
-            company_info.append(line.strip())
+            # "ssl.pstatic.net/imgfinance/chart"을 포함하지 않는 라인만 추가
+            if "ssl.pstatic.net/imgfinance/chart" not in line:
+                company_info.append(line.strip())
         elif current_section == 'keyword':
             keywords.append(line.strip())
         elif current_section == 'theme':

@@ -9,7 +9,7 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 
   <?php
   $query = "SELECT MAX(A.report_date) report_date, A.thema, B.nm thema_str, A.thema_detail, A.issue
-              FROM sirianz_evening A
+              FROM siriens_evening A
              INNER JOIN comm_cd B
                 ON B.cd = A.thema
              WHERE A.thema = '".$_GET['find_val']."'

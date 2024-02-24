@@ -12,7 +12,7 @@ from pykrx import stock
 class DBUpdater:
 	def __init__(self):
 		"""생성자: MariaDB 연결 및 종목코드 딕셔너리 생성"""
-		self.conn = pymysql.connect(host='yunseul0907.cafe24.com', user='yunseul0907', password='hosting1004!', db='yunseul0907', charset='utf8')
+		self.conn = pymysql.connect(host='siriens.mycafe24.com', user='siriens', password='hosting1004!', db='siriens', charset='utf8')
 
 		with self.conn.cursor() as curs:
 			sql = """

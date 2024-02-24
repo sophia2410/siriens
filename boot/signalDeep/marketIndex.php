@@ -18,7 +18,7 @@ $checkedTitle = ($onlyTitle == 'Y') ? ' checked' : '';
 <div id="wrapper">
 
 <?php
-require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_sirianz.php");
+require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
 ?>
 
 <!-- Content Wrapper -->
@@ -58,9 +58,9 @@ echo "<input type=button class='btn btn-danger btn-sm' value='조 회' onclick='
 $query = " SELECT STR_TO_DATE(A.date, '%Y%m%d') report_date, DAYOFWEEK(A.date) - 2 arr_idx , B.evening_subject
 				, C.index_cd, C.index_nm, C.index_value, C.index_diff, C.index_close_rate
 			FROM calendar A
-			LEFT OUTER JOIN sirianz_report B
+			LEFT OUTER JOIN siriens_report B
 			ON B.report_date = A.date
-			LEFT OUTER JOIN sirianz_market_index C
+			LEFT OUTER JOIN siriens_market_index C
 			ON C.report_date = A.date
 			WHERE A.date BETWEEN CONCAT('$report_mon','01') AND CONCAT('$report_mon','31')
 			ORDER BY A.date, C.index_cd";
@@ -282,7 +282,7 @@ echo "</table>";
 if($_SERVER["HTTP_HOST"] == 'localhost') {
 	$PATH = "http://localhost";
 } else {
-	$PATH = "https://yunseul0907.cafe24.com";
+	$PATH = "https://siriens.mycafe24.com";
 }
 ?>
 

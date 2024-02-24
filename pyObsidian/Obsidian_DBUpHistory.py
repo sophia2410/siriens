@@ -10,7 +10,7 @@ import Obsidian_DBUpHistory_SubMdu # 실제 파일 업로드 처리하는 부분
 
 # 설정 파일 읽기
 config = configparser.ConfigParser()
-config.read('E:/Project/202410/www/PyObsidian/database_config.ini')
+config.read('E:/Project/202410/www/boot/common/db/database_config.ini')
 
 # MySQL 데이터베이스에 연결합니다. 연결 정보는 자신의 환경에 맞게 수정하세요.
 db = pymysql.connect(

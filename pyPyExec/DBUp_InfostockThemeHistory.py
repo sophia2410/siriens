@@ -19,7 +19,7 @@ def special_char(str):
 # 인포스탁 데이터 가져오기
 ##---------------------------------------------------------------------- 
 def call(link, file):
-	conn = pymysql.connect(host='yunseul0907.cafe24.com', user='yunseul0907', password='hosting1004!', db='yunseul0907', charset='utf8')
+	conn = pymysql.connect(host='siriens.mycafe24.com', user='siriens', password='hosting1004!', db='siriens', charset='utf8')
 	cur = conn.cursor()
 
 	href = requests.get(link, headers={'User-agent': 'Mozilla/5.0'})
@@ -129,7 +129,7 @@ def call(link, file):
 		#일별 theme history 생성
 		sql4 =  """
 				REPLACE 
-				   INTO sirianz_infostock_theme (report_date, theme_cd, issue, create_dtime) 
+				   INTO siriens_infostock_theme (report_date, theme_cd, issue, create_dtime) 
 				 SELECT str3, theme_cd, str4, now() 
 				   FROM rawdata_infostock_theme 
 				  WHERE str1 = 'Theme_history' 

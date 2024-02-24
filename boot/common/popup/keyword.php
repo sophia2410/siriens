@@ -31,7 +31,7 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 					, A.sort_no
 					, B.keyword_cnt
 				FROM theme_keyword A
-				LEFT OUTER JOIN (SELECT keyword_cd, count(*) keyword_cnt FROM sirianz_report_keyword GROUP BY keyword_cd) B
+				LEFT OUTER JOIN (SELECT keyword_cd, count(*) keyword_cnt FROM siriens_report_keyword GROUP BY keyword_cd) B
 				ON B.keyword_cd = A.keyword_cd
 				ORDER BY A.sort_no, A.keyword_fg, A.keyword_nm";
 

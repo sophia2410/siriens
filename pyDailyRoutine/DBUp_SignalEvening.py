@@ -27,11 +27,11 @@ def special_char(str):
 
 def main():
 	print('처리중....................')
-	conn = pymysql.connect(host='yunseul0907.cafe24.com', user='yunseul0907', password='hosting1004!', db='yunseul0907', charset='utf8')
+	conn = pymysql.connect(host='siriens.mycafe24.com', user='siriens', password='hosting1004!', db='siriens', charset='utf8')
 	cur = conn.cursor()
 	
 	sql = "SELECT max(date) date FROM calendar a WHERE date <= (select DATE_FORMAT(now(), '%Y%m%d'))"
-	# sql = "SELECT date FROM calendar a WHERE date = '20240129'"
+	# sql = "SELECT date FROM calendar a WHERE date = '20240220'"
 	
 	df = pd.read_sql(sql, conn)
 	date = df['date'].values[0].decode('utf-8')

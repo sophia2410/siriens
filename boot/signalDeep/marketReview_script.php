@@ -15,7 +15,7 @@ foreach($_POST as $key=>$val){
 
 if(isset($_POST['proc_fg'])) {	
 	//키워드 저장
-	if($_POST['proc_fg'] == 'save') {	// SirianzReport_Stock_B.php
+	if($_POST['proc_fg'] == 'save') {	// SiriensReport_Stock_B.php
 		for($i=0; $i<$_POST['cnt']; $i++){
 			$cd  = 'idx_'.$i;
 			$str = 'content_'.$i;
@@ -23,7 +23,7 @@ if(isset($_POST['proc_fg'])) {
 			$content_val = str_replace("'", "\'", $_POST[$str]);
 			$content_val = str_replace('"', '\"', $content_val);
 
-			$query = "UPDATE sirianz_market_review
+			$query = "UPDATE siriens_market_review
 						 SET content_str = '$content_val'
 						WHERE report_date = '".$_POST['report_date']."'
 						AND content_cd = '$_POST[$cd]'";

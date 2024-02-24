@@ -30,7 +30,7 @@ $checkb = ($searchFg == 'list')  ? 'checked' : '';
 <div id="wrapper">
 
 <?php
-require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_sirianz.php");
+require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
 ?>
 
 <!-- Content Wrapper -->
@@ -51,11 +51,11 @@ if($keyword != '') {
 	if($findDB == 'siri') {
 		$query = " SELECT A.report_date, A.code, B.name, A.signal_grp theme, A.issue, A.stock_CPR detail, C.close_rate, D.volume, D.tot_trade_amt
 					FROM (SELECT report_date, code, MIN(id) id
-							FROM sirianz_evening
+							FROM siriens_evening
 							WHERE (signal_grp LIKE CONCAT('%','$keyword','%') OR issue LIKE CONCAT('%','$keyword','%'))
 							GROUP BY report_date, code
 						  ) A0
-					INNER JOIN sirianz_evening A
+					INNER JOIN siriens_evening A
 					ON A.id = A0.id
 					INNER JOIN stock B
 					ON B.code = A.code
@@ -72,13 +72,13 @@ if($keyword != '') {
 		$query = " SELECT A.report_date, A.code, B.name, A.theme, A.issue, A.detail, C.close_rate, D.volume, D.tot_trade_amt
 					FROM (SELECT V.report_date, V.code, MAX(V.theme) theme, MAX(V.issue) issue, MAX(V.detail) detail
 							FROM (	SELECT Z.report_date, X.code, Z.today_theme_nm theme, '' issue, '' detail
-										FROM sirianz_infostock_theme Z, sirianz_infostock X
+										FROM siriens_infostock_theme Z, siriens_infostock X
 										WHERE Z.today_theme_nm LIKE CONCAT('%','$keyword','%')
 										AND X.report_date = Z.report_date
 										AND X.today_theme_cd = Z.today_theme_cd
 									UNION ALL
 									SELECT X.report_date, X.code, '' theme, X.issue, X.detail
-										FROM sirianz_infostock X
+										FROM siriens_infostock X
 										WHERE X.issue LIKE CONCAT('%','$keyword','%') 
 								  ) V
 							GROUP BY V.report_date, V.code
@@ -137,7 +137,7 @@ if($keyword != '') {
 		{
 			$YKey = $stock_cd[$j];
 			// $body .= "<tr><td>$arr_stock[$YKey]</td>";
-			$body .= "<tr><td><a href='../sirianz/stock_B.php?code=".$YKey."&name=".$arr_stock[$YKey]."' onclick='window.open(this.href, 'stock', 'width=1800px,height=850,scrollbars=1,resizable=yes');return false;' target='_blank'>".$arr_stock[$YKey]."</a></td>";
+			$body .= "<tr><td><a href='../siriens/stock_B.php?code=".$YKey."&name=".$arr_stock[$YKey]."' onclick='window.open(this.href, 'stock', 'width=1800px,height=850,scrollbars=1,resizable=yes');return false;' target='_blank'>".$arr_stock[$YKey]."</a></td>";
 
 			$stock_rate = $arr_rate[$YKey];
 
@@ -200,7 +200,7 @@ if($keyword != '') {
 if($_SERVER["HTTP_HOST"] == 'localhost') {
 	$PATH = "http://localhost";
 } else {
-	$PATH = "https://yunseul0907.cafe24.com";
+	$PATH = "https://siriens.mycafe24.com";
 }
 ?>
 <script>

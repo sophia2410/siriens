@@ -7,7 +7,7 @@ import configparser # 설정 파일을 읽기 위한 모듈
 
 # 설정 파일 읽기
 config = configparser.ConfigParser()
-config.read('E:/Project/202410/www/PyObsidian/database_config.ini')
+config.read('E:/Project/202410/www/boot/common/db/database_config.ini')
 
 # MySQL 데이터베이스에 연결합니다. 연결 정보는 자신의 환경에 맞게 수정하세요.
 db = pymysql.connect(
@@ -56,7 +56,7 @@ for cd in cds:
 	code = cd[0].decode('utf-8')
 
 	# 과거 일자 데이터 지우고 시작
-	sql = "DELETEfrom temporary_price where crawling_dtime< (select DATE_FORMAT(now(), '%Y%m%d'))"
+	sql = "DELETE from temporary_price where crawling_dtime< (select DATE_FORMAT(now(), '%Y%m%d'))"
 	# 쿼리 실행
 	cursor.execute(sql, (code))
 

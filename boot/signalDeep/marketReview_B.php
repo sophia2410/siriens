@@ -15,21 +15,21 @@ if($report_date == '') {
 	echo "<h3>일자를 선택해주세요!!</h3>";
 } else {
 
-	$query = "SELECT '1' regi_fg FROM sirianz_market_review WHERE report_date = '$report_date' LIMIT 1";
+	$query = "SELECT '1' regi_fg FROM siriens_market_review WHERE report_date = '$report_date' LIMIT 1";
 	$result = $mysqli->query($query);
 
 	$row = $result->fetch_array(MYSQLI_BOTH);
 	
 	// 당일 마켓리뷰 등록되지 않은 경우 등록해주기
 	if(!isset($row['regi_fg'])) {
-		$query = "INSERT INTO sirianz_market_review (report_date, content_cd, content_nm)
+		$query = "INSERT INTO siriens_market_review (report_date, content_cd, content_nm)
 				  SELECT '$report_date', cd, nm FROM comm_cd WHERE l_cd = 'B0000'";
 		// echo "<pre>$query</pre>";
 		$mysqli->query($query);
 
-		$query = "UPDATE sirianz_market_review A
+		$query = "UPDATE siriens_market_review A
 					INNER JOIN (SELECT content_cd, content_str 
-								FROM sirianz_market_review Z
+								FROM siriens_market_review Z
 								WHERE report_date = (select max(date) from calendar where date < '$report_date')
 								AND content_cd IN ('B0090', 'B0100')) B
 					ON B.content_cd = A.content_cd
@@ -45,8 +45,8 @@ if($report_date == '') {
 					, IFNULL(STR_TO_DATE(B.report_date, '%Y%m%d'),' ') pre_report_date
 					, IFNULL(B.content_str,' ') pre_content_str
 					, C.nm_sub1, IFNULL(C.nm_sub2,'70') height_px, C.lvl, C.l_cd, C.m_cd
-				FROM sirianz_market_review A
-				LEFT OUTER JOIN sirianz_market_review B
+				FROM siriens_market_review A
+				LEFT OUTER JOIN siriens_market_review B
 				ON B.content_cd = A.content_cd
 				AND B.report_date = (select max(date) from calendar where date < '$report_date')
 				LEFT JOIN comm_cd C

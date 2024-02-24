@@ -5,7 +5,7 @@ from datetime import datetime
 
 # 설정 파일 읽기
 config = configparser.ConfigParser()
-config.read('E:/Project/202410/www/PyObsidian/database_config.ini')
+config.read('E:/Project/202410/www/boot/common/db/database_config.ini')
 
 # MariaDB 연결
 db = pymysql.connect(
@@ -25,13 +25,13 @@ cursor = db.cursor()
 
 #****************************************************************************
 # 조건값 설정 (True: 파일에서 종목명 읽어오기, False: 쿼리로 종목 가져오기)
-# use_file = True  # stock_write_list.txt
+# use_file = True  # stock_dbdown_list.txt
 use_file = False
 #****************************************************************************
 
 if use_file:
     # 텍스트 파일에서 종목명 읽어오기
-    with open('E:/Project/202410/www/PyObsidian/stock_write_list.txt', 'r', encoding='utf-8') as f:
+    with open('E:/Project/202410/www/PyObsidian/stock_dbdown_list.txt', 'r', encoding='utf-8') as f:
         stock_list = [line.strip() for line in f if line.strip()]
 else:
     # 쿼리에서 종목 가져오기
@@ -160,19 +160,6 @@ for stock_name in stock_list:
             f.write(f"{summaries}\n")
 
         f.write("\n---\n") # 구분선 추가
-        f.write(f"종목 히스토리:\n")
-
-        # 종목 히스토리가 있는 경우에만 쓰기
-        # if stock_history:
-        #     histories  = '\n'.join([history[0].decode('utf-8') if history[0] is not None else '' for history in stock_history])
-        #     f.write(f"{histories}\n")
-
-        # 종목 히스토리가 있는 경우에만 쓰기
-        if stock_history:
-            histories  = '\n'.join([f"{history[0].decode('utf-8') if history[0] is not None else ''} {history[1].decode('utf-8') if history[1] is not None else ''} {history[2].decode('utf-8') if history[2] is not None else ''}" for history in stock_history])
-            f.write(f"{histories}\n")
-
-        f.write("\n---\n") # 구분선 추가
         f.write(f"종목 뉴스:\n")
 
         if articles:
@@ -187,7 +174,19 @@ for stock_name in stock_list:
                 f.write("\n")  # 기사 간에 공백 추가
 
         f.write("\n---\n") # 구분선 추가
-    
+        f.write(f"종목 히스토리:\n")
+
+        # 종목 히스토리가 있는 경우에만 쓰기
+        # if stock_history:
+        #     histories  = '\n'.join([history[0].decode('utf-8') if history[0] is not None else '' for history in stock_history])
+        #     f.write(f"{histories}\n")
+
+        # 종목 히스토리가 있는 경우에만 쓰기
+        if stock_history:
+            histories  = '\n'.join([f"{history[0].decode('utf-8') if history[0] is not None else ''} {history[1].decode('utf-8') if history[1] is not None else ''} {history[2].decode('utf-8') if history[2] is not None else ''}" for history in stock_history])
+            f.write(f"{histories}\n")
+
+        f.write("\n---\n") # 구분선 추가
         f.write(f"추가 정보:\n")
         # 기업 정보가 있는 경우에만 쓰기
         if others:

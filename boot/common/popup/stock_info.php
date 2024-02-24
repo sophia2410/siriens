@@ -14,8 +14,8 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
                 ON B.code = A.code
              WHERE B.name like '%".$_GET['find_val']."%'
              UNION ALL
-            SELECT 'sirianz_evening' idx, C.code, D.name, MAX(C.report_date) report_date, C.thema, C.thema_detail, C.issue, C.stock_connect comment, 'sirianz_evening' remark
-              FROM sirianz_evening C
+            SELECT 'siriens_evening' idx, C.code, D.name, MAX(C.report_date) report_date, C.thema, C.thema_detail, C.issue, C.stock_connect comment, 'siriens_evening' remark
+              FROM siriens_evening C
              INNER JOIN stock D
                 ON D.code = C.code
              WHERE D.name like '%".$_GET['find_val']."%'

@@ -2520,6 +2520,12 @@ class MysqliDb
     }
 }
 
-//$db = new MysqliDb ('localhost', 'yunseul0907', 'hosting1004!', 'yunseul0907');
-$db = new MysqliDb ('yunseul0907.cafe24.com', 'yunseul0907', 'hosting1004!', 'yunseul0907');
+// 실서버
+//$db = new MysqliDb ('localhost', 'siriens', 'hosting1004!', 'siriens');
+
+// 로컬PC - 구버전
+// $db = new MysqliDb ('yunseul0907.cafe24.com', 'yunseul0907', 'hosting1004!', 'yunseul0907');
+
+// 로컬PC - 신버전
+$db = new MysqliDb ('siriens.mycafe24.com', 'siriens', 'hosting1004!', 'siriens');
 // END class

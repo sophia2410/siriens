@@ -13,7 +13,7 @@ if sys.platform == 'win32':
 
 # 설정 파일 읽기
 config = configparser.ConfigParser()
-config.read('E:/Project/202410/www/PyObsidian/database_config.ini')
+config.read('E:/Project/202410/www/boot/common/db/database_config.ini')
 
 # 텔레그램 설정
 bot_token = config.get('telegram', 'token', fallback='YOUR_FALLBACK_TOKEN')

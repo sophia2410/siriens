@@ -18,7 +18,7 @@ def index_to_korean(index):
 
 # 설정 파일 읽기
 config = configparser.ConfigParser()
-config.read('E:/Project/202410/www/PyObsidian/database_config.ini')
+config.read('E:/Project/202410/www/boot/common/db/database_config.ini')
 
 # MariaDB 연결
 db = pymysql.connect(

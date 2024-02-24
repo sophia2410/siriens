@@ -31,8 +31,9 @@ class DBUpdater :
 		df = pd.read_sql(sql, self.conn)
 		trade_date = df['date'][0].decode('utf-8')
 		
-		# mochaten_date = '20240130'
-		# trade_date = '20240129'
+		# 특정일자 모차십 처리
+		# mochaten_date = '20240216'
+		# trade_date = '20240215'
 
 		pathExl = 'E:/Project/202410/data/_Mochaten/' +  mochaten_date + '.xlsx'
 		rdxls = pd.read_excel(pathExl, engine = 'openpyxl')
@@ -57,7 +58,13 @@ class DBUpdater :
 			volume			= rdxls.volume.values[idx]
 			tot_trade_amt	= rdxls.tot_trade_amt.values[idx]
 
-			# 거래대금이 NaN 경우 처리
+			# NaN 경우 처리
+			if pd.isna(rdxls.close_rate.values[idx]) :
+				close_rate = 0
+			else :
+				close_rate		= rdxls.close_rate.values[idx]
+
+			# NaN 경우 처리
 			if pd.isna(rdxls.f_trade_amt.values[idx]) :
 				f_trade_amt = 0
 			else :
@@ -73,11 +80,20 @@ class DBUpdater :
 			else :
 				p_trade_amt		= int(rdxls.p_trade_amt.values[idx])
 
-			# o_trade_amt		= int(rdxls.o_trade_amt.values[idx])
-			# p_trade_amt		= int(rdxls.p_trade_amt.values[idx])
-			op_ratio		= rdxls.op_ratio.values[idx]
-			lb_ratio		= rdxls.lb_ratio.values[idx]
-			dt_ratio		= rdxls.dt_ratio.values[idx]
+			if pd.isna(rdxls.op_ratio.values[idx]) :
+				op_ratio = 0
+			else :
+				op_ratio		= rdxls.op_ratio.values[idx]
+
+			if pd.isna(rdxls.lb_ratio.values[idx]) :
+				lb_ratio = 0
+			else :
+				lb_ratio		= rdxls.lb_ratio.values[idx]
+
+			if pd.isna(rdxls.dt_ratio.values[idx]) :
+				dt_ratio = 0
+			else :
+				dt_ratio		= rdxls.dt_ratio.values[idx]
 
 			sql = f'''REPLACE INTO mochaten
 		              ( mochaten_date
@@ -114,7 +130,7 @@ class DBUpdater :
 					  , '{dt_ratio}'
 					  , '{trade_date}'
 					  , now())'''
-
+			# print(sql)
 			self.curs.execute(sql)
 		self.conn.commit()
 
