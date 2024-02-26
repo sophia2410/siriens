@@ -15,6 +15,13 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
     text-overflow: ellipsis; /* 넘친 내용을 생략 부호로 표시 */
     /* cursor: help; */ /* 마우스 오버 시 커서 모양 변경 */
 }
+.cut-text2 {
+    max-width: 88px; /* 최대 너비 설정 */
+    white-space: nowrap; /* 텍스트를 한 줄로 표시 */
+    overflow: hidden; /* 내용이 넘칠 경우 숨김 */
+    text-overflow: ellipsis; /* 넘친 내용을 생략 부호로 표시 */
+    cursor: help; /* 마우스 오버 시 커서 모양 변경 */
+}
 </style>
 </head>
 
@@ -52,7 +59,6 @@ if ($result->num_rows > 0) {    // 결과가 있는
     $tableToUse = 'kiwoom_realtime_minute_backup';
 }
 
-
 $sort = isset($_GET['sortBy']) ? $_GET['sortBy'] : 'amount_last_min'; // 기본 정렬 기준
 $order = "";
 switch($sort) {
@@ -66,13 +72,14 @@ switch($sort) {
 			$order = "ORDER BY amount_acc_day DESC, first_minute DESC";
 		break;
 		case 'amount_last_min':
-			$order = "ORDER BY amount_one_min DESC, amount_acc_day DESC";
+			$order = "ORDER BY amount_last_min DESC, amount_acc_day DESC";
 		break;
 }
-		
+
 $sector = (isset($_GET['sector']) ) ? $_GET['sector'] : '';
 $theme  = (isset($_GET['theme']) ) ? $_GET['theme'] : '';
 
+// 섹터별로 조회한 경우 해당 섹터 종목만 조회되도록..
 $where = '';
 if($theme != '') {
 	echo $sector."&nbsp;".$theme;
@@ -81,7 +88,7 @@ if($theme != '') {
 ?>
 
 <body>
-<form name="form1" method='POST' action='siriensEvening_script.php' onsubmit="return false">
+<form name="form1" method='POST' onsubmit="return false">
 
 <?php
 if($specific_datetime == '') {
@@ -90,46 +97,22 @@ if($specific_datetime == '') {
 }
 else {
 
-	// 특정 키에 대한 값과 그 이후의 0이 아닌 값을 찾음
-	function findValueAndNextNonZero($array, $key) {
+	// 함수 :: 거래대금 TD 생성 
+	function setAmountTdE($array, $key, $bold='N', $sizeUp='N') {
+		
 		// 키의 현재 위치 찾기
 		$keys = array_keys($array);
 		$position = array_search($key, $keys);
 	
 		// 현재 키의 값
-		$currentValue = isset($array[$key]) ? $array[$key] : 0;
-	
-		// 다음 0이 아닌 값 찾기
-		$nextNonZeroValue = 0;
-		for ($i = $position + 1; $i < count($array); $i++) {
-			if ($array[$keys[$i]] != 0) {
-				$nextNonZeroValue = $array[$keys[$i]];
-				break;
-			}
-		}
-
-		return [
-			'currentValue' => $currentValue,
-			'nextNonZeroValue' => $nextNonZeroValue
-		];
-	}
-
-	// 거래대금 TD 생성
-	function setAmountTdE($array, $key, $bold='N', $sizeUp='N') {
-		
-		$result = findValueAndNextNonZero($array, $key);
-
-		$amount = $result['currentValue'];
+		$amount = isset($array[$key]) ? $array[$key] : 0;
 
 		// 백만원 단위를 억단위로 변경
 		if($amount == 0) {
 			$tdE = "<td>&nbsp;</td>";
 		} else {
-			if($key != 'amount_acc_day')
-				$amount = $result['currentValue'] - $result['nextNonZeroValue'];
-
 			$amountInBillion = round($amount/100, 2);
-	
+
 			// 색상 지정
 			if ($amountInBillion >= 1000) {
 				$color = '#fcb9b2'; // 10000억 이상
@@ -163,11 +146,6 @@ else {
 				$amountInBillion = "<b>".$rtAmount." 억</b>";
 			else
 				$amountInBillion =$rtAmount." 억";
-				
-			// if($bold)
-			// 	$amountInBillion = "<b>".number_format($amountInBillion, 2). " 억</b>";
-			// else
-			// 	$amountInBillion = number_format($amountInBillion, 2). " 억";
 		
 			$tdE = "<td style='background-color:".$color."'> $amountInBillion </td>";
 		}
@@ -178,29 +156,26 @@ else {
 	$query = " 
 		SELECT 
 			code, name, first_minute, last_minute,
-			CASE WHEN (amount_last_min - amount_acc_pre_time) > 0 THEN (amount_last_min - amount_acc_pre_time) ELSE 0 END AS amount_one_min,
-			amount_last_min, amount_last_1min, amount_last_2min, amount_last_3min, amount_last_4min, amount_last_5min, amount_last_6min, amount_last_7min, amount_last_8min, amount_last_9min,
-			amount_last_10min,amount_last_11min,amount_last_12min,amount_before_13min, rate, amount_acc_day, amount_acc_pre_time
+			amount_last_min, amount_last_1min, amount_last_2min, amount_last_3min, amount_last_4min, amount_last_5min, amount_last_6min, amount_last_7min, amount_last_8min, amount_last_9min,amount_last_10min,amount_last_11min,amount_last_12min, amount_acc_day, rate
 		FROM (
 			SELECT
-				s.code,
-				s.name,
+				s.code, s.name,
 				MIN(minute) AS first_minute,
 				MAX(minute) AS last_minute,
-				MAX(CASE WHEN STR_TO_DATE(CONCAT(date, minute), '%Y%m%d%H%i') = t.specific_datetime THEN acc_trade_amount ELSE 0 END) AS amount_last_min,
-				MAX(CASE WHEN STR_TO_DATE(CONCAT(date, minute), '%Y%m%d%H%i') = t.specific_datetime - INTERVAL 1 MINUTE THEN acc_trade_amount ELSE 0 END) AS amount_last_1min,
-				MAX(CASE WHEN STR_TO_DATE(CONCAT(date, minute), '%Y%m%d%H%i') = t.specific_datetime - INTERVAL 2 MINUTE THEN acc_trade_amount ELSE 0 END) AS amount_last_2min,
-				MAX(CASE WHEN STR_TO_DATE(CONCAT(date, minute), '%Y%m%d%H%i') = t.specific_datetime - INTERVAL 3 MINUTE THEN acc_trade_amount ELSE 0 END) AS amount_last_3min,
-				MAX(CASE WHEN STR_TO_DATE(CONCAT(date, minute), '%Y%m%d%H%i') = t.specific_datetime - INTERVAL 4 MINUTE THEN acc_trade_amount ELSE 0 END) AS amount_last_4min,
-				MAX(CASE WHEN STR_TO_DATE(CONCAT(date, minute), '%Y%m%d%H%i') = t.specific_datetime - INTERVAL 5 MINUTE THEN acc_trade_amount ELSE 0 END) AS amount_last_5min,
-				MAX(CASE WHEN STR_TO_DATE(CONCAT(date, minute), '%Y%m%d%H%i') = t.specific_datetime - INTERVAL 6 MINUTE THEN acc_trade_amount ELSE 0 END) AS amount_last_6min,
-				MAX(CASE WHEN STR_TO_DATE(CONCAT(date, minute), '%Y%m%d%H%i') = t.specific_datetime - INTERVAL 7 MINUTE THEN acc_trade_amount ELSE 0 END) AS amount_last_7min,
-				MAX(CASE WHEN STR_TO_DATE(CONCAT(date, minute), '%Y%m%d%H%i') = t.specific_datetime - INTERVAL 8 MINUTE THEN acc_trade_amount ELSE 0 END) AS amount_last_8min,
-				MAX(CASE WHEN STR_TO_DATE(CONCAT(date, minute), '%Y%m%d%H%i') = t.specific_datetime - INTERVAL 9 MINUTE THEN acc_trade_amount ELSE 0 END) AS amount_last_9min,
-				MAX(CASE WHEN STR_TO_DATE(CONCAT(date, minute), '%Y%m%d%H%i') = t.specific_datetime - INTERVAL 10 MINUTE THEN acc_trade_amount ELSE 0 END) AS amount_last_10min,
-				MAX(CASE WHEN STR_TO_DATE(CONCAT(date, minute), '%Y%m%d%H%i') = t.specific_datetime - INTERVAL 11 MINUTE THEN acc_trade_amount ELSE 0 END) AS amount_last_11min,
-				MAX(CASE WHEN STR_TO_DATE(CONCAT(date, minute), '%Y%m%d%H%i') = t.specific_datetime - INTERVAL 12 MINUTE THEN acc_trade_amount ELSE 0 END) AS amount_last_12min,
-				MAX(CASE WHEN STR_TO_DATE(CONCAT(date, minute), '%Y%m%d%H%i') <= t.specific_datetime - INTERVAL 13 MINUTE THEN acc_trade_amount ELSE 0 END) AS amount_before_13min,
+				IFNULL(MAX(CASE WHEN minute = t.last_min   THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= t.last_1min  THEN acc_trade_amount ELSE 0 END), 0) AS amount_last_min,
+				IFNULL(MAX(CASE WHEN minute = t.last_1min  THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= t.last_2min  THEN acc_trade_amount ELSE 0 END), 0) AS amount_last_1min,
+				IFNULL(MAX(CASE WHEN minute = t.last_2min  THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= t.last_3min  THEN acc_trade_amount ELSE 0 END), 0) AS amount_last_2min,
+				IFNULL(MAX(CASE WHEN minute = t.last_3min  THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= t.last_4min  THEN acc_trade_amount ELSE 0 END), 0) AS amount_last_3min,
+				IFNULL(MAX(CASE WHEN minute = t.last_4min  THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= t.last_5min  THEN acc_trade_amount ELSE 0 END), 0) AS amount_last_4min,
+				IFNULL(MAX(CASE WHEN minute = t.last_5min  THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= t.last_6min  THEN acc_trade_amount ELSE 0 END), 0) AS amount_last_5min,
+				IFNULL(MAX(CASE WHEN minute = t.last_6min  THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= t.last_7min  THEN acc_trade_amount ELSE 0 END), 0) AS amount_last_6min,
+				IFNULL(MAX(CASE WHEN minute = t.last_7min  THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= t.last_8min  THEN acc_trade_amount ELSE 0 END), 0) AS amount_last_7min,
+				IFNULL(MAX(CASE WHEN minute = t.last_8min  THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= t.last_9min  THEN acc_trade_amount ELSE 0 END), 0) AS amount_last_8min,
+				IFNULL(MAX(CASE WHEN minute = t.last_9min  THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= t.last_10min THEN acc_trade_amount ELSE 0 END), 0) AS amount_last_9min,
+				IFNULL(MAX(CASE WHEN minute = t.last_10min THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= t.last_11min THEN acc_trade_amount ELSE 0 END), 0) AS amount_last_10min,
+				IFNULL(MAX(CASE WHEN minute = t.last_11min THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= t.last_12min THEN acc_trade_amount ELSE 0 END), 0) AS amount_last_11min,
+				IFNULL(MAX(CASE WHEN minute = t.last_12min THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= t.last_13min THEN acc_trade_amount ELSE 0 END), 0) AS amount_last_12min,
+				IFNULL(MAX(CASE WHEN minute <= t.last_min THEN acc_trade_amount ELSE NULL END), 0) AS amount_acc_day,
 				(
 				SELECT m2.rate
 				FROM $tableToUse m2
@@ -208,30 +183,32 @@ else {
 					AND STR_TO_DATE(CONCAT(m2.date, m2.minute), '%Y%m%d%H%i') <= t.specific_datetime
 				ORDER BY STR_TO_DATE(CONCAT(m2.date, m2.minute), '%Y%m%d%H%i') DESC
 				LIMIT 1
-				) AS rate, -- 주어진 시간 이전의 가장 최근 rate
-				(
-				SELECT m2.acc_trade_amount
-				FROM $tableToUse m2
-				WHERE m2.code = m.code
-					AND STR_TO_DATE(CONCAT(m2.date, m2.minute), '%Y%m%d%H%i') <= t.specific_datetime
-				ORDER BY STR_TO_DATE(CONCAT(m2.date, m2.minute), '%Y%m%d%H%i') DESC
-				LIMIT 1
-				) AS amount_acc_day, -- 주어진 시간의 가장 최근 acc_volume
-				(
-				SELECT m2.acc_trade_amount
-				FROM $tableToUse m2
-				WHERE m2.code = m.code
-					AND STR_TO_DATE(CONCAT(m2.date, m2.minute), '%Y%m%d%H%i') < t.specific_datetime
-				ORDER BY STR_TO_DATE(CONCAT(m2.date, m2.minute), '%Y%m%d%H%i') DESC
-				LIMIT 1
-				) AS amount_acc_pre_time -- 주어진 시간 이전의 가장 최근 acc_volume
+				) AS rate -- 주어진 시간 이전의 가장 최근 rate
 			FROM
 				$tableToUse m
 			JOIN
 				kiwoom_stock s
 			ON s.code = m.code
-			JOIN 
-				(SELECT STR_TO_DATE('$specific_datetime', '%Y%m%d%H%i') specific_datetime) t
+			JOIN (
+				SELECT
+					specific_datetime,
+					DATE_FORMAT(sd.specific_datetime, '%H%i') AS last_min,
+					DATE_FORMAT(sd.specific_datetime - INTERVAL 1  MINUTE, '%H%i') AS last_1min,
+					DATE_FORMAT(sd.specific_datetime - INTERVAL 2  MINUTE, '%H%i') AS last_2min,
+					DATE_FORMAT(sd.specific_datetime - INTERVAL 3  MINUTE, '%H%i') AS last_3min,
+					DATE_FORMAT(sd.specific_datetime - INTERVAL 4  MINUTE, '%H%i') AS last_4min,
+					DATE_FORMAT(sd.specific_datetime - INTERVAL 5  MINUTE, '%H%i') AS last_5min,
+					DATE_FORMAT(sd.specific_datetime - INTERVAL 6  MINUTE, '%H%i') AS last_6min,
+					DATE_FORMAT(sd.specific_datetime - INTERVAL 7  MINUTE, '%H%i') AS last_7min,
+					DATE_FORMAT(sd.specific_datetime - INTERVAL 8  MINUTE, '%H%i') AS last_8min,
+					DATE_FORMAT(sd.specific_datetime - INTERVAL 9  MINUTE, '%H%i') AS last_9min,
+					DATE_FORMAT(sd.specific_datetime - INTERVAL 10 MINUTE, '%H%i') AS last_10min,
+					DATE_FORMAT(sd.specific_datetime - INTERVAL 11 MINUTE, '%H%i') AS last_11min,
+					DATE_FORMAT(sd.specific_datetime - INTERVAL 12 MINUTE, '%H%i') AS last_12min,
+					DATE_FORMAT(sd.specific_datetime - INTERVAL 13 MINUTE, '%H%i') AS last_13min
+				FROM
+					(SELECT STR_TO_DATE('$specific_datetime', '%Y%m%d%H%i') AS specific_datetime) sd
+				) t
 			WHERE
 				m.date = DATE_FORMAT(t.specific_datetime, '%Y%m%d') AND -- Only considering today's data
 				m.minute <= DATE_FORMAT(t.specific_datetime, '%H%i')
@@ -243,33 +220,86 @@ else {
 			WHERE G.amount_acc_day > 3000
 			$order 
 		";
+
 	// echo "<pre>$query</pre>";
 	$result = $mysqli->query($query);
-
+	
 	echo "<table class='table table-sm table-bordered text-dark'>";
+
+	// 데이터베이스 쿼리 결과를 배열에 저장
+	$allData = [];
+	$tradeAmountsByTime = []; // 시간대별 거래대금을 저장할 배열
+	$times = ['acc_day', 'last_min', 'last_1min', 'last_2min', 'last_3min', 'last_4min', 'last_5min', 'last_6min', 'last_7min', 'last_8min', 'last_9min', 'last_10min', 'last_11min', 'last_12min'];
+
+	while ($row = $result->fetch_array(MYSQLI_BOTH)) {
+		// 모든 데이터를 $allData 배열에 저장
+		$allData[] = $row;
+
+		// 시간대별 거래대금 배열에 데이터 추가
+		foreach ($times as $time) {
+			$timeKey = "amount_$time";
+			$amount = $row[$timeKey] ?? 0;
+
+			if (!isset($tradeAmountsByTime[$timeKey])) {
+				$tradeAmountsByTime[$timeKey] = [];
+			}
+			
+			if ($amount > 0) {
+				$tradeAmountsByTime[$timeKey][] = [
+					'code' => $row['code'],
+					'name' => $row['name'],
+					'amount' => $amount
+				];
+			}
+		}
+	}
+
+	// Top 7 계산
+	$topByTime = [];
+	foreach ($tradeAmountsByTime as $timeKey => $items) {
+		usort($items, function($a, $b) {
+			return $b['amount'] - $a['amount'];
+		});
+		$topByTime[$timeKey] = array_slice($items, 0, 7); // 7위까지
+	}
+
+	// Top 7 출력
+	echo "<tr><td colspan=3 align=center class=h2>Top7</td>";
+	foreach ($times as $time) {
+		$timeKey = "amount_$time";
+		echo "<td cellpadding=0 cellspacing=0><table class='small table-borderless' cellpadding=0 cellspacing=0>";
+		if (isset($topByTime[$timeKey])) {
+			foreach ($topByTime[$timeKey] as $item) {
+				echo "<tr><td class='cut-text2' title={$item['name']}><b>{$item['name']}</b></td></tr>"; // 종목명
+			}
+		}
+		echo "</table></td>";
+	}
+	echo "</tr>";
+
 	echo "<tr align=center>";
 	echo "<th width=60>코드</th>";
 	echo "<th width=120 onclick=\"sortTable('name')\">종목명</th>";
 	echo "<th width=70  onclick=\"sortTable('rate')\">등락률</th>";
 	echo "<th width=110 onclick=\"sortTable('amount_acc_day')\" >당일누적</th>";
-	echo "<th width=80 onclick=\"sortTable('amount_last_min')\">".substr($minute,0,2).":".substr($minute,2,2)."</th>";
-	echo "<th width=80>1분전</th>";
-	echo "<th width=80>2분전</th>";
-	echo "<th width=80>3분전</th>";
-	echo "<th width=80>4분전</th>";
-	echo "<th width=80>5분전</th>";
-	echo "<th width=80>6분전</th>";
-	echo "<th width=80>7분전</th>";
-	echo "<th width=80>8분전</th>";
-	echo "<th width=80>9분전</th>";
-	echo "<th width=80>10분전</th>";
-	echo "<th width=80>11분전</th>";
-	echo "<th width=80>12분전</th>";
+	echo "<th width=90  onclick=\"sortTable('amount_last_min')\">".substr($minute,0,2).":".substr($minute,2,2)."</th>";
+	echo "<th width=90>1분전</th>";
+	echo "<th width=90>2분전</th>";
+	echo "<th width=90>3분전</th>";
+	echo "<th width=90>4분전</th>";
+	echo "<th width=90>5분전</th>";
+	echo "<th width=90>6분전</th>";
+	echo "<th width=90>7분전</th>";
+	echo "<th width=90>8분전</th>";
+	echo "<th width=90>9분전</th>";
+	echo "<th width=90>10분전</th>";
+	echo "<th width=90>11분전</th>";
+	echo "<th width=90>12분전</th>";
 	echo "</tr>";
-
-	$i = 0;
-	while($row = $result->fetch_array(MYSQLI_BOTH)) {
-		// 예시 데이터
+		
+	// 나머지 데이터 출력
+	foreach ($allData as $row) {
+		// TD 생성을 위해 거래대금 배열에 담기
 		$amounts = [
 			'amount_acc_day'   => $row['amount_acc_day'],
 			'amount_last_min'  => $row['amount_last_min'],
@@ -284,16 +314,15 @@ else {
 			'amount_last_9min' => $row['amount_last_9min'],
 			'amount_last_10min' => $row['amount_last_10min'],
 			'amount_last_11min' => $row['amount_last_11min'],
-			'amount_last_12min' => $row['amount_last_12min'],
-			'amount_before_15min' => $row['amount_before_13min']
+			'amount_last_12min' => $row['amount_last_12min']
 		];
 
 		echo "<tr align=right>";
 			echo "<td align=center class='small'>";
-			echo "<a href='kiwoomRealtime_AStock.php?code=".$row['code']."&name=".$row['name']."&date=".$date."' onclick='window.open(this.href, \'realtime_stock\', 'width=2500px,height=850,scrollbars=1,resizable=yes');return false;' target='_blank'>";
+			echo "<a href='kiwoomRealtime15Min_AStock.php?code=".$row['code']."&name=".$row['name']."&date=".$date."' onclick='window.open(this.href, \'realtime_stock\', 'width=2500px,height=850,scrollbars=1,resizable=yes');return false;' target='_blank'>";
 			echo $row['code']."</a></td>";
 			echo "<td align=left class='cut-text' title=".$row['name'].">";
-			echo "<a href='kiwoomRealtime15Min_AStock.php?code=".$row['code']."&name=".$row['name']."&date=".$date."' onclick='window.open(this.href, \'realtime_stock\', 'width=2500px,height=850,scrollbars=1,resizable=yes');return false;' target='_blank'>";
+			echo "<a href='kiwoomRealtime_AStock.php?code=".$row['code']."&name=".$row['name']."&date=".$date."' onclick='window.open(this.href, \'realtime_stock\', 'width=2500px,height=850,scrollbars=1,resizable=yes');return false;' target='_blank'>";
 			echo "<b>".$row['name']."</b></a></td>";
 			echo "<td><b>".$row['rate']."%</b></td>";
 			$amountTdE = setAmountTdE($amounts, 'amount_acc_day', 'Y', 'Y');
@@ -325,24 +354,8 @@ else {
 			$amountTdE = setAmountTdE($amounts, 'amount_last_12min');
 			echo $amountTdE;
 		echo "</tr>";
-
-		$i++;
 	}
 	echo "</table>";
-
-	if($theme != '') {
-		$param = "pgmId=sophiaWatchlist&sector=".$sector."&theme=".$theme;
-		echo "<table style='width:100%'><tr>";
-		echo "<td>
-				<div style='margin: 0; border: 1; font: inherit;vertical-align: baseline; padding: 0;height: calc(100vh - 70px);'>
-					<iframe id='iframeR' scrolling='no' style='width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 70px); overflow:hidden;' src='viewChart_B.php?".$param."'>
-					</iframe>
-				</div>
-			</td>";
-		
-		echo "<table><tr>";
-
-	}
 }
 ?>
 </form>

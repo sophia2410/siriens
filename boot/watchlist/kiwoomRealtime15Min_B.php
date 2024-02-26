@@ -365,11 +365,10 @@ else {
 		
 		echo "<tr align=right>";
 			echo "<td align=center class='small'>";
-			echo "<a href='kiwoomRealtime_AStock.php?code=".$row['code']."&name=".$row['name']."&date=".$date."' onclick='window.open(this.href, \'realtime_stock\', 'width=2500px,height=850,scrollbars=1,resizable=yes');return false;' target='_blank'>";
-			echo $row['code']."</a></td>";
-			
-			echo "<td align=left class='cut-text' title=".$row['name'].">";
 			echo "<a href='kiwoomRealtime15Min_AStock.php?code=".$row['code']."&name=".$row['name']."&date=".$date."' onclick='window.open(this.href, \'realtime_stock\', 'width=2500px,height=850,scrollbars=1,resizable=yes');return false;' target='_blank'>";
+			echo $row['code']."</a></td>";
+			echo "<td align=left class='cut-text' title=".$row['name'].">";
+			echo "<a href='kiwoomRealtime_AStock.php?code=".$row['code']."&name=".$row['name']."&date=".$date."' onclick='window.open(this.href, \'realtime_stock\', 'width=2500px,height=850,scrollbars=1,resizable=yes');return false;' target='_blank'>";
 			echo "<b>".$row['name']."</b></a></td>";
 			$amountTdE = setAmountTdE($amounts, 'amount_time_all', 'Y', 'Y');
 			echo $amountTdE;

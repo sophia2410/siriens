@@ -45,6 +45,8 @@ if($date == '') {
 	$ready = 'N';
 }
 else {
+	// 종목 / 일자 정보 표시
+	echo "<div><h4> ▶ [$code] $name </h4></div>";
 
 	// 함수 :: 거래대금 TD 생성 
 	function setAmountTdE($array, $key, $bold='N', $sizeUp='N') {
@@ -103,7 +105,8 @@ else {
 	}
 	$query = " 
 		SELECT 
-			STR_TO_DATE(c.date, '%Y%m%d') date,
+			c.date,
+			STR_TO_DATE(c.date, '%Y%m%d') dateStr,
 			CASE DAYOFWEEK(STR_TO_DATE(c.date, '%Y%m%d'))
 				WHEN 1 THEN '일'
 				WHEN 2 THEN '월'
@@ -272,10 +275,12 @@ else {
 		];
 		
 		echo "<tr align=right>";
-		echo "<td align=center><b>".$row['date']."</b></td>";
-		echo "<td align=center><b>".$row['day']."</b></td>";
-		echo "<td><b>".$row['close_rate']."</b>%</td>";
-		
+			echo "<td align=center>";
+			echo "<a href='kiwoomRealtime_AStock.php?code={$code}&name={$name}&date={$row['date']}' onclick='window.open(this.href, \'realtime_stock\', 'width=2500px,height=850,scrollbars=1,resizable=yes');return false;' target='_blank'>";
+			echo "<b>".$row['dateStr']."</b></a></td>";
+			echo "<td align=center><b>".$row['day']."</b></td>";
+			echo "<td><b>".$row['close_rate']."</b>%</td>";
+			
 			$amountTdE = setAmountTdE($amounts, 'amount_time_all', 'Y', 'Y');
 			echo $amountTdE;
 			$amountTdE = setAmountTdE($amounts, 'amount_time_0900');

@@ -31,7 +31,7 @@
 	?>
 
 	<button class="btn btn-danger btn-sm" onclick="search()"> 조 회 </button> &nbsp;&nbsp;
-	* [코드] 클릭 : 조회일 1분 거래대금 조회, [종목명] 클릭 : 종목 기간별 15분단위 거래대금 조회
+	* [코드] 클릭 : 종목 기간별 15분단위 거래대금 조회, [종목명] 클릭 : 조회일 1분 거래대금 조회
 </div>
 <table style="width:100%;">
 	<tr>

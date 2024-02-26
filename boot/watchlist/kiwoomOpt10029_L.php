@@ -40,16 +40,14 @@ $query = "SELECT z.sector, z.theme, z.sort_theme, z.exp_amount, z.cnt,
 				SUM(z.exp_amount) OVER (PARTITION BY z.sector) sector_amount,
 				SUM(z.cnt) OVER (PARTITION BY z.sector) sector_cnt
 			FROM (
-					SELECT IFNULL(w.sector, '(미등록)') sector, CASE WHEN (w.sector LIKE '0%' or w.sector LIKE '1%') THEN w.theme ELSE '' END theme, min(w.sort_theme) as sort_theme, 
+					SELECT IFNULL(w.sector, '(미등록)') sector, CASE WHEN (w.sector LIKE '0%' or w.sector LIKE '1%' or w.sector LIKE '5%') THEN w.theme ELSE '' END theme, min(w.sort_theme) as sort_theme, 
 						   ROUND(SUM(exp_price * exp_vol)/100000000,2) exp_amount, count(*) cnt
 					FROM kiwoom_opt10029 u
 					LEFT OUTER JOIN watchlist_sophia w
 					ON u.code = w.code
 					WHERE u.date = '$date'
-					AND (NOT ( w.sector LIKE '2%' 
-					OR w.sector LIKE '3%' 
+					AND (NOT ( w.sector LIKE '3%' 
 					OR w.sector LIKE '4%' 
-					OR w.sector LIKE '5%' 
 					OR w.sector LIKE '6%' 
 					OR w.sector LIKE '7%' 
 					OR w.sector LIKE '8%' 

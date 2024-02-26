@@ -76,7 +76,7 @@ else {
 	$formattedDate = $originalDate->format('Y-m-d');
 
 	// 종목 / 일자 정보 표시
-	echo "<div><h4>$name / $formattedDate</h4></div>";
+	echo "<div><h4> ▶ [$code] $name / $formattedDate</h4></div>";
 
 	// 거래대금 TD 생성
 	function setAmountTdE($amount) {
