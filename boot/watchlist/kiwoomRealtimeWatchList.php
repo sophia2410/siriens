@@ -1,5 +1,5 @@
 <?php
-	$pageTitle = "실시간체결-섹터별";
+	$pageTitle = "실시간체결-관종목록";
 	
 	require($_SERVER['DOCUMENT_ROOT']."/boot/common/top.php");
 	require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
@@ -38,7 +38,7 @@
 	<tr>
 	<td style="width:17%;">
 		<div style="margin: 0; border: 0; font: inherit;vertical-align: baseline; padding: 0;height: calc(100vh - 100px);">
-			<iframe id="iframeL" style="width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 100px);" src="kiwoomRealtimeSector_L.php">
+			<iframe id="iframeL" style="width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 100px);" src="kiwoomRealtimeWatchList_L.php">
 			</iframe>
 		</div>
 	</td>
@@ -70,7 +70,7 @@ function search(sortBy='amount_last_min') {
 	stock_nm = document.getElementById('stock_nm').value;
 	min_amount = document.getElementById('min_amount').value;
 
-	iframeL.src = "kiwoomRealtimeSector_L.php?date="+date+"&minute="+minute+"&stock_nm="+stock_nm+"&min_amount="+min_amount+"&sortBy="+sortBy;
+	iframeL.src = "kiwoomRealtimeWatchList_L.php?date="+date+"&minute="+minute+"&stock_nm="+stock_nm+"&min_amount="+min_amount+"&sortBy="+sortBy;
 	iframeR.src = "kiwoomRealtime_B.php?date="+date+"&minute="+minute+"&sortBy="+sortBy;
 	return;
 }

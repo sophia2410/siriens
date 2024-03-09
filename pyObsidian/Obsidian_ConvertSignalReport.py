@@ -59,7 +59,7 @@ start_time = datetime.now()
 print(f"처리 시작 시간: {start_time}")
 
 file_path = 'D:/Obsidian/Trader Sophia/99 Inbox/rawfile_signalreport.md'  # 파일 경로를 지정합니다.
-# file_path = 'D:/Obsidian/Trader Sophia/99 Inbox/rawfile_signalreport_bakup/rawfile_signalreport_240208.md'  # 파일 경로를 지정합니다.
+# file_path = 'D:/Obsidian/Trader Sophia/99 Inbox/rawfile_signalreport_bakup/rawfile_signalreport_240226.md'  # 파일 경로를 지정합니다.
 
 with open(file_path, 'r', encoding='utf-8') as f:
     content = f.readlines()

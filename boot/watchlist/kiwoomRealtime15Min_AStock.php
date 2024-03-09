@@ -62,7 +62,7 @@ else {
 		if($amount == 0) {
 			$tdE = "<td>&nbsp;</td>";
 		} else {
-			$amountInBillion = round($amount/100, 2);
+			$amountInBillion = round($amount/100, 1);
 	
 			// 색상 지정
 			if ($amountInBillion >= 1000) {
@@ -86,7 +86,7 @@ else {
 			else
 				$h5 = "";
 	
-			$formattedNumber = number_format($amountInBillion, 2);
+			$formattedNumber = number_format($amountInBillion, 1);
 			$parts = explode('.', $formattedNumber);
 			$whole = $parts[0];
 			$fraction = $parts[1] ?? '00'; // 소수점 이하가 없는 경우 '00'으로 처리

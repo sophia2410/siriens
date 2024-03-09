@@ -35,7 +35,7 @@ folder_path = 'D:/Obsidian/Trader Sophia/10 Database/WatchList'
 only_specific_file = False
 
 # 특정 파일 처리
-only_specific_file = True
+# only_specific_file = True
 specific_file_name = "0 당일관종☆.md"
 # specific_file_name = "5 끼있는친구들.md"
 
@@ -246,11 +246,15 @@ val = (today, datetime.now())
 print(f"Executing: {sql % (today, datetime.now())}")
 cursor.execute(sql, val)
 
-
 # 데이터베이스에 변경사항을 저장합니다.
 db.commit()
 
+# 종목 코드를 구해옵니다.
+sql = f"SELECT COUNT(DISTINCT code) FROM watchlist_sophia WHERE realtime_yn = 'Y'"
+cursor.execute(sql)
+rowcnt = cursor.fetchone()
 
+print(f"실시간 데이터 요청 건수 : {rowcnt}건")
 # 처리 종료
 end_time = datetime.now()
 print(f"처리 종료 시간: {end_time}")

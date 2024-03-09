@@ -28,23 +28,7 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 <?php
 // 조회일자
 $date = (isset($_GET['date']) ) ? $_GET['date'] : '';
-
-// minute GET 변수 확인 및 현재 시간 구하기
-if (isset($_GET['minute']) && $_GET['minute'] != '') {
-    $minute = $_GET['minute'];
-} else {
-    // 현재 시간이 15:30 이후인지 확인
-    $currentHour = (int)date('H');
-    $currentMinute = (int)date('i');
-    
-    if ($currentHour > 15 || ($currentHour == 15 && $currentMinute > 30)) {
-        // 현재 시간이 15:30 이후인 경우, 15:30으로 설정
-        $minute = '1530';
-    } else {
-        // 그렇지 않은 경우, 현재 시간을 'Hi' 포맷으로 사용
-        $minute = date('Hi');
-    }
-}
+$minute = '1530';
 
 $specific_datetime = $date.$minute;
 
@@ -75,8 +59,23 @@ else {
 	$originalDate = DateTime::createFromFormat('Ymd', $date);
 	$formattedDate = $originalDate->format('Y-m-d');
 
-	// 종목 / 일자 정보 표시
-	echo "<div><h4> ▶ [$code] $name / $formattedDate</h4></div>";
+	// 오늘 최저가 = 3일 이동평균이 되기 위해 종가 예측
+	$query="SELECT ROUND((3 * ABS((SELECT low_price FROM kiwoom_realtime WHERE code = {$code} AND date = {$date})) - SUM(close)) / 1, 0) AS predicted_close_today
+			FROM (
+				SELECT close 
+				FROM daily_price 
+				WHERE code = {$code} AND date < {$date} 
+				ORDER BY date DESC 
+				LIMIT 2
+			) AS last_two_days;
+			";
+	
+	// echo "<pre>$query</pre>";
+	$result = $mysqli->query($query);
+	$row = $result->fetch_array(MYSQLI_BOTH);
+
+	// 종목 / 일자 정보 화면에 표시
+	echo "<div><h4> ▶ [{$code}] {$name} / {$formattedDate} / 예상 종가 : {$row['predicted_close_today']}</h4> </div>";
 
 	// 거래대금 TD 생성
 	function setAmountTdE($amount) {
@@ -84,7 +83,7 @@ else {
 		if($amount == 0) {
 			$tdE = "<td>&nbsp;</td>";
 		} else {
-			$amountInBillion = round($amount/100, 2);
+			$amountInBillion = round($amount/100, 1);
 	
 			// 색상 지정
 			if ($amountInBillion >= 150) {
@@ -104,7 +103,7 @@ else {
 			}
 	
 	
-			$formattedNumber = number_format($amountInBillion, 2);
+			$formattedNumber = number_format($amountInBillion, 1);
 			$parts = explode('.', $formattedNumber);
 			$whole = $parts[0];
 			$fraction = $parts[1] ?? '00'; // 소수점 이하가 없는 경우 '00'으로 처리
@@ -287,6 +286,17 @@ else {
 		}
 	}
 	echo "</table>";
+
+	echo "<div class='container-fluid'>";
+	echo "<div class='row'>";
+		echo "<div class='card-body'>
+				<img class='img-fluid' src='https://ssl.pstatic.net/imgfinance/chart/item/candle/day/{$code}.png?sidcode=1705826920773'>
+			</div>";
+		echo "<div class='card-body'>
+				<img class='img-fluid' src='https://ssl.pstatic.net/imgfinance/chart/item/area/day/{$code}.png?sidcode=1705826920773'>
+			</div>";
+	echo "</div>";
+	echo "</div>";
 }
 ?>
 </form>

@@ -48,6 +48,9 @@ if (isset($_GET['minute']) && $_GET['minute'] != '') {
 
 $specific_datetime = $date.$minute;
 
+// 조회 최소거래대금 기준 (기본 20억)
+$min_amount = (isset($_GET['min_amount']) && $_GET['min_amount'] != '') ? $_GET['min_amount'] * 100 : 2000;
+
 // 해당 일자 등록 테이블 찾기 (성능 위해 백업 테이블 이동)
 $query = "SELECT 'Y' FROM kiwoom_realtime_minute WHERE date = '$date' LIMIT 1";
 $result = $mysqli->query($query);
@@ -63,12 +66,17 @@ if ($result->num_rows > 0) {    // 결과가 있는
 $sort = isset($_GET['sortBy']) ? $_GET['sortBy'] : 'time_lasted'; // 기본 정렬 기준
 // echo $sort;
 if($sort == 'time_lasted') {
-	$order = "ORDER BY time_1515 DESC, time_1500 DESC, time_1445 DESC, time_1430 DESC, time_1415 DESC, time_1400 DESC, time_1345 DESC, time_1330 DESC, time_1315 DESC, time_1300 DESC, time_1245 DESC, time_1230 DESC, time_1215 DESC, time_1200 DESC";
-	$order.= ", time_1145 DESC, time_1130 DESC, time_1115 DESC, time_1100 DESC, time_1045 DESC, time_1030 DESC, time_1015 DESC, time_1000 DESC, time_0945 DESC, time_0930 DESC, time_0915 DESC, time_0900 DESC";
+	$order = "ORDER BY time_1515_theme DESC, time_1515 DESC, time_1500_theme DESC, time_1500 DESC";
+	$order.= ", time_1445_theme DESC, time_1445 DESC, time_1430_theme DESC, time_1430 DESC, time_1415_theme DESC, time_1415 DESC, time_1415_theme DESC, time_1415 DESC";
+	$order.= ", time_1345_theme DESC, time_1345 DESC, time_1330_theme DESC, time_1330 DESC, time_1315_theme DESC, time_1315 DESC, time_1300_theme DESC, time_1300 DESC";
+	$order.= ", time_1245_theme DESC, time_1245 DESC, time_1230_theme DESC, time_1230 DESC, time_1215_theme DESC, time_1215 DESC, time_1200_theme DESC, time_1200 DESC";
+	$order.= ", time_1145_theme DESC, time_1145 DESC, time_1130_theme DESC, time_1130 DESC, time_1115_theme DESC, time_1115 DESC, time_1100_theme DESC, time_1100 DESC";
+	$order.= ", time_1045_theme DESC, time_1045 DESC, time_1030_theme DESC, time_1030 DESC, time_1015_theme DESC, time_1015 DESC, time_1000_theme DESC, time_1000 DESC";
+	$order.= ", time_0945_theme DESC, time_0945 DESC, time_0930_theme DESC, time_0930 DESC, time_0915_theme DESC, time_0915 DESC, time_0900_theme DESC, time_0900 DESC";
 } else if($sort == 'name') {
-	$order = "ORDER BY name";
+	$order = "ORDER BY sector, sort_theme DESC";
 } else {
-	$order = "ORDER BY ".$sort." DESC";
+	$order = "ORDER BY ".$sort."_theme DESC ".$sort." DESC";
 }
 
 $sector = (isset($_GET['sector']) ) ? $_GET['sector'] : '';
@@ -93,8 +101,7 @@ if($specific_datetime == '') {
 else {
 
 	// 함수 :: 거래대금 TD 생성 
-	function setAmountTdE($array, $key, $bold='N', $sizeUp='N') {
-		
+	function setAmountTdE($array, $key, $bgcolor='Y', $bold='Y', $sizeUp='N') {
 		// 키의 현재 위치 찾기
 		$keys = array_keys($array);
 		$position = array_search($key, $keys);
@@ -104,28 +111,36 @@ else {
 
 		// 백만원 단위를 억단위로 변경
 		if($amount == 0) {
-			$tdE = "<td>&nbsp;</td>";
+			if($bgcolor == 'Y') {
+				$tdE = "<td>&nbsp;</td>";
+			} else {
+				$tdE = "<td bgcolor='#FFF9CC'>&nbsp;</td>";
+			}
 		} else {
 			$amountInBillion = round($amount/100, 1);
-	
-			// 색상 지정
-			if ($amountInBillion >= 1000) {
-				$color = '#fcb9b2'; // 10000억 이상
-			} elseif ($amountInBillion >= 500) {
-				$color = '#ffccd5'; // 500억 이상
-			} elseif ($amountInBillion >= 250) {
-				$color = '#f6dfeb'; // 250억 이상
-			} elseif ($amountInBillion >= 100) {
-				$color = '#fde2e4'; // 100억 이상
-			} elseif ($amountInBillion >= 50) {
-				$color = '#bee1e6'; // 50억 이상
-			} elseif ($amountInBillion >= 30) {
-				$color = '#f0f4f5'; //#e2ece9'; // 30억 이상
+			
+			if($bgcolor == 'Y') {
+				// 색상 지정
+				if ($amountInBillion >= 1000) {
+					$color = '#fcb9b2'; // 10000억 이상
+				} elseif ($amountInBillion >= 500) {
+					$color = '#ffccd5'; // 500억 이상
+				} elseif ($amountInBillion >= 250) {
+					$color = '#f6dfeb'; // 250억 이상
+				} elseif ($amountInBillion >= 100) {
+					$color = '#fde2e4'; // 100억 이상
+				} elseif ($amountInBillion >= 50) {
+					$color = '#bee1e6'; // 50억 이상
+				} elseif ($amountInBillion >= 30) {
+					$color = '#f0f4f5'; //#e2ece9'; // 30억 이상
+				} else {
+					$color = '#ffffff'; // 30억 미만
+				}
 			} else {
-				$color = '#ffffff'; // 30억 미만
+				$color = '#FFF9CC';
 			}
-	
-			if($sizeUp)
+
+			if($sizeUp == 'Y')
 				$h5 = " class='h5'";
 			else
 				$h5 = "";
@@ -137,7 +152,7 @@ else {
 
 			$rtAmount = "<span>".$whole.".<span class='small-fraction'>".$fraction."</span></span>";
 
-			if($bold)
+			if($bold == 'Y')
 				$amountInBillion = "<b>".$rtAmount." 억</b>";
 			else
 				$amountInBillion =$rtAmount." 억";
@@ -148,55 +163,41 @@ else {
 		return $tdE;
 	}
 
-		// 30분 쿼리. 혹시나 백업용
-		// $query = " 
-		// SELECT 
-		// 	code, name,
-		// 	time_0900,time_0930,time_1000,time_1030,time_1100,time_1130,
-		// 	time_1200,time_1230,time_1300,time_1330,time_1400,time_1430,time_1500,time_all
-		// FROM (
-		// 	SELECT
-		// 		s.code, s.name,
-		// 		IFNULL(MAX(CASE WHEN minute BETWEEN '0900' AND '0929' THEN acc_trade_amount ELSE NULL END), 0) AS time_0900,
-		// 		IFNULL(MAX(CASE WHEN minute BETWEEN '0930' AND '0959' THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= '0929' THEN acc_trade_amount ELSE 0 END), 0) AS time_0930,
-		// 		IFNULL(MAX(CASE WHEN minute BETWEEN '1000' AND '1029' THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= '0959' THEN acc_trade_amount ELSE 0 END), 0) AS time_1000,
-		// 		IFNULL(MAX(CASE WHEN minute BETWEEN '1030' AND '1059' THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= '1029' THEN acc_trade_amount ELSE 0 END), 0) AS time_1030,
-		// 		IFNULL(MAX(CASE WHEN minute BETWEEN '1100' AND '1129' THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= '1059' THEN acc_trade_amount ELSE 0 END), 0) AS time_1100,
-		// 		IFNULL(MAX(CASE WHEN minute BETWEEN '1130' AND '1159' THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= '1129' THEN acc_trade_amount ELSE 0 END), 0) AS time_1130,
-		// 		IFNULL(MAX(CASE WHEN minute BETWEEN '1200' AND '1229' THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= '1159' THEN acc_trade_amount ELSE 0 END), 0) AS time_1200,
-		// 		IFNULL(MAX(CASE WHEN minute BETWEEN '1230' AND '1259' THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= '1229' THEN acc_trade_amount ELSE 0 END), 0) AS time_1230,
-		// 		IFNULL(MAX(CASE WHEN minute BETWEEN '1300' AND '1329' THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= '1259' THEN acc_trade_amount ELSE 0 END), 0) AS time_1300,
-		// 		IFNULL(MAX(CASE WHEN minute BETWEEN '1330' AND '1359' THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= '1329' THEN acc_trade_amount ELSE 0 END), 0) AS time_1330,
-		// 		IFNULL(MAX(CASE WHEN minute BETWEEN '1400' AND '1429' THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= '1359' THEN acc_trade_amount ELSE 0 END), 0) AS time_1400,
-		// 		IFNULL(MAX(CASE WHEN minute BETWEEN '1430' AND '1459' THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= '1429' THEN acc_trade_amount ELSE 0 END), 0) AS time_1430,
-		// 		IFNULL(MAX(CASE WHEN minute BETWEEN '1500' AND '1530' THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= '1459' THEN acc_trade_amount ELSE 0 END), 0) AS time_1500,
-		// 		IFNULL(MAX(CASE WHEN minute <= '1530' THEN acc_trade_amount ELSE NULL END), 0) AS time_all
-		// 	FROM
-		// 		$tableToUse m
-		// 	JOIN
-		// 		kiwoom_stock s
-		// 	ON s.code = m.code
-		// 	JOIN 
-		// 		(SELECT STR_TO_DATE('$specific_datetime', '%Y%m%d%H%i') specific_datetime) t
-		// 	WHERE
-		// 		m.date = DATE_FORMAT(t.specific_datetime, '%Y%m%d') AND -- Only considering today's data
-		// 		m.minute <= DATE_FORMAT(t.specific_datetime, '%H%i')
-		// 		$where
-		// 	GROUP BY
-		// 		s.code,
-		// 		s.name
-		// 	) G
-		// 	$order 
-		// ";
-
 	$query = " 
 		SELECT 
-			code, name,
+			w.theme, s.code, s.name,
 			time_0900,time_0915,time_0930,time_0945,time_1000,time_1015,time_1030,time_1045,time_1100,time_1115,time_1130,time_1145,
-			time_1200,time_1215,time_1230,time_1245,time_1300,time_1315,time_1330,time_1345,time_1400,time_1415,time_1430,time_1445,time_1500,time_1515,time_all
+			time_1200,time_1215,time_1230,time_1245,time_1300,time_1315,time_1330,time_1345,time_1400,time_1415,time_1430,time_1445,time_1500,time_1515,time_all,
+			SUM(time_0900) OVER(PARTITION BY w.theme) AS time_0900_theme,
+			SUM(time_0915) OVER(PARTITION BY w.theme) AS time_0915_theme,
+			SUM(time_0930) OVER(PARTITION BY w.theme) AS time_0930_theme,
+			SUM(time_0945) OVER(PARTITION BY w.theme) AS time_0945_theme,
+			SUM(time_1000) OVER(PARTITION BY w.theme) AS time_1000_theme,
+			SUM(time_1015) OVER(PARTITION BY w.theme) AS time_1015_theme,
+			SUM(time_1030) OVER(PARTITION BY w.theme) AS time_1030_theme,
+			SUM(time_1045) OVER(PARTITION BY w.theme) AS time_1045_theme,
+			SUM(time_1100) OVER(PARTITION BY w.theme) AS time_1100_theme,
+			SUM(time_1115) OVER(PARTITION BY w.theme) AS time_1115_theme,
+			SUM(time_1130) OVER(PARTITION BY w.theme) AS time_1130_theme,
+			SUM(time_1145) OVER(PARTITION BY w.theme) AS time_1145_theme,
+			SUM(time_1200) OVER(PARTITION BY w.theme) AS time_1200_theme,
+			SUM(time_1215) OVER(PARTITION BY w.theme) AS time_1215_theme,
+			SUM(time_1230) OVER(PARTITION BY w.theme) AS time_1230_theme,
+			SUM(time_1245) OVER(PARTITION BY w.theme) AS time_1245_theme,
+			SUM(time_1300) OVER(PARTITION BY w.theme) AS time_1300_theme,
+			SUM(time_1315) OVER(PARTITION BY w.theme) AS time_1315_theme,
+			SUM(time_1330) OVER(PARTITION BY w.theme) AS time_1330_theme,
+			SUM(time_1345) OVER(PARTITION BY w.theme) AS time_1345_theme,
+			SUM(time_1400) OVER(PARTITION BY w.theme) AS time_1400_theme,
+			SUM(time_1415) OVER(PARTITION BY w.theme) AS time_1415_theme,
+			SUM(time_1430) OVER(PARTITION BY w.theme) AS time_1430_theme,
+			SUM(time_1445) OVER(PARTITION BY w.theme) AS time_1445_theme,
+			SUM(time_1500) OVER(PARTITION BY w.theme) AS time_1500_theme,
+			SUM(time_1515) OVER(PARTITION BY w.theme) AS time_1515_theme,
+			SUM(time_all) OVER(PARTITION BY w.theme) AS time_all_theme
 		FROM (
 			SELECT
-				s.code, s.name,
+				m.code,
 				IFNULL(MAX(CASE WHEN minute BETWEEN '0900' AND '0914' THEN acc_trade_amount ELSE NULL END), 0) AS time_0900,
 				IFNULL(MAX(CASE WHEN minute BETWEEN '0915' AND '0929' THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= '0914' THEN acc_trade_amount ELSE 0 END), 0) AS time_0915,
 				IFNULL(MAX(CASE WHEN minute BETWEEN '0930' AND '0944' THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= '0929' THEN acc_trade_amount ELSE 0 END), 0) AS time_0930,
@@ -226,9 +227,6 @@ else {
 				IFNULL(MAX(CASE WHEN minute <= '1530' THEN acc_trade_amount ELSE NULL END), 0) AS time_all
 			FROM
 				$tableToUse m
-			JOIN
-				kiwoom_stock s
-			ON s.code = m.code
 			JOIN 
 				(SELECT STR_TO_DATE('$specific_datetime', '%Y%m%d%H%i') specific_datetime) t
 			WHERE
@@ -236,9 +234,17 @@ else {
 				m.minute <= DATE_FORMAT(t.specific_datetime, '%H%i')
 				$where
 			GROUP BY
-				s.code,
-				s.name
-			) G
+				m.code
+			) g
+			JOIN
+				kiwoom_stock s
+			ON
+				s.code = g.code
+			JOIN
+				(SELECT code, theme FROM watchlist_sophia WHERE realtime_yn = 'Y' GROUP BY code, theme) w
+			ON
+				w.code = g.code
+			WHERE time_all >= $min_amount
 			$order 
 		";
 
@@ -250,27 +256,30 @@ else {
 	// 데이터베이스 쿼리 결과를 배열에 저장
 	$allData = [];
 	$tradeAmountsByTime = []; // 시간대별 거래대금을 저장할 배열
+	$addedCodesByTime = []; // 시간대별로 이미 추가된 종목 코드를 추적할 배열
 	$times = ['all', '0900', '0915', '0930', '0945', '1000', '1015', '1030', '1045', '1100', '1115', '1130', '1145', '1200', '1215', '1230', '1245', '1300', '1315', '1330', '1345', '1400', '1415', '1430', '1445', '1500', '1515'];
 
 	while ($row = $result->fetch_array(MYSQLI_BOTH)) {
-		// 모든 데이터를 $allData 배열에 저장
 		$allData[] = $row;
 
-		// 시간대별 거래대금 배열에 데이터 추가
 		foreach ($times as $time) {
 			$timeKey = "time_$time";
 			$amount = $row[$timeKey] ?? 0;
 
 			if (!isset($tradeAmountsByTime[$timeKey])) {
 				$tradeAmountsByTime[$timeKey] = [];
+				$addedCodesByTime[$timeKey] = []; // 해당 시간대별로 추가된 종목 코드를 추적하는 배열 초기화
 			}
 			
-			if ($amount > 0) {
+			// 이미 해당 시간대 배열에 같은 종목 코드가 추가되었는지 확인
+			if ($amount > 0 && !in_array($row['code'], $addedCodesByTime[$timeKey])) {
 				$tradeAmountsByTime[$timeKey][] = [
 					'code' => $row['code'],
 					'name' => $row['name'],
 					'amount' => $amount
 				];
+				// 해당 종목 코드를 추가된 코드 목록에 추가
+				$addedCodesByTime[$timeKey][] = $row['code'];
 			}
 		}
 	}
@@ -281,7 +290,7 @@ else {
 		usort($items, function($a, $b) {
 			return $b['amount'] - $a['amount'];
 		});
-		$topByTime[$timeKey] = array_slice($items, 0, 7);
+		$topByTime[$timeKey] = array_slice($items, 0, 7); // 각 시간대별로 Top 7 추출
 	}
 
 	// Top7 신규 종목 색상 표시
@@ -293,7 +302,7 @@ else {
 	foreach ($times as $time) {
 		$timeKey = "time_$time";
 		echo "<td cellpadding=0 cellspacing=0><table class='small table-borderless' cellpadding=0 cellspacing=0>";
-
+		
 		if (isset($topByTime[$timeKey])) {
 			foreach ($topByTime[$timeKey] as $item) {
 				$link_name = "<a href='kiwoomRealtime_AStock.php?code={$item['code']}&name={$item['name']}&date={$date}' target='_blank' style='text-decoration: none; color: inherit;'>";
@@ -348,8 +357,10 @@ else {
 	echo "<th width=80 onclick=\"sortTable('time_1515')\">15:15</th>";
 	echo "</tr>";
 		
+	$pre_theme  = "";
 	// 나머지 데이터 출력
 	foreach ($allData as $row) {
+
 		// TD 생성을 위해 거래대금 배열에 담기
 		$amounts = [
 			'amount_time_all'   => $row['time_all'],
@@ -378,8 +389,96 @@ else {
 			'amount_time_1430'  => $row['time_1430'],
 			'amount_time_1445'  => $row['time_1445'],
 			'amount_time_1500'  => $row['time_1500'],
-			'amount_time_1515'  => $row['time_1515']
+			'amount_time_1515'  => $row['time_1515'],
+			'theme_time_all'   => $row['time_all_theme'],
+			'theme_time_0900'  => $row['time_0900_theme'],
+			'theme_time_0915'  => $row['time_0915_theme'],
+			'theme_time_0930'  => $row['time_0930_theme'],
+			'theme_time_0945'  => $row['time_0945_theme'],
+			'theme_time_1000'  => $row['time_1000_theme'],
+			'theme_time_1015'  => $row['time_1015_theme'],
+			'theme_time_1030'  => $row['time_1030_theme'],
+			'theme_time_1045'  => $row['time_1045_theme'],
+			'theme_time_1100'  => $row['time_1100_theme'],
+			'theme_time_1115'  => $row['time_1115_theme'],
+			'theme_time_1130'  => $row['time_1130_theme'],
+			'theme_time_1145'  => $row['time_1145_theme'],
+			'theme_time_1200'  => $row['time_1200_theme'],
+			'theme_time_1215'  => $row['time_1215_theme'],
+			'theme_time_1230'  => $row['time_1230_theme'],
+			'theme_time_1245'  => $row['time_1245_theme'],
+			'theme_time_1300'  => $row['time_1300_theme'],
+			'theme_time_1315'  => $row['time_1315_theme'],
+			'theme_time_1330'  => $row['time_1330_theme'],
+			'theme_time_1345'  => $row['time_1345_theme'],
+			'theme_time_1400'  => $row['time_1400_theme'],
+			'theme_time_1415'  => $row['time_1415_theme'],
+			'theme_time_1430'  => $row['time_1430_theme'],
+			'theme_time_1445'  => $row['time_1445_theme'],
+			'theme_time_1500'  => $row['time_1500_theme'],
+			'theme_time_1515'  => $row['time_1515_theme']
 		];
+		
+		// 테마별로 합계 금액 조회
+		if($pre_theme != $row['theme']) {
+			echo "<tr align=right>";
+				echo "<td align=left colspan=2 title='{$row['theme']}' bgcolor='#FFF9CC'><b>{$row['theme']}</b></td>";
+				$amountTdE = setAmountTdE($amounts, 'theme_time_all', 'N');
+				echo $amountTdE;
+				$amountTdE = setAmountTdE($amounts, 'theme_time_0900', 'N');
+				echo $amountTdE;
+				$amountTdE = setAmountTdE($amounts, 'theme_time_0915', 'N');
+				echo $amountTdE;
+				$amountTdE = setAmountTdE($amounts, 'theme_time_0930', 'N');
+				echo $amountTdE;
+				$amountTdE = setAmountTdE($amounts, 'theme_time_0945', 'N');
+				echo $amountTdE;
+				$amountTdE = setAmountTdE($amounts, 'theme_time_1000', 'N');
+				echo $amountTdE;
+				$amountTdE = setAmountTdE($amounts, 'theme_time_1015', 'N');
+				echo $amountTdE;
+				$amountTdE = setAmountTdE($amounts, 'theme_time_1030', 'N');
+				echo $amountTdE;
+				$amountTdE = setAmountTdE($amounts, 'theme_time_1045', 'N');
+				echo $amountTdE;
+				$amountTdE = setAmountTdE($amounts, 'theme_time_1100', 'N');
+				echo $amountTdE;
+				$amountTdE = setAmountTdE($amounts, 'theme_time_1115', 'N');
+				echo $amountTdE;
+				$amountTdE = setAmountTdE($amounts, 'theme_time_1130', 'N');
+				echo $amountTdE;
+				$amountTdE = setAmountTdE($amounts, 'theme_time_1145', 'N');
+				echo $amountTdE;
+				$amountTdE = setAmountTdE($amounts, 'theme_time_1200', 'N');
+				echo $amountTdE;
+				$amountTdE = setAmountTdE($amounts, 'theme_time_1215', 'N');
+				echo $amountTdE;
+				$amountTdE = setAmountTdE($amounts, 'theme_time_1230', 'N');
+				echo $amountTdE;
+				$amountTdE = setAmountTdE($amounts, 'theme_time_1245', 'N');
+				echo $amountTdE;
+				$amountTdE = setAmountTdE($amounts, 'theme_time_1300', 'N');
+				echo $amountTdE;
+				$amountTdE = setAmountTdE($amounts, 'theme_time_1315', 'N');
+				echo $amountTdE;
+				$amountTdE = setAmountTdE($amounts, 'theme_time_1330', 'N');
+				echo $amountTdE;
+				$amountTdE = setAmountTdE($amounts, 'theme_time_1345', 'N');
+				echo $amountTdE;
+				$amountTdE = setAmountTdE($amounts, 'theme_time_1400', 'N');
+				echo $amountTdE;
+				$amountTdE = setAmountTdE($amounts, 'theme_time_1415', 'N');
+				echo $amountTdE;
+				$amountTdE = setAmountTdE($amounts, 'theme_time_1430', 'N');
+				echo $amountTdE;
+				$amountTdE = setAmountTdE($amounts, 'theme_time_1445', 'N');
+				echo $amountTdE;
+				$amountTdE = setAmountTdE($amounts, 'theme_time_1500', 'N');
+				echo $amountTdE;
+				$amountTdE = setAmountTdE($amounts, 'theme_time_1515', 'N');
+				echo $amountTdE;
+			echo "</tr>";
+		}
 		
 		echo "<tr align=right>";
 			echo "<td align=center class='small'>";
@@ -388,7 +487,7 @@ else {
 			echo "<td align=left class='cut-text' title=".$row['name'].">";
 			echo "<a href='kiwoomRealtime_AStock.php?code={$row['code']}&name={$row['name']}&date={$date}' target='_blank'>";
 			echo "<b>".$row['name']."</b></a></td>";
-			$amountTdE = setAmountTdE($amounts, 'amount_time_all', 'Y', 'Y');
+			$amountTdE = setAmountTdE($amounts, 'amount_time_all', 'Y', 'Y', 'Y');
 			echo $amountTdE;
 			$amountTdE = setAmountTdE($amounts, 'amount_time_0900');
 			echo $amountTdE;
@@ -443,6 +542,7 @@ else {
 			$amountTdE = setAmountTdE($amounts, 'amount_time_1515');
 			echo $amountTdE;
 		echo "</tr>";
+		$pre_theme  = $row['theme'];
 	}
 
 	echo "</table>";

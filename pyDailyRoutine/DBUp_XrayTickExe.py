@@ -30,14 +30,14 @@ try:
     df = pd.read_excel(file_path)
     
     with db.cursor() as cursor:
-        del_sql = f"DELETE FROM `xray_tick_executions` WHERE date = '{date}'"
+        del_sql = f"DELETE FROM `kiwoom_xray_tick_executions` WHERE date = '{date}'"
         cursor.execute(del_sql)
 
     with db.cursor() as cursor:
-        # 'xray_tick_executions' 테이블에 데이터 삽입
+        # 'kiwoom_xray_tick_executions' 테이블에 데이터 삽입
         for index, row in df.iterrows():
             sql = '''
-            INSERT INTO `xray_tick_executions` (`date`, `time`, `code`, `name`, `current_price`, `change_rate`, `volume`, `type`)
+            INSERT INTO `kiwoom_xray_tick_executions` (`date`, `time`, `code`, `name`, `current_price`, `change_rate`, `volume`, `type`)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             '''
             cursor.execute(sql, (

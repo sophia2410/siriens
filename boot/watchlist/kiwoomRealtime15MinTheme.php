@@ -1,6 +1,6 @@
 <?php
-	$pageTitle = "실시간체결-최근12분";
-
+	$pageTitle = "[테마]실시간체결-15Min단위";
+	
 	require($_SERVER['DOCUMENT_ROOT']."/boot/common/top.php");
 	require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 ?>
@@ -27,12 +27,13 @@
 		$result = $mysqli->query($query);
 		$row = $result->fetch_array(MYSQLI_BOTH);
 		echo "<input type=text id=date   name=date   style='width:120px' onkeydown=\"if(event.keyCode==13) search()\" value='". $row['date']."'>";
-		echo "<input type=text id=minute name=minute style='width:60px'  onkeydown=\"if(event.keyCode==13) search()\"> &nbsp;&nbsp;";
+		echo "<input type=text id=minute name=minute style='width:60px'  onkeydown=\"if(event.keyCode==13) search()\">  &nbsp;&nbsp;";
 	?>
 	종목거래대금 :
 	<?php
 		echo "<input type=text id=min_amount name=min_amount style='width:60px' value='20' onkeydown=\"if(event.keyCode==13) search()\"> 억 이상";
 	?>
+
 
 	<button class="btn btn-danger btn-sm" onclick="search()"> 조 회 </button> &nbsp;&nbsp;
 	* [코드] 클릭 : 종목 기간별 15분단위 거래대금 조회, [종목명] 클릭 : 조회일 1분 거래대금 조회
@@ -41,7 +42,7 @@
 	<tr>
 	<td>
 		<div style="margin: 0; border: 0; font: inherit;vertical-align: baseline; padding: 0;height: calc(100vh - 100px);">
-			<iframe id="iframeR" style="width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 100px);" src="kiwoomRealtime_B.php">
+			<iframe id="iframeR" style="width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 100px);" src="kiwoomRealtime15MinTheme_B.php">
 			</iframe>
 		</div>
 	</td>
@@ -58,15 +59,15 @@
 
 <script>
 window.onload = function() {
-    search(); // 페이지 로드 시 search 함수 호출
+	search(); // 페이지 로드 시 search 함수 호출
 }
 
-function search(sortBy='amount_last_min') {
+function search(sortBy='time_lasted') {
 	date   = document.getElementById('date').value;
 	minute   = document.getElementById('minute').value;
 	min_amount   = document.getElementById('min_amount').value;
 
-	iframeR.src = "kiwoomRealtime_B.php?date="+date+"&minute="+minute+"&min_amount="+min_amount+"&sortBy="+sortBy;
+	iframeR.src = "kiwoomRealtime15MinTheme_B.php?date="+date+"&minute="+minute+"&min_amount="+min_amount+"&sortBy="+sortBy;
 	return;
 }
 </script>

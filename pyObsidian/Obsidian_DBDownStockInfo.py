@@ -125,17 +125,20 @@ for stock_name in stock_list:
         f.write("\n---\n") # 구분선 추가
     
         f.write(f"기업 정보:\n")
+
+        # 기업 차트 정보 추가
+        company_info_str = f'![](https://ssl.pstatic.net/imgfinance/chart/item/candle/day/{stock_code}.png?sidcode=1705826920773)\n\n\n'
+        f.write(f"{company_info_str}\n")
+
         # 기업 정보가 있는 경우에만 쓰기
         if company_info:
             company_info = company_info[0].decode('utf-8')
             company_info_str = company_info.replace('\r\n\r\n', '\r\n') # 연속된 두개의 빈 줄을 하나의 빈 줄로 변경합니다.
             company_info_str = company_info.strip('\n') # 문서 시작과 끝에 있는 빈 줄을 제거합니다.
             f.write(f"{company_info_str}\n")
-        else :
+        # else :
             # company_info = '▷ 시총 \n▷ 최대주주 및 특수관계인 지분 - \n▷ 재무추이\n- 2022년 매출액 영업이익 \n- 2021년 매출액 영업이익 \n- 2020년 매출액 영업이익 \n\n▷ 부채비율 % 유보율 % (2023년 6월 기준) \n'
             # company_info_str = company_info + '▷ 미상환 전환사채 및 신주인수권부사채 등 발행현황 \n▷ 매출비율 : \n▷ 전자공시 : [반기보고서/]() \n▷ 홈페이지 : '
-            company_info_str = f'![](https://ssl.pstatic.net/imgfinance/chart/item/candle/day/{stock_code}.png?sidcode=1705826920773)\n\n\n'
-            f.write(f"{company_info_str}\n")
 
         f.write("\n---\n") # 구분선 추가
         f.write(f"종목 키워드:\n")

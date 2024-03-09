@@ -35,6 +35,8 @@ $category = (isset($_GET['category'])) ? $_GET['category'] : '';
 
 $getRealData = (isset($_GET['getRealData'])) ? $_GET['getRealData'] : '';
 
+$show4 = (isset($_GET['show4'])) ? $_GET['show4'] : '';
+
 $brWidth = (isset($_GET['brWidth'])) ? $_GET['brWidth'] : '1800';
 
 // 차트 이미지 경로 지정. 기본은 일차트 조회
@@ -79,10 +81,9 @@ $base_date = $row['base_date'];
 date_default_timezone_set('Asia/Seoul');
 $today = date('Ymd');  // 현재 일자를 구함
 $now = date('H:i:s');  // 현재 시간을 구함
-if ($pgmId == 'sophiaWatchlist' && $getRealData == 'Y') {
 
-	$col_st = "col-xl-4";
-	$row_div = 3;
+// 실시간 크롤링은 속도 이슈로 일단 막아놓기
+// if ($pgmId == 'sophiaWatchlist' && $getRealData == 'Y') {
 
 	// 실시간 데이터를 구하기 위해 크롤링 => 키움 API에서 데이터 가져오기로 변경 (kiwoom_realtime 데이터 불러오기) 2024.02.05
 	// if ($today == $base_date && $now >= '09:00:0' && $now <= '15:30:00') {
@@ -92,11 +93,11 @@ if ($pgmId == 'sophiaWatchlist' && $getRealData == 'Y') {
 	// 	$command = "C:/Users/elf96/AppData/Local/Programs/Python/Python39/python.exe E:/Project/202410/www/pyObsidian/Watchlist_CrawlingPrice.py";
 	// 	$output = shell_exec($command);
 	// }
+// } 
+if($show4 == 'Y') {
+	$col_st = "col-xl-3";
+	$row_div = 4;
 } else {
-	// 화면 넓게 보기로 우선 수정 24.02.17
-	// $col_st = "col-xl-3";
-	// $row_div = 4;
-
 	$col_st = "col-xl-4";
 	$row_div = 3;
 }

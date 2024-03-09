@@ -41,7 +41,7 @@
 	<tr>
 	<td>
 		<div style="margin: 0; border: 0; font: inherit;vertical-align: baseline; padding: 0;height: calc(100vh - 100px);">
-			<iframe id="iframeR" style="width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 100px);" src="kiwoomRealtime_B.php">
+			<iframe id="iframeR" style="width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 100px);" src="kiwoomRealtime_B_siwoo.php">
 			</iframe>
 		</div>
 	</td>
@@ -66,7 +66,7 @@ function search(sortBy='amount_last_min') {
 	minute   = document.getElementById('minute').value;
 	min_amount   = document.getElementById('min_amount').value;
 
-	iframeR.src = "kiwoomRealtime_B.php?date="+date+"&minute="+minute+"&min_amount="+min_amount+"&sortBy="+sortBy;
+	iframeR.src = "kiwoomRealtime_B_siwoo.php?date="+date+"&minute="+minute+"&min_amount="+min_amount+"&sortBy="+sortBy;
 	return;
 }
 </script>

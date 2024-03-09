@@ -1,5 +1,5 @@
 <?php
-	$pageTitle = "실시간체결-최근12분";
+	$pageTitle = "[테마]실시간체결-최근12분";
 
 	require($_SERVER['DOCUMENT_ROOT']."/boot/common/top.php");
 	require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
@@ -33,7 +33,10 @@
 	<?php
 		echo "<input type=text id=min_amount name=min_amount style='width:60px' value='20' onkeydown=\"if(event.keyCode==13) search()\"> 억 이상";
 	?>
-
+	대표종목보기 :
+	<?php
+		echo "<input type=text id=detail_cnt name=detail_cnt style='width:60px' value='3' onkeydown=\"if(event.keyCode==13) search()\"> 개";
+	?>
 	<button class="btn btn-danger btn-sm" onclick="search()"> 조 회 </button> &nbsp;&nbsp;
 	* [코드] 클릭 : 종목 기간별 15분단위 거래대금 조회, [종목명] 클릭 : 조회일 1분 거래대금 조회
 </div>
@@ -41,7 +44,7 @@
 	<tr>
 	<td>
 		<div style="margin: 0; border: 0; font: inherit;vertical-align: baseline; padding: 0;height: calc(100vh - 100px);">
-			<iframe id="iframeR" style="width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 100px);" src="kiwoomRealtime_B.php">
+			<iframe id="iframeR" style="width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 100px);" src="kiwoomRealtimeTheme_B.php">
 			</iframe>
 		</div>
 	</td>
@@ -65,8 +68,9 @@ function search(sortBy='amount_last_min') {
 	date   = document.getElementById('date').value;
 	minute   = document.getElementById('minute').value;
 	min_amount   = document.getElementById('min_amount').value;
-
-	iframeR.src = "kiwoomRealtime_B.php?date="+date+"&minute="+minute+"&min_amount="+min_amount+"&sortBy="+sortBy;
+	detail_cnt   = document.getElementById('detail_cnt').value;
+	
+	iframeR.src = "kiwoomRealtimeTheme_B.php?date="+date+"&minute="+minute+"&min_amount="+min_amount+"&detail_cnt="+detail_cnt+"&sortBy="+sortBy;
 	return;
 }
 </script>
