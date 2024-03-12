@@ -12,6 +12,10 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 ?>
 <head>
 <style>
+.minus-fraction {
+    font-size: 0.75em; /* 소수점 이하 값을 작게 표시 */
+    color: blue; /* 소수점 이하 값을 작게 표시 */
+}
 .small-fraction {
     font-size: 0.75em; /* 소수점 이하 값을 작게 표시 */
 }
@@ -102,13 +106,17 @@ else {
 				$color = '#ffffff'; // 10억 미만
 			}
 	
-	
 			$formattedNumber = number_format($amountInBillion, 1);
 			$parts = explode('.', $formattedNumber);
 			$whole = $parts[0];
 			$fraction = $parts[1] ?? '00'; // 소수점 이하가 없는 경우 '00'으로 처리
 
-			$rtAmount = "<span>".$whole.".<span class='small-fraction'>".$fraction."</span></span>";
+			// 매도 거래량이 많은 경우 금액을 '-'로 가져옴. '-' 금액은 작게 보이게 처리
+			if($amountInBillion > 0)
+				$rtAmount = "<span>".$whole.".<span class='small-fraction'>".$fraction."</span></span>";
+			else
+				$rtAmount = "<span class='minus-fraction'>".$whole.".<span class='minus-fraction'>".$fraction."</span></span>";
+
 			$amountInBillion =$rtAmount." 억";
 		
 			$tdE = "<td style='background-color:".$color."'><b>$amountInBillion</b></td>";
@@ -122,7 +130,8 @@ else {
 	$endTime = new DateTime('15:30');
 
 	// 결과를 저장할 배열
-	$queries = [];
+	$queries  = [];
+	$queries2 = [];
 
 	// 시작 시간부터 종료 시간까지 분단위로 순회
 	while ($startTime <= $endTime) {
@@ -131,7 +140,8 @@ else {
 		$oneMinuteBefore = (clone $startTime)->sub(new DateInterval('PT1M'))->format('Hi');
 		
 		// 쿼리 문자열 생성
-		$query = "IFNULL(MAX(CASE WHEN minute BETWEEN '0900' AND '$currentTimeStr' THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= '$oneMinuteBefore' THEN acc_trade_amount ELSE 0 END), 0) AS time_$currentTimeStr,";
+		$query = "IFNULL(MAX(CASE WHEN minute = '$currentTimeStr'   THEN CASE WHEN (minus_tick_cnt - plus_tick_cnt) > 5 THEN -1 ELSE CASE WHEN minute_volume > 0 THEN 1 ELSE -1 END END ELSE NULL END), 0) * ";
+		$query.= "IFNULL(MAX(CASE WHEN minute BETWEEN '0900' AND '$currentTimeStr' THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= '$oneMinuteBefore' THEN acc_trade_amount ELSE 0 END), 0) AS time_$currentTimeStr,";
 		
 		// 쿼리 배열에 추가
 		array_push($queries, $query);

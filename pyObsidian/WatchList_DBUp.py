@@ -239,7 +239,8 @@ SELECT
 FROM
     watchlist_sophia
 WHERE
-    realtime_yn = 'Y'
+    realtime_yn = 'Y'  OR 
+    sector in( '5 끼있는친구들1', '6 끼있는친구들2')
 """
 
 val = (today, datetime.now())

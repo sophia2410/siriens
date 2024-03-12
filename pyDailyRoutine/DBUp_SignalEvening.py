@@ -46,10 +46,9 @@ def main():
 	print(soup)
 	title = soup.find("title")
 	ptt = title.text
-	for pdt in ptt.split(' ') :
-		if pdt[0:3] == '202' :
-			dt = pdt.replace('.','').replace('/','')[0:8]
-			print(dt)
+	
+	# 이브닝 일자 셋팅. 기존에는 타이틀에서 잘라 썼는데 왜 그랬을까? ;;
+	dt = date
 
 	# 제목 ", ' 에 \ 붙여주기 && 특수문자 제거
 	ec_ptt = special_char(ptt)

@@ -26,7 +26,7 @@
 
 		$result = $mysqli->query($query);
 		$row = $result->fetch_array(MYSQLI_BOTH);
-		echo "<input type=text id=date   name=date   style='width:120px' onkeydown=\"if(event.keyCode==13) search()\" value='". $row['date']."'>";
+		echo "<input type=text id=date   name=date   style='width:100px' onkeydown=\"if(event.keyCode==13) search()\" value='". $row['date']."'>";
 		echo "<input type=text id=minute name=minute style='width:60px'  onkeydown=\"if(event.keyCode==13) search()\"> &nbsp;&nbsp;";
 	?>
 	종목거래대금 :

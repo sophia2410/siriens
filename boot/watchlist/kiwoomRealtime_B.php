@@ -5,6 +5,10 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 ?>
 <head>
 <style>
+.minus-fraction {
+    font-size: 0.75em; /* 소수점 이하 값을 작게 표시 */
+    color: blue; /* 소수점 이하 값을 작게 표시 */
+}
 .small-fraction {
     font-size: 0.75em; /* 소수점 이하 값을 작게 표시 */
 }
@@ -71,11 +75,11 @@ switch($sort) {
 	case 'rate':
 		$order = "ORDER BY rate DESC";
 		break;
-		case 'amount_acc_day':
-			$order = "ORDER BY amount_acc_day DESC, first_minute DESC";
+	case 'amount_acc_day':
+		$order = "ORDER BY amount_acc_day DESC, first_minute DESC";
 		break;
-		case 'amount_last_min':
-			$order = "ORDER BY amount_last_min DESC, amount_acc_day DESC";
+	case 'amount_last_min':
+		$order = "ORDER BY abs(amount_last_min) DESC, amount_acc_day DESC";
 		break;
 }
 
@@ -128,7 +132,9 @@ else {
 			} elseif ($amountInBillion >= 30) {
 				$color = '#bee1e6'; // 30억 이상
 			} elseif ($amountInBillion >= 10) {
-				$color = '#f0f4f5'; //#e2ece9'; // 10억 이상
+				$color = '#e2ece9'; // 10억 이상
+			} elseif ($amountInBillion >= 0) {
+				$color = '#f0f4f5'; // 0억 이상
 			} else {
 				$color = '#ffffff'; // 10억 미만
 			}
@@ -143,7 +149,11 @@ else {
 			$whole = $parts[0];
 			$fraction = $parts[1] ?? '00'; // 소수점 이하가 없는 경우 '00'으로 처리
 
-			$rtAmount = "<span>".$whole.".<span class='small-fraction'>".$fraction."</span></span>";
+			// 매도 거래량이 많은 경우 금액을 '-'로 가져옴. '-' 금액은 작게 보이게 처리
+			if($amountInBillion > 0)
+				$rtAmount = "<span>".$whole.".<span class='small-fraction'>".$fraction."</span></span>";
+			else
+				$rtAmount = "<span class='minus-fraction'>".$whole.".<span class='minus-fraction'>".$fraction."</span></span>";
 
 			if($bold)
 				$amountInBillion = "<b>".$rtAmount." 억</b>";
@@ -159,12 +169,39 @@ else {
 	$query = " 
 		SELECT 
 			code, name, first_minute, last_minute,
-			amount_last_min, amount_last_1min, amount_last_2min, amount_last_3min, amount_last_4min, amount_last_5min, amount_last_6min, amount_last_7min, amount_last_8min, amount_last_9min,amount_last_10min,amount_last_11min,amount_last_12min, amount_acc_day, rate
+			volume_sign_last_min   * amount_last_min   AS amount_last_min,
+			volume_sign_last_1min  * amount_last_1min  AS amount_last_1min,
+			volume_sign_last_2min  * amount_last_2min  AS amount_last_2min,
+			volume_sign_last_3min  * amount_last_3min  AS amount_last_3min,
+			volume_sign_last_4min  * amount_last_4min  AS amount_last_4min,
+			volume_sign_last_5min  * amount_last_5min  AS amount_last_5min,
+			volume_sign_last_6min  * amount_last_6min  AS amount_last_6min,
+			volume_sign_last_7min  * amount_last_7min  AS amount_last_7min,
+			volume_sign_last_8min  * amount_last_8min  AS amount_last_8min,
+			volume_sign_last_9min  * amount_last_9min  AS amount_last_9min,
+			volume_sign_last_10min * amount_last_10min AS amount_last_10min,
+			volume_sign_last_11min * amount_last_11min AS amount_last_11min,
+			volume_sign_last_12min * amount_last_12min AS amount_last_12min,
+			amount_acc_day,
+			rate
 		FROM (
 			SELECT
 				s.code, s.name,
 				MIN(minute) AS first_minute,
 				MAX(minute) AS last_minute,
+				IFNULL(MAX(CASE WHEN minute = t.last_min   THEN CASE WHEN (minus_tick_cnt - plus_tick_cnt) > 5 THEN -1 ELSE CASE WHEN minute_volume > 0 THEN 1 ELSE -1 END END ELSE NULL END), 0) volume_sign_last_min,
+				IFNULL(MAX(CASE WHEN minute = t.last_1min  THEN CASE WHEN (minus_tick_cnt - plus_tick_cnt) > 5 THEN -1 ELSE CASE WHEN minute_volume > 0 THEN 1 ELSE -1 END END ELSE NULL END), 0) volume_sign_last_1min,
+				IFNULL(MAX(CASE WHEN minute = t.last_2min  THEN CASE WHEN (minus_tick_cnt - plus_tick_cnt) > 5 THEN -1 ELSE CASE WHEN minute_volume > 0 THEN 1 ELSE -1 END END ELSE NULL END), 0) volume_sign_last_2min,
+				IFNULL(MAX(CASE WHEN minute = t.last_3min  THEN CASE WHEN (minus_tick_cnt - plus_tick_cnt) > 5 THEN -1 ELSE CASE WHEN minute_volume > 0 THEN 1 ELSE -1 END END ELSE NULL END), 0) volume_sign_last_3min,
+				IFNULL(MAX(CASE WHEN minute = t.last_4min  THEN CASE WHEN (minus_tick_cnt - plus_tick_cnt) > 5 THEN -1 ELSE CASE WHEN minute_volume > 0 THEN 1 ELSE -1 END END ELSE NULL END), 0) volume_sign_last_4min,
+				IFNULL(MAX(CASE WHEN minute = t.last_5min  THEN CASE WHEN (minus_tick_cnt - plus_tick_cnt) > 5 THEN -1 ELSE CASE WHEN minute_volume > 0 THEN 1 ELSE -1 END END ELSE NULL END), 0) volume_sign_last_5min,
+				IFNULL(MAX(CASE WHEN minute = t.last_6min  THEN CASE WHEN (minus_tick_cnt - plus_tick_cnt) > 5 THEN -1 ELSE CASE WHEN minute_volume > 0 THEN 1 ELSE -1 END END ELSE NULL END), 0) volume_sign_last_6min,
+				IFNULL(MAX(CASE WHEN minute = t.last_7min  THEN CASE WHEN (minus_tick_cnt - plus_tick_cnt) > 5 THEN -1 ELSE CASE WHEN minute_volume > 0 THEN 1 ELSE -1 END END ELSE NULL END), 0) volume_sign_last_7min,
+				IFNULL(MAX(CASE WHEN minute = t.last_8min  THEN CASE WHEN (minus_tick_cnt - plus_tick_cnt) > 5 THEN -1 ELSE CASE WHEN minute_volume > 0 THEN 1 ELSE -1 END END ELSE NULL END), 0) volume_sign_last_8min,
+				IFNULL(MAX(CASE WHEN minute = t.last_9min  THEN CASE WHEN (minus_tick_cnt - plus_tick_cnt) > 5 THEN -1 ELSE CASE WHEN minute_volume > 0 THEN 1 ELSE -1 END END ELSE NULL END), 0) volume_sign_last_9min,
+				IFNULL(MAX(CASE WHEN minute = t.last_10min THEN CASE WHEN (minus_tick_cnt - plus_tick_cnt) > 5 THEN -1 ELSE CASE WHEN minute_volume > 0 THEN 1 ELSE -1 END END ELSE NULL END), 0) volume_sign_last_10min,
+				IFNULL(MAX(CASE WHEN minute = t.last_11min THEN CASE WHEN (minus_tick_cnt - plus_tick_cnt) > 5 THEN -1 ELSE CASE WHEN minute_volume > 0 THEN 1 ELSE -1 END END ELSE NULL END), 0) volume_sign_last_11min,
+				IFNULL(MAX(CASE WHEN minute = t.last_12min THEN CASE WHEN (minus_tick_cnt - plus_tick_cnt) > 5 THEN -1 ELSE CASE WHEN minute_volume > 0 THEN 1 ELSE -1 END END ELSE NULL END), 0) volume_sign_last_12min,
 				IFNULL(MAX(CASE WHEN minute = t.last_min   THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= t.last_1min  THEN acc_trade_amount ELSE 0 END), 0) AS amount_last_min,
 				IFNULL(MAX(CASE WHEN minute = t.last_1min  THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= t.last_2min  THEN acc_trade_amount ELSE 0 END), 0) AS amount_last_1min,
 				IFNULL(MAX(CASE WHEN minute = t.last_2min  THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= t.last_3min  THEN acc_trade_amount ELSE 0 END), 0) AS amount_last_2min,
@@ -337,11 +374,17 @@ else {
 			'amount_last_12min' => $row['amount_last_12min']
 		];
 
+		if($row['amount_last_min'] > 0) {
+			$bgcolor = '#fde2e4'; // 0억 이상
+		} else {
+			$bgcolor = '#ffffff'; // 10억 미만
+		}
+
 		echo "<tr align=right>";
 			echo "<td align=center class='small'>";
 			echo "<a href='kiwoomRealtime15Min_AStock.php?code={$row['code']}&name={$row['name']}&date={$date}' target='_blank'>";
 			echo $row['code']."</a></td>";
-			echo "<td align=left class='cut-text' title=".$row['name'].">";
+			echo "<td align=left class='cut-text' title=".$row['name']." style='background-color:".$bgcolor."'>";
 			echo "<a href='kiwoomRealtime_AStock.php?code={$row['code']}&name={$row['name']}&date={$date}' target='_blank'>";
 			echo "<b>".$row['name']."</b></a></td>";
 			echo "<td><b>".$row['rate']."%</b></td>";

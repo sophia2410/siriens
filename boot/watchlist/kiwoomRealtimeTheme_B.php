@@ -5,6 +5,10 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 ?>
 <head>
 <style>
+.minus-fraction {
+    font-size: 0.75em; /* 소수점 이하 값을 작게 표시 */
+    color: darkgray; /* 소수점 이하 값을 작게 표시 */
+}
 .small-fraction {
     font-size: 0.75em; /* 소수점 이하 값을 작게 표시 */
 }
@@ -52,12 +56,11 @@ $specific_datetime = $date.$minute;
 $min_amount = (isset($_GET['min_amount']) && $_GET['min_amount'] != '') ? $_GET['min_amount'] * 100 : 2000;
 
 // 테마별 종목 조회 건수
-$detail_cnt = (isset($_GET['detail_cnt']) && $_GET['detail_cnt'] != '') ? $_GET['detail_cnt'] : 3;
+$detail_cnt = (isset($_GET['detail_cnt']) && $_GET['detail_cnt'] != '') ? $_GET['detail_cnt'] : 7;
 
 // 해당 일자 등록 테이블 찾기 (성능 위해 백업 테이블 이동)
 $query = "SELECT 'Y' FROM kiwoom_realtime_minute WHERE date = '$date' LIMIT 1";
 $result = $mysqli->query($query);
-
 $tableToUse = '';
 if ($result->num_rows > 0) {    // 결과가 있는 
     $tableToUse = 'kiwoom_realtime_minute';
@@ -72,7 +75,7 @@ switch($sort) {
 		$order = "ORDER BY acc_day_theme DESC, amount_acc_day DESC, first_minute DESC";
 	break;
 	case 'amount_last_min':
-		$order = "ORDER BY last_min_theme DESC, theme, amount_last_min DESC, amount_acc_day DESC";
+		$order = "ORDER BY last_min_theme DESC, theme, ABS(amount_last_min) DESC, amount_acc_day DESC";
 	break;
 }
 
@@ -116,8 +119,16 @@ else {
 			}
 		} else {
 			$amountInBillion = round($amount/100, 1);
-
-			if($bgcolor == 'Y') {
+			if($bgcolor == 'Y' && $key == 'amount_acc_day') { // 총합의 경우 색 다르게 표시
+				// 색상 지정
+				if ($amountInBillion >= 1000) {
+					$color = '#fcb9b2'; // 10000억 이상
+				} elseif ($amountInBillion >= 500) {
+					$color = '#ffccd5'; // 500억 이상
+				} else {
+					$color = '#FFFFF4';
+				}
+			} else if($bgcolor == 'Y') {
 				// 색상 지정
 				if ($amountInBillion >= 1000) {
 					$color = '#fcb9b2'; // 10000억 이상
@@ -130,9 +141,11 @@ else {
 				} elseif ($amountInBillion >= 30) {
 					$color = '#bee1e6'; // 30억 이상
 				} elseif ($amountInBillion >= 10) {
-					$color = '#f0f4f5'; //#e2ece9'; // 10억 이상
+					$color = '#e2ece9'; // 10억 이상
+				} elseif ($amountInBillion >= 1) {
+					$color = '#f0f4f5'; // 1억 이상
 				} else {
-					$color = '#ffffff'; // 10억 미만
+					$color = '#ffffff'; // 1억 미만
 				}
 			} else {
 				$color = '#FFF9CC';
@@ -148,7 +161,12 @@ else {
 			$whole = $parts[0];
 			$fraction = $parts[1] ?? '00'; // 소수점 이하가 없는 경우 '00'으로 처리
 
-			$rtAmount = "<span>".$whole.".<span class='small-fraction'>".$fraction."</span></span>";
+
+			// 매도 거래량이 많은 경우 금액을 '-'로 가져옴. '-' 금액은 작게 보이게 처리
+			if($amountInBillion > 0)
+				$rtAmount = "<span>".$whole.".<span class='small-fraction'>".$fraction."</span></span>";
+			else
+				$rtAmount = "<span class='minus-fraction'>".$whole.".<span class='minus-fraction'>".$fraction."</span></span>";
 
 			if($bold == 'Y')
 				$amountInBillion = "<b>".$rtAmount." 억</b>";
@@ -161,12 +179,15 @@ else {
 		return $tdE;
 	}
 
-	$query = " 
+	// 관종엑셀다운로드 용
+	$filename = "Realtime_theme";
+	$file_orderby = "ORDER BY V.last_min_theme DESC, V.theme, ABS(V.amount_last_min) DESC, V.amount_acc_day DESC";
+
+	$query = "SELECT * FROM (
 		SELECT 
 			w.theme, s.code, s.name,
 			first_minute, last_minute, rate,
-			amount_last_min, amount_last_1min, amount_last_2min, amount_last_3min, amount_last_4min, amount_last_5min, amount_last_6min, 
-			amount_last_7min, amount_last_8min, amount_last_9min,amount_last_10min,amount_last_11min,amount_last_12min, amount_acc_day,
+			RANK() OVER(PARTITION BY w.theme ORDER BY ABS(amount_last_min) DESC,  ABS(amount_last_1min) DESC,  ABS(amount_last_2min) DESC) rank,
 			SUM(amount_last_min  ) OVER(PARTITION BY w.theme) AS last_min_theme,
 			SUM(amount_last_1min ) OVER(PARTITION BY w.theme) AS last_1min_theme,
 			SUM(amount_last_2min ) OVER(PARTITION BY w.theme) AS last_2min_theme,
@@ -180,12 +201,39 @@ else {
 			SUM(amount_last_10min) OVER(PARTITION BY w.theme) AS last_10min_theme,
 			SUM(amount_last_11min) OVER(PARTITION BY w.theme) AS last_11min_theme,
 			SUM(amount_last_12min) OVER(PARTITION BY w.theme) AS last_12min_theme,
-			SUM(amount_acc_day   ) OVER(PARTITION BY w.theme) AS acc_day_theme
+			SUM(amount_acc_day   ) OVER(PARTITION BY w.theme) AS acc_day_theme,
+			volume_sign_last_min   * amount_last_min   AS amount_last_min,
+			volume_sign_last_1min  * amount_last_1min  AS amount_last_1min,
+			volume_sign_last_2min  * amount_last_2min  AS amount_last_2min,
+			volume_sign_last_3min  * amount_last_3min  AS amount_last_3min,
+			volume_sign_last_4min  * amount_last_4min  AS amount_last_4min,
+			volume_sign_last_5min  * amount_last_5min  AS amount_last_5min,
+			volume_sign_last_6min  * amount_last_6min  AS amount_last_6min,
+			volume_sign_last_7min  * amount_last_7min  AS amount_last_7min,
+			volume_sign_last_8min  * amount_last_8min  AS amount_last_8min,
+			volume_sign_last_9min  * amount_last_9min  AS amount_last_9min,
+			volume_sign_last_10min * amount_last_10min AS amount_last_10min,
+			volume_sign_last_11min * amount_last_11min AS amount_last_11min,
+			volume_sign_last_12min * amount_last_12min AS amount_last_12min,
+			amount_acc_day
 		FROM (
 			SELECT
 				m.code,
 				MIN(minute) AS first_minute,
 				MAX(minute) AS last_minute,
+				IFNULL(MAX(CASE WHEN minute = t.last_min   THEN CASE WHEN (minus_tick_cnt - plus_tick_cnt) > 5 THEN -1 ELSE CASE WHEN minute_volume > 0 THEN 1 ELSE -1 END END ELSE NULL END), 0) volume_sign_last_min,
+				IFNULL(MAX(CASE WHEN minute = t.last_1min  THEN CASE WHEN (minus_tick_cnt - plus_tick_cnt) > 5 THEN -1 ELSE CASE WHEN minute_volume > 0 THEN 1 ELSE -1 END END ELSE NULL END), 0) volume_sign_last_1min,
+				IFNULL(MAX(CASE WHEN minute = t.last_2min  THEN CASE WHEN (minus_tick_cnt - plus_tick_cnt) > 5 THEN -1 ELSE CASE WHEN minute_volume > 0 THEN 1 ELSE -1 END END ELSE NULL END), 0) volume_sign_last_2min,
+				IFNULL(MAX(CASE WHEN minute = t.last_3min  THEN CASE WHEN (minus_tick_cnt - plus_tick_cnt) > 5 THEN -1 ELSE CASE WHEN minute_volume > 0 THEN 1 ELSE -1 END END ELSE NULL END), 0) volume_sign_last_3min,
+				IFNULL(MAX(CASE WHEN minute = t.last_4min  THEN CASE WHEN (minus_tick_cnt - plus_tick_cnt) > 5 THEN -1 ELSE CASE WHEN minute_volume > 0 THEN 1 ELSE -1 END END ELSE NULL END), 0) volume_sign_last_4min,
+				IFNULL(MAX(CASE WHEN minute = t.last_5min  THEN CASE WHEN (minus_tick_cnt - plus_tick_cnt) > 5 THEN -1 ELSE CASE WHEN minute_volume > 0 THEN 1 ELSE -1 END END ELSE NULL END), 0) volume_sign_last_5min,
+				IFNULL(MAX(CASE WHEN minute = t.last_6min  THEN CASE WHEN (minus_tick_cnt - plus_tick_cnt) > 5 THEN -1 ELSE CASE WHEN minute_volume > 0 THEN 1 ELSE -1 END END ELSE NULL END), 0) volume_sign_last_6min,
+				IFNULL(MAX(CASE WHEN minute = t.last_7min  THEN CASE WHEN (minus_tick_cnt - plus_tick_cnt) > 5 THEN -1 ELSE CASE WHEN minute_volume > 0 THEN 1 ELSE -1 END END ELSE NULL END), 0) volume_sign_last_7min,
+				IFNULL(MAX(CASE WHEN minute = t.last_8min  THEN CASE WHEN (minus_tick_cnt - plus_tick_cnt) > 5 THEN -1 ELSE CASE WHEN minute_volume > 0 THEN 1 ELSE -1 END END ELSE NULL END), 0) volume_sign_last_8min,
+				IFNULL(MAX(CASE WHEN minute = t.last_9min  THEN CASE WHEN (minus_tick_cnt - plus_tick_cnt) > 5 THEN -1 ELSE CASE WHEN minute_volume > 0 THEN 1 ELSE -1 END END ELSE NULL END), 0) volume_sign_last_9min,
+				IFNULL(MAX(CASE WHEN minute = t.last_10min THEN CASE WHEN (minus_tick_cnt - plus_tick_cnt) > 5 THEN -1 ELSE CASE WHEN minute_volume > 0 THEN 1 ELSE -1 END END ELSE NULL END), 0) volume_sign_last_10min,
+				IFNULL(MAX(CASE WHEN minute = t.last_11min THEN CASE WHEN (minus_tick_cnt - plus_tick_cnt) > 5 THEN -1 ELSE CASE WHEN minute_volume > 0 THEN 1 ELSE -1 END END ELSE NULL END), 0) volume_sign_last_11min,
+				IFNULL(MAX(CASE WHEN minute = t.last_12min THEN CASE WHEN (minus_tick_cnt - plus_tick_cnt) > 5 THEN -1 ELSE CASE WHEN minute_volume > 0 THEN 1 ELSE -1 END END ELSE NULL END), 0) volume_sign_last_12min,
 				IFNULL(MAX(CASE WHEN minute = t.last_min   THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= t.last_1min  THEN acc_trade_amount ELSE 0 END), 0) AS amount_last_min,
 				IFNULL(MAX(CASE WHEN minute = t.last_1min  THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= t.last_2min  THEN acc_trade_amount ELSE 0 END), 0) AS amount_last_1min,
 				IFNULL(MAX(CASE WHEN minute = t.last_2min  THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= t.last_3min  THEN acc_trade_amount ELSE 0 END), 0) AS amount_last_2min,
@@ -203,8 +251,8 @@ else {
 				(
 				SELECT m2.rate
 				FROM $tableToUse m2
-				WHERE m2.code = m.code
-					AND STR_TO_DATE(CONCAT(m2.date, m2.minute), '%Y%m%d%H%i') <= t.specific_datetime
+				WHERE m2.code = m.code AND 
+					  STR_TO_DATE(CONCAT(m2.date, m2.minute), '%Y%m%d%H%i') <= t.specific_datetime
 				ORDER BY STR_TO_DATE(CONCAT(m2.date, m2.minute), '%Y%m%d%H%i') DESC
 				LIMIT 1
 				) AS rate -- 주어진 시간 이전의 가장 최근 rate
@@ -242,16 +290,24 @@ else {
 			ON
 				s.code = g.code
 			JOIN
-				(SELECT code, theme FROM watchlist_sophia WHERE realtime_yn = 'Y' GROUP BY code, theme) w
+				(SELECT code, theme FROM watchlist_sophia WHERE realtime_yn = 'Y' or sector in( '5 끼있는친구들1', '6 끼있는친구들2') GROUP BY code, theme) w
 			ON
 				w.code = g.code
 			WHERE
-				g.amount_acc_day > $min_amount
-			$order 
+				g.amount_acc_day > $min_amount AND
+				g.amount_last_min + g.amount_last_1min + g.amount_last_2min > 0
+		) final_query
+		WHERE rank <= $detail_cnt
+		$order 
 		";
 
 	// echo "<pre>$query</pre>";
 	$result = $mysqli->query($query);
+	
+	// 특징주 등록을 위한 엑셀파일용 쿼리문, 파이썬 프로그램에서 사용.
+	$text =  $filename. "\n" .$file_orderby. "\n" .$query;
+	file_put_contents('E:/Project/202410/www/pyObsidian/vars_downExcel.txt', $text);
+
 	
 	echo "<table class='table table-sm table-bordered text-dark'>";
 
@@ -269,7 +325,6 @@ else {
 		foreach ($times as $time) {
 			$timeKey = "amount_$time";
 			$amount = $row[$timeKey] ?? 0;
-
 
 			if (!isset($tradeAmountsByTime[$timeKey])) {
 				$tradeAmountsByTime[$timeKey] = [];
@@ -289,181 +344,207 @@ else {
 		}
 	}
 
-	// Top 7 계산
-	$topByTime = [];
-	foreach ($tradeAmountsByTime as $timeKey => $items) {
-		usort($items, function($a, $b) {
-			return $b['amount'] - $a['amount'];
-		});
-		$topByTime[$timeKey] = array_slice($items, 0, 7); // 7위까지
+	// // Top 7 계산
+	// $topByTime = [];
+	// foreach ($tradeAmountsByTime as $timeKey => $items) {
+	// 	usort($items, function($a, $b) {
+	// 		return $b['amount'] - $a['amount'];
+	// 	});
+	// 	$topByTime[$timeKey] = array_slice($items, 0, 7); // 7위까지
+	// }
+
+	// // Top7 신규 종목 색상 표시
+	// // 처음 등장하는 종목에만 스타일을 적용하기 위한 배열 초기화
+	// $firstAppearance = [];
+	
+	// 섹터별 종목을 더 잘 보기 위해 우선 화면 표기 막아두기!
+	// // $times 배열 순서대로 처리 (현재, 1분 전, 2분 전, ... , 12분 전)
+	// echo "<tr><td colspan=3 align=center class=h2>Top7</td>";
+	// foreach ($times as $time) {
+	// 	$timeKey = "amount_$time";
+	// 	echo "<td cellpadding=0 cellspacing=0><table class='small table-borderless' cellpadding=0 cellspacing=0>";
+		
+	// 	if (isset($topByTime[$timeKey])) {
+	// 		foreach ($topByTime[$timeKey] as $item) {
+	// 			$link_name = "<a href='kiwoomRealtime_AStock.php?code={$item['code']}&name={$item['name']}&date={$date}' target='_blank' style='text-decoration: none; color: inherit;'>";
+	// 			$link_name.= "<b>{$item['name']}</b></a>";
+
+	// 			// 종목 코드가 첫 등장인지 확인
+	// 			if (!array_key_exists($item['code'], $firstAppearance)) {
+	// 				// 첫 등장 종목에 스타일 적용
+	// 				echo "<tr><td class='cut-text2' title={$item['name']} style='color: red;'><b>{$link_name}</b></td></tr>";
+	// 				// 첫 등장 기록
+	// 				$firstAppearance[$item['code']] = true;
+	// 			} else {
+	// 				// 이전에 등장한 종목
+	// 				echo "<tr><td class='cut-text2' title={$item['name']}><b>{$link_name}</b></td></tr>";
+	// 			}
+	// 		}
+	// 	}
+	// 	echo "</table></td>";
+	// }
+	// echo "</tr>";
+
+	// $tableData = ['table1' => [], 'table2' => []];
+	// $currentTable = 'table1';
+	// $lastThemeRowCount = 0; // 마지막 테마의 행 수를 추적
+
+	// $themeOrder = []; // 테마의 순서를 저장할 배열
+	// $themeCounter = 0; // 현재 처리중인 테마의 순서 카운터
+	// $previousTheme = null; // 이전에 처리된 테마를 추적
+	
+	// // 나머지 데이터 처리
+	// foreach ($allData as $row) {
+	// 	// 새로운 테마가 시작될 때마다 카운터를 증가
+	// 	if ($previousTheme !== $row['theme']) {
+	// 		$previousTheme = $row['theme']; // 현재 테마를 이전 테마로 설정
+	// 		$themeCounter++; // 테마 순서 카운터 증가
+	// 		$themeOrder[$row['theme']] = $themeCounter; // 테마와 해당 순서를 배열에 저장
+	// 	}
+
+	// 	// 테마별로 배열에 데이터 저장
+	// 	if (!isset($tableData[$currentTable][$row['theme']])) {
+	// 		// 이전 테마의 행 수가 3 이하이면 같은 테이블에 테마를 계속 추가
+	// 		if ($lastThemeRowCount > 3) {
+	// 			// 테이블 교차로 변경
+	// 			$currentTable = ($currentTable === 'table1') ? 'table2' : 'table1';
+	// 		}
+	// 		$tableData[$currentTable][$row['theme']] = [];
+	// 		$lastThemeRowCount = 0; // 행 수 카운트 리셋
+	// 	}
+	// 	$tableData[$currentTable][$row['theme']][] = $row;
+	// 	$lastThemeRowCount++; // 현재 테마의 행 수 증가
+	// }
+
+	$tableData = ['table1' => [], 'table2' => []];
+	$currentTable = 'table1';
+	$previousTheme = null;
+	$themeRowCount = 0; // 현재 테마의 데이터 수를 카운트
+	$themeCounter = 0; // 현재 처리중인 테마의 순서 카운터
+	$themeOrder = []; // 테마의 순서를 저장할 배열
+
+	foreach ($allData as $row) {
+		if ($previousTheme !== $row['theme']) {
+			$themeCounter++; // 테마 순서 카운터 증가
+			$themeOrder[$row['theme']] = $themeCounter; // 테마와 해당 순서를 배열에 저장
+			if ($previousTheme !== null) { // 첫 테마가 아닐 때만 체크
+				// 이전 테마 데이터가 3건 이상이면 테이블 교체
+				if ($themeRowCount > 3) {
+					$currentTable = ($currentTable === 'table1') ? 'table2' : 'table1';
+					$themeRowCount = 0; // 테마 데이터 수 리셋
+				}
+				// 테마 데이터가 3건 이하면 테이블 유지
+			}
+			$previousTheme = $row['theme']; // 현재 테마 업데이트
+		}
+		
+		if (!isset($tableData[$currentTable][$row['theme']])) {
+			$tableData[$currentTable][$row['theme']] = [];
+		}
+		$tableData[$currentTable][$row['theme']][] = $row;
+		$themeRowCount++; // 현재 테마의 데이터 수 증가
 	}
 
-	// Top7 신규 종목 색상 표시
-	// 처음 등장하는 종목에만 스타일을 적용하기 위한 배열 초기화
-	$firstAppearance = [];
+	// HTML 출력
+	$pre_theme = "";
+	echo "<table><tr valign=top>";
 
-	// $times 배열 순서대로 처리 (현재, 1분 전, 2분 전, ... , 12분 전)
-	echo "<tr><td colspan=3 align=center class=h2>Top7</td>";
-	foreach ($times as $time) {
-		$timeKey = "amount_$time";
-		echo "<td cellpadding=0 cellspacing=0><table class='small table-borderless' cellpadding=0 cellspacing=0>";
-		
-		if (isset($topByTime[$timeKey])) {
-			foreach ($topByTime[$timeKey] as $item) {
-				$link_name = "<a href='kiwoomRealtime_AStock.php?code={$item['code']}&name={$item['name']}&date={$date}' target='_blank' style='text-decoration: none; color: inherit;'>";
-				$link_name.= "<b>{$item['name']}</b></a>";
+	foreach ($tableData as $tableName => $themes) {
+		echo "<td style='width: 50%;'><table><tr>";
 
-				// 종목 코드가 첫 등장인지 확인
-				if (!array_key_exists($item['code'], $firstAppearance)) {
-					// 첫 등장 종목에 스타일 적용
-					echo "<tr><td class='cut-text2' title={$item['name']} style='color: red;'><b>{$link_name}</b></td></tr>";
-					// 첫 등장 기록
-					$firstAppearance[$item['code']] = true;
+		// echo "<table class='table table-sm text-dark'>";
+		echo "<table border='1' width='100%'>";
+		echo "<tr align=center>";
+		echo "<th width=60>코드</th>";
+		echo "<th width=120>종목명</th>";
+		echo "<th width=70 >등락률</th>";
+		echo "<th width=110 onclick=\"sortTable('amount_acc_day')\" >당일누적</th>";
+		echo "<th width=90  onclick=\"sortTable('amount_last_min')\">".substr($minute,0,2).":".substr($minute,2,2)."</th>";
+		echo "<th width=90>1분전</th>";
+		echo "<th width=90>2분전</th>";
+		echo "<th width=90>3분전</th>";
+		echo "<th width=90>4분전</th>";
+		echo "<th width=90>5분전</th>";
+		echo "</tr>";
+
+		foreach ($themes as $theme => $rows) {
+			foreach ($rows as $row) {
+				// TD 생성을 위해 거래대금 배열에 담기
+				$amounts = [
+					'amount_acc_day'   => $row['amount_acc_day'],
+					'amount_last_min'  => $row['amount_last_min'],
+					'amount_last_1min' => $row['amount_last_1min'],
+					'amount_last_2min' => $row['amount_last_2min'],
+					'amount_last_3min' => $row['amount_last_3min'],
+					'amount_last_4min' => $row['amount_last_4min'],
+					'amount_last_5min' => $row['amount_last_5min'],
+					'theme_acc_day'    => $row['acc_day_theme'],
+					'theme_last_min'   => $row['last_min_theme'],
+					'theme_last_1min'  => $row['last_1min_theme'],
+					'theme_last_2min'  => $row['last_2min_theme'],
+					'theme_last_3min'  => $row['last_3min_theme'],
+					'theme_last_4min'  => $row['last_4min_theme'],
+					'theme_last_5min'  => $row['last_5min_theme']
+				];
+
+				if($row['amount_last_min'] > 0) {
+					$bgcolor = '#fde2e4'; // 0억 이상
 				} else {
-					// 이전에 등장한 종목
-					echo "<tr><td class='cut-text2' title={$item['name']}><b>{$link_name}</b></td></tr>";
+					$bgcolor = '#ffffff'; // 10억 미만
 				}
+
+				// 테마별로 합계 금액 조회
+				if($pre_theme != $row['theme']) {
+					echo "<tr align=right>";
+						echo "<td align=left colspan=3 bgcolor='#FFF9CC'><b> ( {$themeOrder[$row['theme']]} ) {$row['theme']}</b></td>";
+						$amountTdE = setAmountTdE($amounts, 'theme_acc_day', 'N');
+						echo $amountTdE;
+						$amountTdE = setAmountTdE($amounts, 'theme_last_min', 'N');
+						echo $amountTdE;
+						$amountTdE = setAmountTdE($amounts, 'theme_last_1min', 'N');
+						echo $amountTdE;
+						$amountTdE = setAmountTdE($amounts, 'theme_last_2min', 'N');
+						echo $amountTdE;
+						$amountTdE = setAmountTdE($amounts, 'theme_last_3min', 'N');
+						echo $amountTdE;
+						$amountTdE = setAmountTdE($amounts, 'theme_last_4min', 'N');
+						echo $amountTdE;
+						$amountTdE = setAmountTdE($amounts, 'theme_last_5min', 'N');
+						echo $amountTdE;
+					echo "</tr>";
+				}
+				
+				echo "<tr align=right>";
+					echo "<td align=center class='small'>";
+					echo "<a href='kiwoomRealtime15Min_AStock.php?code={$row['code']}&name={$row['name']}&date={$date}' target='_blank'>";
+					echo $row['code']."</a></td>";
+					echo "<td align=left class='cut-text' title=".$row['name']." style='background-color:".$bgcolor."'>";
+					echo "<a href='kiwoomRealtime_AStock.php?code={$row['code']}&name={$row['name']}&date={$date}' target='_blank'>";
+					echo "<b>".$row['name']."</b></a></td>";
+					echo "<td><b>".$row['rate']."%</b></td>";
+					$amountTdE = setAmountTdE($amounts, 'amount_acc_day');
+					echo $amountTdE;
+					$amountTdE = setAmountTdE($amounts, 'amount_last_min');
+					echo $amountTdE;
+					$amountTdE = setAmountTdE($amounts, 'amount_last_1min');
+					echo $amountTdE;
+					$amountTdE = setAmountTdE($amounts, 'amount_last_2min');
+					echo $amountTdE;
+					$amountTdE = setAmountTdE($amounts, 'amount_last_3min');
+					echo $amountTdE;
+					$amountTdE = setAmountTdE($amounts, 'amount_last_4min');
+					echo $amountTdE;
+					$amountTdE = setAmountTdE($amounts, 'amount_last_5min');
+					echo $amountTdE;
+				echo "</tr>";
+
+				$pre_theme  = $row['theme'];
 			}
 		}
-		echo "</table></td>";
+		echo "</table><br />";
+		echo "</td>";
 	}
-	echo "</tr>";
-
-	echo "<tr align=center>";
-	echo "<th width=60>코드</th>";
-	echo "<th width=120>종목명</th>";
-	echo "<th width=70 >등락률</th>";
-	echo "<th width=110 onclick=\"sortTable('amount_acc_day')\" >당일누적</th>";
-	echo "<th width=90  onclick=\"sortTable('amount_last_min')\">".substr($minute,0,2).":".substr($minute,2,2)."</th>";
-	echo "<th width=90>1분전</th>";
-	echo "<th width=90>2분전</th>";
-	echo "<th width=90>3분전</th>";
-	echo "<th width=90>4분전</th>";
-	echo "<th width=90>5분전</th>";
-	echo "<th width=90>6분전</th>";
-	echo "<th width=90>7분전</th>";
-	echo "<th width=90>8분전</th>";
-	echo "<th width=90>9분전</th>";
-	echo "<th width=90>10분전</th>";
-	echo "<th width=90>11분전</th>";
-	echo "<th width=90>12분전</th>";
-	echo "</tr>";
-
-	$pre_theme = "";
-	// 나머지 데이터 출력
-	foreach ($allData as $row) {
-		// TD 생성을 위해 거래대금 배열에 담기
-		$amounts = [
-			'amount_acc_day'   => $row['amount_acc_day'],
-			'amount_last_min'  => $row['amount_last_min'],
-			'amount_last_1min' => $row['amount_last_1min'],
-			'amount_last_2min' => $row['amount_last_2min'],
-			'amount_last_3min' => $row['amount_last_3min'],
-			'amount_last_4min' => $row['amount_last_4min'],
-			'amount_last_5min' => $row['amount_last_5min'],
-			'amount_last_6min' => $row['amount_last_6min'],
-			'amount_last_7min' => $row['amount_last_7min'],
-			'amount_last_8min' => $row['amount_last_8min'],
-			'amount_last_9min' => $row['amount_last_9min'],
-			'amount_last_10min'=> $row['amount_last_10min'],
-			'amount_last_11min'=> $row['amount_last_11min'],
-			'amount_last_12min'=> $row['amount_last_12min'],
-			'theme_last_min'   => $row['last_min_theme'],
-			'theme_last_1min'  => $row['last_1min_theme'],
-			'theme_last_2min'  => $row['last_2min_theme'],
-			'theme_last_3min'  => $row['last_3min_theme'],
-			'theme_last_4min'  => $row['last_4min_theme'],
-			'theme_last_5min'  => $row['last_5min_theme'],
-			'theme_last_6min'  => $row['last_6min_theme'],
-			'theme_last_7min'  => $row['last_7min_theme'],
-			'theme_last_8min'  => $row['last_8min_theme'],
-			'theme_last_9min'  => $row['last_9min_theme'],
-			'theme_last_10min' => $row['last_10min_theme'],
-			'theme_last_11min' => $row['last_11min_theme'],
-			'theme_last_12min' => $row['last_12min_theme'],
-			'theme_acc_day'    => $row['acc_day_theme'],
-		];
-
-		// 테마별로 합계 금액 조회
-		if($pre_theme != $row['theme']) {
-			$theme_cnt = 1;
-
-			echo "<tr align=right>";
-				echo "<td align=left colspan=3 bgcolor='#FFF9CC'><b>{$row['theme']}</b></td>";
-				$amountTdE = setAmountTdE($amounts, 'theme_acc_day', 'N');
-				echo $amountTdE;
-				$amountTdE = setAmountTdE($amounts, 'theme_last_min', 'N');
-				echo $amountTdE;
-				$amountTdE = setAmountTdE($amounts, 'theme_last_1min', 'N');
-				echo $amountTdE;
-				$amountTdE = setAmountTdE($amounts, 'theme_last_2min', 'N');
-				echo $amountTdE;
-				$amountTdE = setAmountTdE($amounts, 'theme_last_3min', 'N');
-				echo $amountTdE;
-				$amountTdE = setAmountTdE($amounts, 'theme_last_4min', 'N');
-				echo $amountTdE;
-				$amountTdE = setAmountTdE($amounts, 'theme_last_5min', 'N');
-				echo $amountTdE;
-				$amountTdE = setAmountTdE($amounts, 'theme_last_6min', 'N');
-				echo $amountTdE;
-				$amountTdE = setAmountTdE($amounts, 'theme_last_7min', 'N');
-				echo $amountTdE;
-				$amountTdE = setAmountTdE($amounts, 'theme_last_8min', 'N');
-				echo $amountTdE;
-				$amountTdE = setAmountTdE($amounts, 'theme_last_9min', 'N');
-				echo $amountTdE;
-				$amountTdE = setAmountTdE($amounts, 'theme_last_10min', 'N');
-				echo $amountTdE;
-				$amountTdE = setAmountTdE($amounts, 'theme_last_11min', 'N');
-				echo $amountTdE;
-				$amountTdE = setAmountTdE($amounts, 'theme_last_12min', 'N');
-				echo $amountTdE;
-			echo "</tr>";
-		}
-		
-		if($theme_cnt <= $detail_cnt) {
-			echo "<tr align=right>";
-				echo "<td align=center class='small'>";
-				echo "<a href='kiwoomRealtime15Min_AStock.php?code={$row['code']}&name={$row['name']}&date={$date}' target='_blank'>";
-				echo $row['code']."</a></td>";
-				echo "<td align=left class='cut-text' title=".$row['name'].">";
-				echo "<a href='kiwoomRealtime_AStock.php?code={$row['code']}&name={$row['name']}&date={$date}' target='_blank'>";
-				echo "<b>".$row['name']."</b></a></td>";
-				echo "<td><b>".$row['rate']."%</b></td>";
-				$amountTdE = setAmountTdE($amounts, 'amount_acc_day');
-				echo $amountTdE;
-				$amountTdE = setAmountTdE($amounts, 'amount_last_min');
-				echo $amountTdE;
-				$amountTdE = setAmountTdE($amounts, 'amount_last_1min');
-				echo $amountTdE;
-				$amountTdE = setAmountTdE($amounts, 'amount_last_2min');
-				echo $amountTdE;
-				$amountTdE = setAmountTdE($amounts, 'amount_last_3min');
-				echo $amountTdE;
-				$amountTdE = setAmountTdE($amounts, 'amount_last_4min');
-				echo $amountTdE;
-				$amountTdE = setAmountTdE($amounts, 'amount_last_5min');
-				echo $amountTdE;
-				$amountTdE = setAmountTdE($amounts, 'amount_last_6min');
-				echo $amountTdE;
-				$amountTdE = setAmountTdE($amounts, 'amount_last_7min');
-				echo $amountTdE;
-				$amountTdE = setAmountTdE($amounts, 'amount_last_8min');
-				echo $amountTdE;
-				$amountTdE = setAmountTdE($amounts, 'amount_last_9min');
-				echo $amountTdE;
-				$amountTdE = setAmountTdE($amounts, 'amount_last_10min');
-				echo $amountTdE;
-				$amountTdE = setAmountTdE($amounts, 'amount_last_11min');
-				echo $amountTdE;
-				$amountTdE = setAmountTdE($amounts, 'amount_last_12min');
-				echo $amountTdE;
-			echo "</tr>";
-		}
-		$pre_theme  = $row['theme'];
-		$theme_cnt++;
-	}
-	echo "</table>";
+	echo "</tr></table>";
 }
 ?>
 </form>

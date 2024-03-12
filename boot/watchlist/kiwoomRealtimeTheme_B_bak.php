@@ -61,14 +61,12 @@ $detail_cnt = (isset($_GET['detail_cnt']) && $_GET['detail_cnt'] != '') ? $_GET[
 // 해당 일자 등록 테이블 찾기 (성능 위해 백업 테이블 이동)
 $query = "SELECT 'Y' FROM kiwoom_realtime_minute WHERE date = '$date' LIMIT 1";
 $result = $mysqli->query($query);
-
 $tableToUse = '';
 if ($result->num_rows > 0) {    // 결과가 있는 
-    $tableToUse = 'kiwoom_realtime_minute_siwoo';
+    $tableToUse = 'kiwoom_realtime_minute';
 } else {    // 결과가 빈 경우
     $tableToUse = 'kiwoom_realtime_minute_backup';
 }
-$tableToUse = 'kiwoom_realtime_minute_siwoo';
 
 $sort = isset($_GET['sortBy']) ? $_GET['sortBy'] : 'amount_last_min'; // 기본 정렬 기준
 $order = "";
@@ -434,7 +432,7 @@ else {
 
 
 		if($row['amount_last_min'] > 0) {
-			$bgcolor = '#f0f4f5'; // 0억 이상
+			$bgcolor = '#fde2e4'; // 0억 이상
 		} else {
 			$bgcolor = '#ffffff'; // 10억 미만
 		}

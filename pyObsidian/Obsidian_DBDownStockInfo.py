@@ -127,7 +127,7 @@ for stock_name in stock_list:
         f.write(f"기업 정보:\n")
 
         # 기업 차트 정보 추가
-        company_info_str = f'![](https://ssl.pstatic.net/imgfinance/chart/item/candle/day/{stock_code}.png?sidcode=1705826920773)\n\n\n'
+        company_info_str = f'![](https://ssl.pstatic.net/imgfinance/chart/item/candle/day/{stock_code}.png?sidcode=1705826920773) ![](https://ssl.pstatic.net/imgfinance/chart/item/area/day/{stock_code}.png?sidcode=1705826920773)\n\n'
         f.write(f"{company_info_str}\n")
 
         # 기업 정보가 있는 경우에만 쓰기
