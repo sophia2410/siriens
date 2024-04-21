@@ -20,21 +20,30 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
 
 <form id="form" method=post>
 <!-- Main Content -->
-<div id="content">
-	<div>
-		<div>
+
+<table style="width:100%; height:100%" class="table table-danger text-dark">
+	<tr>
 			<label>종목</label>
 			<input type=text id=stock    name=stock placeholder='종목코드'>
 			<input type=text id=stock_nm name=stock_nm  placeholder='종목명' onkeydown='keyDown()'>
 
 			<input type=button value="조 회" class="" onclick='getList()'> &nbsp;&nbsp;
-		</div>
-	</div>
-	<div style="margin: 0; border: 1; font: inherit;vertical-align: baseline; padding: 0;height: calc(100vh - 50px);">
-		<iframe id="iframe_B" style="width: 100%; margin: 0; border: 1; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 50px);" src="stock_B.php">
-		</iframe>
-	</div>
-</div>
+	</tr>
+	<tr>
+		<td style='width:70%'>
+			<div style="margin: 0; border: 0; font: inherit;vertical-align: baseline; padding: 0;height: calc(100vh - 80px);">
+				<iframe id="iframeL" style="width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 80px);" src="xrayTick_Stock_L.php">
+				</iframe>
+			</div>
+		</td>
+		<td>
+			<div style="margin: 0; border: 0; font: inherit;vertical-align: baseline; padding: 0;height: calc(100vh - 80px);">
+				<iframe id="iframeR" style="width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 80px);" src="xrayTick_Stock_R.php">
+				</iframe>
+			</div>
+		</td>
+	</tr>
+</table>
 
 </form>
 </div>
@@ -58,9 +67,19 @@ function keyDown(){
 
 // 종목 조회하기
 function getList(){
-	key_val  = document.getElementById("stock").value;
+	code  = document.getElementById("stock").value;
+	name  = document.getElementById("stock_nm").value;
 	brWidth = window.innerWidth;
-	iframe_B.src = "stock_B.php?code="+key_val+"&brWidth="+brWidth;
+	iframeL.src = "xrayTick_Stock_L.php?code="+code+"&name="+name+"&brWidth="+brWidth;
+	iframeR.src = "xrayTick_Stock_R.php?code="+code+"&brWidth="+brWidth;
+	return;
+}
+
+// 일자 선택 시 상세 내역 조회
+function viewDetail(date) {
+	code  = document.getElementById("stock").value;
+	brWidth = window.innerWidth;
+	iframeR.src = "xrayTick_Stock_R.php?date="+date+"&code="+code+"&brWidth="+brWidth;
 	return;
 }
 </script>

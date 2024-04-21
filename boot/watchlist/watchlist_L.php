@@ -69,7 +69,9 @@ $result = $mysqli->query($query);
 			echo "<tr class='table-danger text-dark' align=left><th colspan=4>[+] <b><a href=\"javascript:callFrameRD('".$row['date']."')\">".$row['watchlist_date_str']."</b></a>&nbsp; ";
 			echo "(코스피: ".$row['kospi_index']." , 코스닥: ".$row['kosdaq_index'].") ";
 			echo "<a href=\"javascript:callviewChart('".$row['date']."')\"><img style='width:28px; height:28px; border:solid thin' src='https://siriens.mycafe24.com/image/view_chart.png'></a> ";
-			echo "<a href=\"javascript:callFrameRV('".$row['date']."')\"><img style='width:28px; height:28px; border:solid thin' src='https://siriens.mycafe24.com/image/view_review.png'></a></th></tr>";
+			echo "<a href=\"javascript:callxrayTick('".$row['date']."')\"><img style='width:28px; height:28px; border:solid thin' src='https://siriens.mycafe24.com/image/view_review.png'></a></th></tr>";
+			// 리뷰 등록 잠시 막아두기
+			// echo "<a href=\"javascript:callFrameRV('".$row['date']."')\"><img style='width:28px; height:28px; border:solid thin' src='https://siriens.mycafe24.com/image/view_review.png'></a></th></tr>";
 			if($row['evening_subject'] != '') 
 				echo "<tr class='table-info text-dark' align=left><th colspan=4>'".$row['evening_subject']."</th></tr>";
 		}
@@ -123,7 +125,12 @@ function callFrameRV(date, cd, nm, idx) {
 	window.parent.viewReview(date, cd, nm, idx);
 }
 
-// parent 함수 호출, 오른쪽 프레임 일자별 내용 표시
+// parent 함수 호출
+function callxrayTick(date) {
+	window.parent.xrayTick(date);
+}
+
+// parent 함수 호출
 function callviewChart(date) {
 	window.parent.viewChart(date);
 }

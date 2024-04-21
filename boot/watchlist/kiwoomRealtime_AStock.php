@@ -297,16 +297,14 @@ else {
 	}
 	echo "</table>";
 
-	echo "<div class='container-fluid'>";
+	// echo "<div class='container-fluid'>";
 	echo "<div class='row'>";
 		echo "<div class='card-body'>
 				<img class='img-fluid' src='https://ssl.pstatic.net/imgfinance/chart/item/candle/day/{$code}.png?sidcode=1705826920773'>
-			</div>";
-		echo "<div class='card-body'>
 				<img class='img-fluid' src='https://ssl.pstatic.net/imgfinance/chart/item/area/day/{$code}.png?sidcode=1705826920773'>
 			</div>";
 	echo "</div>";
-	echo "</div>";
+	// echo "</div>";
 }
 ?>
 </form>

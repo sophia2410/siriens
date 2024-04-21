@@ -35,9 +35,9 @@ folder_path = 'D:/Obsidian/Trader Sophia/10 Database/WatchList'
 only_specific_file = False
 
 # 특정 파일 처리
-# only_specific_file = True
+only_specific_file = True
 specific_file_name = "0 당일관종☆.md"
-# specific_file_name = "5 끼있는친구들.md"
+# specific_file_name = "2 최근0일차☆.md"
 
 # 전체 파일을 처리하는 경우, 관종 삭제 후 재등록 되도록 한다.
 if only_specific_file != True:
@@ -75,6 +75,7 @@ for file_name in os.listdir(folder_path):
         lines = content.split('\n')
 
         # theme, category, name, sort_stock, talent_fg, news_title, news_link을 초기화합니다.
+        theme_group = ''
         theme = ''
         category = ''
         name = ''
@@ -93,8 +94,11 @@ for file_name in os.listdir(folder_path):
             if line == '':
                 continue
 
-            # 줄이 #으로 시작한다면 theme으로 사용합니다.
+            # 줄이 #으로 시작한다면 group으로 사용합니다.
             if line.startswith('# '):
+                theme_group = line[2:]
+            # 줄이 #으로 시작한다면 theme으로 사용합니다.
+            if line.startswith('## '):
                 theme = line[2:]
                 # sort_theme를 1 증가시킵니다.
                 sort_theme += 1
@@ -102,7 +106,7 @@ for file_name in os.listdir(folder_path):
                 sort_stock = 0
                 category = ''
             # 줄이 ##으로 시작한다면 category로 사용합니다.
-            elif line.startswith('## '):
+            elif line.startswith('### '):
                 category = line[3:]
                 # sort_theme를 1 증가시킵니다.
                 sort_theme += 1
@@ -144,11 +148,11 @@ for file_name in os.listdir(folder_path):
 
                 sql = """
                 REPLACE INTO watchlist_sophia
-                (sector, theme, category, code, name, sort_theme, sort_stock, talent_fg, stock_keyword, news_title, news_link, create_dtime)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                (sector, theme, category, code, name, theme_group, sort_theme, sort_stock, talent_fg, stock_keyword, news_title, news_link, create_dtime)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """
-                val = (sector, theme, category, code, name, sort_theme, sort_stock, talent_fg, stock_keyword, news_title, news_link, datetime.now())
-                print(f"Executing: {sql % (sector, theme, category, code, name, sort_theme, sort_stock, talent_fg, stock_keyword, news_title, news_link, datetime.now())}")
+                val = (sector, theme, category, code, name, theme_group, sort_theme, sort_stock, talent_fg, stock_keyword, news_title, news_link, datetime.now())
+                print(f"Executing: {sql % (sector, theme, category, code, name, theme_group, sort_theme, sort_stock, talent_fg, stock_keyword, news_title, news_link, datetime.now())}")
                 cursor.execute(sql, val)
 
             # 뉴스 제목과 링크 추출

@@ -271,16 +271,10 @@ $brWidth = (isset($_GET['brWidth'])) ? $_GET['brWidth'] : '1800';
 		// 차트 이미지 + 목민쌤 코멘트 출력
 		$txat = (isset($comment['nomad'])) ? $comment['nomad'] : '';
 		echo "<table border=1 class='table table-sm text-dark'>";
-		if($brWidth > 2000) {
-			// 차트 -- paxnet
-			echo "<tr><td style='width: 1200px;' rowspan=7>";
-			echo "<div class='chartBox'><iframe data-v-5032dc6f='' width='1200px' height='650px' scrolling='no' allowtransparency='false' src='https://www.paxnet.co.kr/stock/analysis/chartPopup?abbrSymbol=".$code."'></iframe></div>";
-		} else {
 			// 차트 -- 네이버이미지
 			echo "<tr><td style='width: 700px;' rowspan=7>";
 			echo "<h4><b>$stock_nm</b><h4>";
 			echo "<img id='img_chart_area' src='https://ssl.pstatic.net/imgfinance/chart/item/candle/day/".$code.".png?sidcode=1681518352718' width='700' height='289' alt='이미지 차트' onerror='this.src='https://ssl.pstatic.net/imgstock/chart3/world2008/error_700x289.png'>";
-		}
 			echo "</td><td style='font-weight:bold;background-color:#fae4f1;'>";
 			echo " 시총 ".number_format($market_cap)." 억 &nbsp; / &nbsp; 유통비율: ".$dt_ratio." %, 영업이익률: ".$op_ratio." %, 부채율: ".$lb_ratio." %";
 			echo "</td></tr><tr><td class='text-danger' style='font-weight:bold;'>";

@@ -70,6 +70,20 @@ if($_SERVER["HTTP_HOST"] == 'localhost') {
 
             <!-- Nav Item -->
             <li class="nav-item">
+                <a class="nav-link" href="<?=$PATH?>siriens/xrayTick_Stock.php">
+                    <i class="fas fa-fw fa-book"></i>
+                    <span>Xray Tick Stock</span></a>
+            </li>
+
+            <!-- Nav Item -->
+            <li class="nav-item">
+                <a class="nav-link" href="<?=$PATH?>siriens/xrayTick_Date.php">
+                    <i class="fas fa-fw fa-book"></i>
+                    <span>Xray Tick Date</span></a>
+            </li>
+
+            <!-- Nav Item -->
+            <li class="nav-item">
                 <a class="nav-link" href="<?=$PATH?>signalDeep/findKeyword.php">
                     <i class="fas fa-fw fa-book"></i>
                     <span>Search Keyword</span></a>
@@ -83,11 +97,11 @@ if($_SERVER["HTTP_HOST"] == 'localhost') {
             </li>
 
             <!-- Nav Item -->
-            <li class="nav-item">
+            <!-- <li class="nav-item">
                 <a class="nav-link" href="<?=$PATH?>siriens/keyword.php">
                     <i class="fas fa-fw fa-book"></i>
                     <span>Keyword</span></a>
-            </li>
+            </li> -->
             
             <!-- Nav Item -->
             <!-- <li class="nav-item">

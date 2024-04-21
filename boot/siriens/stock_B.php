@@ -1,4 +1,13 @@
 <?php
+
+$mochaten_date = date("Ymd");
+$brWidth = (isset($_GET['brWidth'])) ? $_GET['brWidth'] : '1800';
+$page_id = (isset($_GET['page_id'])) ? $_GET['page_id'] : 'stock';
+$code = (isset($_GET['code'])) ? $_GET['code'] : '';
+$name = (isset($_GET['name'])) ? $_GET['name'] : '';
+
+$pageTitle = $name;
+
 require($_SERVER['DOCUMENT_ROOT']."/boot/common/top.php");
 require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 //var_dump($_SERVER);
@@ -16,10 +25,18 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 	}
 	input[type=radio] { margin-left: 5px }
 	.scroll_box {
-		width: 1800px;
-		height: 183px;
+		width: 2000px;
+		height: 170px;
 		display: flex;
 		overflow-x: auto;
+		overflow-y: none;
+	}
+	.scroll_box2 {
+		width: 2000px;
+		height: 150px;
+		display: flex;
+		overflow-x: auto;
+		overflow-y: none;
 	}
 	table th, tr, td{
 		padding: 0.1rem;
@@ -27,13 +44,6 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 </style>
 </head>
 
-<?php
-$mochaten_date = date("Ymd");
-$brWidth = (isset($_GET['brWidth'])) ? $_GET['brWidth'] : '1800';
-$page_id = (isset($_GET['page_id'])) ? $_GET['page_id'] : 'stock';
-$code = (isset($_GET['code'])) ? $_GET['code'] : '';
-$name = (isset($_GET['name'])) ? $_GET['name'] : '';
-?>
 
 <body>
 <form name="form1" method='POST' action='mochaten_script.php'>
@@ -97,9 +107,9 @@ $name = (isset($_GET['name'])) ? $_GET['name'] : '';
 
 			if($pre_cha_date != $row['trade_date']){
 				$td_date      .= "<th align=center colspan=".$row['cnt']." style='width:100px; height: 30px;'>". $row['trade_date']."</th>";
-				$td_close_rate.= "<td align=center colspan=".$row['cnt']." style='width:100px; height: 30pxpx;'>". $row['close_rate']."%</td>";
-				$td_volume    .= "<td align=center colspan=".$row['cnt']." style='width:100px; height: 30pxpx;'>". number_format($row['volume'])."K</td>";
-				$td_trade_amt .= "<td align=center colspan=".$row['cnt']."  style='width:100px; height: 30pxpx;' class='"."$amt_style"."'>". number_format($row['tot_trade_amt'])."억</td>";
+				$td_close_rate.= "<td align=center colspan=".$row['cnt']." style='width:100px; height: 30px;'>". $row['close_rate']."%</td>";
+				$td_volume    .= "<td align=center colspan=".$row['cnt']." style='width:100px; height: 30px;'>". number_format($row['volume'])."K</td>";
+				$td_trade_amt .= "<td align=center colspan=".$row['cnt']." style='width:100px; height: 30px;' class='"."$amt_style"."'>". number_format($row['tot_trade_amt'])."억</td>";
 			}
 			if($row['cnt'] > 1) $width = round(100/$row['cnt'],0).'px';
 			else				$width = '100px';
@@ -125,6 +135,47 @@ $name = (isset($_GET['name'])) ? $_GET['name'] : '';
 			$td_close_rate .= "<td style='width:100px;'>&nbsp;</td>";
 			$td_volume	   .= "<td style='width:100px;'>&nbsp;</td>";
 			$td_trade_amt  .= "<td style='width:100px;'>&nbsp;</td>";
+		}
+
+		
+		//X-RAY 순간체결 거래량
+		$query = "	SELECT cal.date, SUBSTR(STR_TO_DATE(cal.date, '%Y%m%d'),3) date_str, xray.close_rate, xray.amount, xray.cnt
+					FROM calendar cal
+					LEFT OUTER JOIN 
+						(
+							SELECT xr.code, xr.name, xr.date, max(dp.close_rate) close_rate, round(sum(xr.volume*xr.current_price)/100000000,1) amount,  count(*) cnt, min(xr.time), max(xr.time) 
+							FROM kiwoom_xray_tick_executions xr
+							LEFT OUTER JOIN daily_price dp
+							ON dp.date = xr.date
+							AND dp.code = xr.code
+							WHERE xr.code = '$code'
+							GROUP BY xr.date
+						) xray
+					ON xray.date = cal.date
+					WHERE cal.date >= (select max(date) from calendar where date <=(select DATE_FORMAT(DATE_ADD(now(), INTERVAL -30 DAY), '%Y%m%d')))
+					AND cal.date <= (select max(date) from calendar where date <=(select DATE_FORMAT(DATE_ADD(now(), INTERVAL 0 DAY), '%Y%m%d')))
+					ORDER BY cal.date desc
+					";
+		$result = $mysqli->query($query);
+
+		// 종목 X-RAY 체결량 표시 - 변수 초기화
+		$xray_date = "";
+		$xray_close_rate = "";
+		$xray_amount = "";
+		$xray_cnt = "";
+		while($row = $result->fetch_array(MYSQLI_BOTH)) {
+			// 거래대금에 따라 스타일 적용
+			if($row['amount'] > 500)
+				$amt_style = "mark text-danger font-weight-bold h6";
+			else if($row['amount'] > 100)
+				$amt_style = "text-danger font-weight-bold h6";
+			else
+				$amt_style = "font-weight-bold";
+
+			$xray_date      .= "<th align=center style='width:80px; height: 30px;'><a href=\"javascript:openPopupXrayTick('{$code}', '".$row['date']."')\">". $row['date_str']."</a></th>";
+			$xray_close_rate.= "<td align=center style='width:80px; height: 30px;'>". $row['close_rate']."%</td>";
+			$xray_cnt       .= "<td align=center style='width:80px; height: 30px;'>". number_format($row['cnt'])."</td>";
+			$xray_amount    .= "<td align=center style='width:80px; height: 30px;' class='"."$amt_style"."'>". number_format($row['amount'])."억</td>";
 		}
 
 		// 종목 키워드
@@ -158,8 +209,9 @@ $name = (isset($_GET['name'])) ? $_GET['name'] : '';
 		}
 
 		// 종목 최대 거래량 
-		$query = "SELECT DATE_FORMAT(Z.date, '%Y/%m/%d') date
+		$query = "SELECT SUBSTR(DATE_FORMAT(Z.date, '%Y/%m/%d'),3) date
 						, Z.code
+						, Z.close
 						, floor(Z.amount / 100000000) tot_trade_amt
 						, Z.volume
 						, Z.close_rate
@@ -173,7 +225,7 @@ $name = (isset($_GET['name'])) ? $_GET['name'] : '';
 
 		$top_amount10 = '';
 		while( $row = $result->fetch_array(MYSQLI_BOTH) ){
-			$top_amount10 .= '('.$row['date'].')'.number_format($row['tot_trade_amt']).'억 &nbsp ';
+			$top_amount10 .= '('.$row['date'].')'.number_format($row['close'])."/".number_format($row['tot_trade_amt']).'억 &nbsp ';
 		}
 
 		//TODAY ISSUE
@@ -266,6 +318,7 @@ $name = (isset($_GET['name'])) ? $_GET['name'] : '';
 		$yl_stockinfo ="";
 		if($_SERVER["HTTP_HOST"] == 'localhost') {	// localhost 인 경우 파일 존재 확인
 			$file_headers = @get_headers($svfilepath);
+
 			// post 방식으로 넘어온 변수 확인
 			// foreach($file_headers as $key=>$val){
 			// 	echo "$key =>  $val \n";
@@ -300,16 +353,10 @@ $name = (isset($_GET['name'])) ? $_GET['name'] : '';
 		// 차트 이미지 + 목민쌤 코멘트 출력
 		$txat = (isset($comment['nomad'])) ? $comment['nomad'] : '';
 		echo "<table border=1 class='table table-sm text-dark'>";
-		if($brWidth > 2000) {
-			// 차트 -- paxnet
-			echo "<tr><td style='width: 1200px;' rowspan=4>";
-			echo "<div class='chartBox'><iframe data-v-5032dc6f='' width='1200px' height='650px' scrolling='no' allowtransparency='false' src='https://www.paxnet.co.kr/stock/analysis/chartPopup?abbrSymbol=".$code."'></iframe></div>";
-		} else {
 			// 차트 -- 네이버이미지
 			echo "<tr><td style='width: 700px;' rowspan=5>";
 			echo "<h4><b>$name</b><h4>";
 			echo "<img id='img_chart_area' src='https://ssl.pstatic.net/imgfinance/chart/item/candle/day/".$code.".png?sidcode=1681518352718' width='700' height='289' alt='이미지 차트' onerror='this.src='https://ssl.pstatic.net/imgstock/chart3/world2008/error_700x289.png'>";
-		}
 			echo "</td><td style='font-weight:bold;background-color:#fae4f1;'>";
 			echo "[$code]&nbsp;"."$stock_info";
 			echo "&nbsp;&nbsp;<a href='https://new.infostock.co.kr/stockitem?code=".$code."' class='popup' style='text-decoration:underline; ' onclick='window.open(this.href, 'STOCK', 'width=700px,height=850,scrollbars=1,resizable=yes');return false;' target='_blank'>[INFOSTOCK]</a>";
@@ -317,7 +364,7 @@ $name = (isset($_GET['name'])) ? $_GET['name'] : '';
 			echo "</td></tr><tr><td class='text-danger' style='font-weight:bold;'>";
 			echo "$stock_keyword";
 			echo "$stock_comment";
-			echo "&nbsp;<input type=button class='btn-icon-split bg-info' value='+' onclick=popupStockComment()>";
+			echo "&nbsp;<input type=button class='btn-icon-split bg-info' value='+' onclick=openPopupStockComment()>";
 			echo "</td></tr><tr><td>";
 			echo "$top_amount10";
 			echo "</td></tr><tr><td>";
@@ -337,6 +384,25 @@ $name = (isset($_GET['name'])) ? $_GET['name'] : '';
 			echo "</table>";
 			echo "</div>";
 		}
+
+		echo "<br>";
+
+		// X-RAY 체결량 내역 표시
+		echo "<div class='scroll_box2' style='overflow-x: auto; white-space: nowrap;'>";
+		echo "<table class='table table-sm table-bordered small text-dark' style='table-layout: fixed;' >";
+		echo "<tr align=center style='background-color:#fdf9f5;'>".$xray_date."</tr>";
+		echo "<tr align=center>".$xray_close_rate."</tr>";
+		echo "<tr align=center>".$xray_cnt."</tr>";
+		echo "<tr align=center>".$xray_amount."</tr>";
+		echo "</table>";
+		echo "</div>";
+		
+		
+		// 종목 X-RAY 체결량 표시 - 변수 초기화
+		$xray_date = "";
+		$xray_close_rate = "";
+		$xray_amount = "";
+		$xray_cnt = "";
 
 		//재료
         $query = "SELECT 'REPORT' seq
@@ -432,7 +498,7 @@ $name = (isset($_GET['name'])) ? $_GET['name'] : '';
 				echo "<td style='width:100px;height:12px;' align=center>".$row['date']."</td>";
 				echo "<td style='height:12px;'>&nbsp</td>";
 				echo "<td style='height:12px;'>&nbsp</td>";
-				echo "<td style='height:12px;'> <a href=\"javascript:popupNews('".$row['link']."')\">".$row['title']."</a><br><br>".$row['content']."</td>";
+				echo "<td style='height:12px;'> <a href=\"javascript:openPopupNews('".$row['link']."')\">".$row['title']."</a><br><br>".$row['content']."</td>";
 				echo "<td style='height:12px;'>".$row['keyword']."</td>";
 				echo "</tr>";
 			}
@@ -471,13 +537,21 @@ function saveCmt(regi_id) {
  	var OpenWindow=window.open('','chart', 'width='+img_width+', height='+img_height+', menubars=no, scrollbars=auto');
  	OpenWindow.document.write("<style>body{margin:0px;}</style><img src='"+url+"' width='"+win_width+"'>");
  }
-function popupNews(link) {
-	window.open(link,'popupNews',"toolbar=no, location=no, directories=no, status=no, menubar=no, scrollbars=yes, resizable=no, copyhistory=no, width=1500, height=1000");
+function openPopupNews(link) {
+	window.open(link,'openPopupNews',"toolbar=no, location=no, directories=no, status=no, menubar=no, scrollbars=yes, resizable=no, copyhistory=no, width=1500, height=1000");
 }
-function popupStockComment(link) {
+function openPopupStockComment(link) {
 	form = document.form1;
 	link = '/boot/common/popup/stock_comment.php?code=' + form.code.value ;
 	window.open(link,'popupComment',"toolbar=no, location=no, directories=no, status=no, menubar=no, scrollbars=yes, resizable=no, copyhistory=no, width=800, height=900");
+}
+
+function openPopupXrayTick(code, date) {
+    var url = "/boot/common/popup/stock_xray_tick.php?code=" + code + "&date=" + date;
+    var newWindow = window.open(url, "pop", "width=600,height=800,scrollbars=yes,resizable=yes");
+    if (window.focus) {
+        newWindow.focus();
+    }
 }
 
 </script>

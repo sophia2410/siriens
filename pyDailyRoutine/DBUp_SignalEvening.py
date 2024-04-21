@@ -31,7 +31,7 @@ def main():
 	cur = conn.cursor()
 	
 	sql = "SELECT max(date) date FROM calendar a WHERE date <= (select DATE_FORMAT(now(), '%Y%m%d'))"
-	# sql = "SELECT date FROM calendar a WHERE date = '20240227'"
+	# sql = "SELECT date FROM calendar a WHERE date = '20240418'"
 	
 	df = pd.read_sql(sql, conn)
 	date = df['date'].values[0].decode('utf-8')
@@ -74,10 +74,10 @@ def main():
 				sts = '';
 				stt = hd.text.split('●')
 				for st in stt[1].split('/') :
-					# print(st)
+					print(st)
 					for std in st.split(',') :
 						std.split('(')
-						# print(std.split('(')[0].split()[0])
+						print(std.split('(')[0].split()[0])
 						if sts != '' :
 							sts += ','
 						sts += std.split('(')[0].split()[0]

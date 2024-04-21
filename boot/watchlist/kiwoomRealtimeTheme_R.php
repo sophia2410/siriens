@@ -1,0 +1,331 @@
+<?php
+require($_SERVER['DOCUMENT_ROOT']."/boot/common/top.php");
+require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
+//var_dump($_SERVER);
+?>
+<head>
+<style>
+.minus-fraction {
+    font-size: 0.75em; /* 소수점 이하 값을 작게 표시 */
+    color: blue; /* 소수점 이하 값을 작게 표시 */
+}
+.small-fraction {
+    font-size: 0.75em; /* 소수점 이하 값을 작게 표시 */
+}
+.cut-text-120 {
+    max-width: 120px; /* 최대 너비 설정 */
+    white-space: nowrap; /* 텍스트를 한 줄로 표시 */
+    overflow: hidden; /* 내용이 넘칠 경우 숨김 */
+    text-overflow: ellipsis; /* 넘친 내용을 생략 부호로 표시 */
+    /* cursor: help; */ /* 마우스 오버 시 커서 모양 변경 */
+}
+.cut-text-100 {
+    max-width: 100px; /* 최대 너비 설정 */
+    white-space: nowrap; /* 텍스트를 한 줄로 표시 */
+    overflow: hidden; /* 내용이 넘칠 경우 숨김 */
+    text-overflow: ellipsis; /* 넘친 내용을 생략 부호로 표시 */
+    /* cursor: help; */ /* 마우스 오버 시 커서 모양 변경 */
+}
+.cut-text-88 {
+    max-width: 88px; /* 최대 너비 설정 */
+    white-space: nowrap; /* 텍스트를 한 줄로 표시 */
+    overflow: hidden; /* 내용이 넘칠 경우 숨김 */
+    text-overflow: ellipsis; /* 넘친 내용을 생략 부호로 표시 */
+    cursor: help; /* 마우스 오버 시 커서 모양 변경 */
+}
+</style>
+</head>
+
+<?php
+// 조회일자
+$date = (isset($_GET['date']) ) ? $_GET['date'] : '';
+
+// minute GET 변수 확인 및 현재 시간 구하기
+if (isset($_GET['minute']) && $_GET['minute'] != '') {
+    $minute = $_GET['minute'];
+} else {
+    // 현재 시간이 15:30 이후인지
+    $currentHour = (int)date('H');
+    $currentMinute = (int)date('i');
+    
+    if ($currentHour > 15 || ($currentHour == 15 && $currentMinute > 30)) {
+        // 현재 시간이 15:30 이후인 경우, 15:30으로 설정
+        $minute = '1530';
+    } else {
+        // 그렇지 않은 경우, 현재 시간을 'Hi' 포맷으로 사용
+        $minute = date('Hi');
+    }
+}
+
+$specific_datetime = $date.$minute;
+
+// 조회 최소거래대금 기준 (기본 20억)
+$min_amount = (isset($_GET['min_amount']) && $_GET['min_amount'] != '') ? $_GET['min_amount'] * 100 : 2000;
+
+// 해당 일자 등록 테이블 찾기 (성능 위해 백업 테이블 이동)
+$query = "SELECT 'Y' FROM kiwoom_realtime_minute WHERE date = '$date' LIMIT 1";
+$result = $mysqli->query($query);
+
+$tableToUse = '';
+if ($result->num_rows > 0) {    // 결과가 있는 
+    $tableToUse = 'kiwoom_realtime_minute';
+} else {    // 결과가 빈 경우
+    $tableToUse = 'kiwoom_realtime_minute_backup';
+}
+
+$sort = isset($_GET['sortBy']) ? $_GET['sortBy'] : 'amount_last_min'; // 기본 정렬 기준
+$order = "";
+switch($sort) {
+	case 'name':
+		$order = "ORDER BY name";
+		break;
+	case 'rate':
+		$order = "ORDER BY rate DESC";
+		break;
+	case 'amount_acc_day':
+		$order = "ORDER BY amount_acc_day DESC, first_minute DESC";
+		break;
+	case 'amount_last_min':
+		$order = "ORDER BY amount_last_min DESC, amount_acc_day DESC";
+		break;
+}
+
+$sector = (isset($_GET['sector']) ) ? $_GET['sector'] : '';
+$theme  = (isset($_GET['theme']) ) ? $_GET['theme'] : '';
+
+// 섹터별로 조회한 경우 해당 섹터 종목만 조회되도록..
+$where = '';
+if($theme != '') {
+	echo $sector."&nbsp;".$theme;
+	$where = "AND m.code IN (SELECT code FROM watchlist_sophia WHERE sector = '$sector' AND theme = '$theme')";
+}
+?>
+
+<body>
+<form name="form1" method='POST' onsubmit="return false">
+
+<?php
+if($specific_datetime == '') {
+	echo "<h3>일자를 선택해 주세요!!</h3>";
+	$ready = 'N';
+}
+else {
+
+	// 함수 :: 거래대금 TD 생성 
+	function setAmountTdE($array, $key, $bold='N', $sizeUp='N') {
+		
+		// 키의 현재 위치 찾기
+		$keys = array_keys($array);
+		$position = array_search($key, $keys);
+	
+		// 현재 키의 값
+		$amount = isset($array[$key]) ? $array[$key] : 0;
+
+		// 백만원 단위를 억단위로 변경
+		if($amount == 0) {
+			$tdE = "<td>&nbsp;</td>";
+		} else {
+			$amountInBillion = round($amount/100, 1);
+			if($key == 'amount_acc_day') { // 총합의 경우 색 다르게 표시
+				// 색상 지정
+				if ($amountInBillion >= 1000) {
+					$color = '#fcb9b2'; // 10000억 이상
+				} elseif ($amountInBillion >= 500) {
+					$color = '#ffccd5'; // 500억 이상
+				} else {
+					$color = '#FFFFF4';
+				}
+			} else {
+				// 색상 지정
+				if ($amountInBillion >= 1000) {
+					$color = '#fcb9b2'; // 10000억 이상
+				} elseif ($amountInBillion >= 500) {
+					$color = '#ffccd5'; // 500억 이상
+				} elseif ($amountInBillion >= 100) {
+					$color = '#f6dfeb'; // 100억 이상
+				} elseif ($amountInBillion >= 50) {
+					$color = '#fde2e4'; // 50억 이상
+				} elseif ($amountInBillion >= 30) {
+					$color = '#bee1e6'; // 30억 이상
+				} elseif ($amountInBillion >= 10) {
+					$color = '#e2ece9'; // 10억 이상
+				} elseif ($amountInBillion >= 0) {
+					$color = '#f0f4f5'; // 0억 이상
+				} else {
+					$color = '#ffffff'; // 10억 미만
+				}
+			}
+
+			if($sizeUp)
+				$h5 = " class='h5'";
+			else
+				$h5 = "";
+	
+			$formattedNumber = number_format($amountInBillion, 1);
+			$parts = explode('.', $formattedNumber);
+			$whole = $parts[0];
+			$fraction = $parts[1] ?? '00'; // 소수점 이하가 없는 경우 '00'으로 처리
+
+			// 매도 거래량이 많은 경우 금액을 '-'로 가져옴. '-' 금액은 작게 보이게 처리
+			if($amountInBillion > 0)
+				$rtAmount = "<span>".$whole.".<span class='small-fraction'>".$fraction."</span></span>";
+			else
+				$rtAmount = "<span class='minus-fraction'>".$whole.".<span class='minus-fraction'>".$fraction."</span></span>";
+
+			if($bold)
+				$amountInBillion = "<b>".$rtAmount."</b>";
+			else
+				$amountInBillion =$rtAmount;
+		
+			$tdE = "<td style='background-color:".$color."'> $amountInBillion </td>";
+		}
+
+		return $tdE;
+	}
+
+	$query = " 
+		SELECT 
+			g.code, name, first_minute, last_minute,
+			volume_sign_last_min   * amount_last_min   AS amount_last_min,
+			volume_sign_last_1min  * amount_last_1min  AS amount_last_1min,
+			amount_acc_day,
+			rate,
+			CASE WHEN h.code IS NULL AND (volume_sign_last_min   * amount_last_min) > 0 THEN '★' ELSE '' END AS first_alert
+		FROM (
+			SELECT
+				s.code, s.name,
+				MIN(minute) AS first_minute,
+				MAX(minute) AS last_minute,
+				IFNULL(MAX(CASE WHEN minute = t.last_min   THEN CASE WHEN (minus_tick_cnt - plus_tick_cnt) > 5 THEN -1 ELSE CASE WHEN minute_volume > 0 THEN 1 ELSE -1 END END ELSE NULL END), 0) volume_sign_last_min,
+				IFNULL(MAX(CASE WHEN minute = t.last_1min  THEN CASE WHEN (minus_tick_cnt - plus_tick_cnt) > 5 THEN -1 ELSE CASE WHEN minute_volume > 0 THEN 1 ELSE -1 END END ELSE NULL END), 0) volume_sign_last_1min,
+				IFNULL(MAX(CASE WHEN minute = t.last_min   THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= t.last_1min  THEN acc_trade_amount ELSE 0 END), 0) AS amount_last_min,
+				IFNULL(MAX(CASE WHEN minute = t.last_1min  THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= t.last_2min  THEN acc_trade_amount ELSE 0 END), 0) AS amount_last_1min,
+				IFNULL(MAX(CASE WHEN minute <= t.last_min THEN acc_trade_amount ELSE NULL END), 0) AS amount_acc_day,
+				(
+				SELECT m2.rate
+				FROM $tableToUse m2
+				WHERE m2.code = m.code
+					AND STR_TO_DATE(CONCAT(m2.date, m2.minute), '%Y%m%d%H%i') <= t.specific_datetime
+				ORDER BY STR_TO_DATE(CONCAT(m2.date, m2.minute), '%Y%m%d%H%i') DESC
+				LIMIT 1
+				) AS rate -- 주어진 시간 이전의 가장 최근 rate
+			FROM
+				$tableToUse m
+			JOIN
+				kiwoom_stock s
+			ON s.code = m.code
+			JOIN (
+				SELECT
+					specific_datetime,
+					DATE_FORMAT(sd.specific_datetime, '%H%i') AS last_min,
+					DATE_FORMAT(sd.specific_datetime - INTERVAL 1  MINUTE, '%H%i') AS last_1min,
+					DATE_FORMAT(sd.specific_datetime - INTERVAL 2  MINUTE, '%H%i') AS last_2min
+				FROM
+					(SELECT STR_TO_DATE('$specific_datetime', '%Y%m%d%H%i') AS specific_datetime) sd
+				) t
+			WHERE
+				m.date = DATE_FORMAT(t.specific_datetime, '%Y%m%d') AND -- Only considering today's data
+				m.minute <= DATE_FORMAT(t.specific_datetime, '%H%i')
+				$where
+			GROUP BY
+				s.code,
+				s.name
+			) g
+			LEFT OUTER JOIN 
+				(SELECT DISTINCT code FROM telegram_message_history WHERE date = '$date' AND minute <'$minute') h
+			ON h.code = g.code
+			WHERE g.amount_acc_day > 1000 AND -- 당일누적 10억 이상
+				  g.amount_last_min + g.amount_last_1min > 0
+			$order 
+		";
+
+	// echo "<pre>$query</pre>";
+	$result = $mysqli->query($query);
+	
+	// echo "<table class='table table-sm table-bordered text-dark'>";
+	echo "<table border='1' width='100%'>";
+
+	// 데이터베이스 쿼리 결과를 배열에 저장
+	$allData = [];
+	$tradeAmountsByTime = []; // 시간대별 거래대금을 저장할 배열
+	$times = ['acc_day', 'last_min', 'last_1min'];
+
+	while ($row = $result->fetch_array(MYSQLI_BOTH)) {
+		// 모든 데이터를 $allData 배열에 저장
+		$allData[] = $row;
+
+		// 시간대별 거래대금 배열에 데이터 추가
+		foreach ($times as $time) {
+			$timeKey = "amount_$time";
+			$amount = $row[$timeKey] ?? 0;
+
+			if (!isset($tradeAmountsByTime[$timeKey])) {
+				$tradeAmountsByTime[$timeKey] = [];
+			}
+			
+			if ($amount > 0) {
+				$tradeAmountsByTime[$timeKey][] = [
+					'code' => $row['code'],
+					'name' => $row['name'],
+					'amount' => $amount
+				];
+			}
+		}
+	}
+
+	echo "<tr align=center class='small'>";
+	echo "<th width=100 onclick=\"sortTable('name')\">종목명</th>";
+	echo "<th width=70  onclick=\"sortTable('rate')\">%</th>";
+	echo "<th width=110 onclick=\"sortTable('amount_acc_day')\" >당일누적</th>";
+	echo "<th width=90  onclick=\"sortTable('amount_last_min')\">".substr($minute,0,2).":".substr($minute,2,2)."</th>";
+	echo "<th width=90>1분전</th>";
+	echo "</tr>";
+		
+	// 나머지 데이터 출력
+	foreach ($allData as $row) {
+		// TD 생성을 위해 거래대금 배열에 담기
+		$amounts = [
+			'amount_acc_day'   => $row['amount_acc_day'],
+			'amount_last_min'  => $row['amount_last_min'],
+			'amount_last_1min' => $row['amount_last_1min'],
+		];
+
+		if($row['amount_last_min'] > 0) {
+			$bgcolor = '#fde2e4'; // 0억 이상
+		} else {
+			$bgcolor = '#ffffff'; // 10억 미만
+		}
+
+		echo "<tr align=right>";
+			echo "<td align=left class='cut-text-100' title={$row['name']} style='background-color:{$bgcolor}'>";
+			echo "<a href='kiwoomRealtime_AStock.php?code={$row['code']}&name={$row['name']}&date={$date}' target='_blank'>";
+			echo "<b>{$row['first_alert']}{$row['name']}</b></a></td>";
+			echo "<td class='small'>{$row['rate']}<span class='small-fraction'>%</span></td>";
+			$amountTdE = setAmountTdE($amounts, 'amount_acc_day', 'Y', 'Y');
+			echo $amountTdE;
+			$amountTdE = setAmountTdE($amounts, 'amount_last_min', 'Y', 'Y');
+			echo $amountTdE;
+			$amountTdE = setAmountTdE($amounts, 'amount_last_1min');
+			echo $amountTdE;
+		echo "</tr>";
+
+		// 최초 조회인 경우 알림 테이블 등록 처리
+		if($row['first_alert']== '★') {
+			$query = "REPLACE INTO telegram_message_history (date, minute, code, name, message, first_alert, message_fg)
+					  VALUES ('{$date}', '{$minute}', '{$row['code']}', '{$row['name']}', '키움 실시간 화면 조회', 'Y', '9')";
+			// echo "<pre>{$query}</pre>";
+			$mysqli->query($query);
+		}
+
+	}
+	echo "</table>";
+}
+?>
+</form>
+<script>
+function sortTable(sortBy) {
+	window.parent.search(sortBy);
+}
+</script>
+</body>
+</html>

@@ -1,4 +1,5 @@
 import requests
+import certifi
 from bs4 import BeautifulSoup
 
 #연합뉴스
@@ -300,6 +301,7 @@ def crawling_etoday(soup):
 #파이낸셜뉴스
 ##----------------------------------------------------------------------
 def crawling_fnnews(soup):
+	print(soup)
 	publisher = "파이낸셜뉴스"
 
 	title = soup.find("title")
@@ -312,9 +314,13 @@ def crawling_fnnews(soup):
 		name = ''
 
 	date = soup.find("div", class_="byline")
-	date = date.text.replace('파이낸셜뉴스','').replace('입력','').replace('.','').strip()
-	time = date[9:14]
-	date = date[0:8]
+	if date is not None :
+		date = date.text.replace('파이낸셜뉴스','').replace('입력','').replace('.','').strip()
+		time = date[9:14]
+		date = date[0:8]
+	else :
+		time = ''
+		date = ''
 
 	content = soup.find(id='article_content')
 	content = content.text.strip()
@@ -685,13 +691,20 @@ def crawling_heraldcorp(soup):
 
 	# 날짜 구하기
 	date = soup.find("li","article_date")
-	date = date.text.split()
-	time = date[1][0:5]
-	date = date[0].replace('.','')
+	if date is not None:
+		date = date.text.split()
+		time = date[1][0:5]
+		date = date[0].replace('.','')
+	else:
+		date = ''
+		time = ''
 	
 	# 본문 구하기
 	content = soup.find("div", class_="article_area")
-	content = content.text.strip()
+	if content is not None:
+		content = content.text.strip()
+	else:
+		content = ''
 
 	rt = [publisher, title, name, date, time, content]
 	return rt
@@ -812,7 +825,7 @@ def crawling_yakup(soup):
 def crawling_news(link, type):
 
 	# 크롤링을 통해 뉴스 일자, 시간, 기자 정보 구하기
-	hf = requests.get(link, headers={'User-agent': 'Mozilla/5.0'})
+	hf = requests.get(link, headers={'User-agent': 'Mozilla/5.0'}, verify=False)
 
 	# 크롤링 시 인코딩 문제가 있는 신문사는 아래 인코딩 추가
 	el = ['news1']

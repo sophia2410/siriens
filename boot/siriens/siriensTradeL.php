@@ -304,10 +304,6 @@ $brWidth = (isset($_GET['brWidth'])) ? $_GET['brWidth'] : '1800';
 			// 차트 -- paxnet
 			echo "<tr><td style='width: 1000px;' rowspan=4>";
 			echo "<img id='img_chart_area' src='$tradeimg' width='1000px' alt='이미지 차트'>";
-		} else if($brWidth > 2000) {
-			// 차트 -- paxnet
-			echo "<tr><td style='width: 1200px;' rowspan=4>";
-			echo "<div class='chartBox'><iframe data-v-5032dc6f='' width='1200px' height='650px' scrolling='no' allowtransparency='false' src='https://www.paxnet.co.kr/stock/analysis/chartPopup?abbrSymbol=".$code."'></iframe></div>";
 		} else {
 			// 차트 -- 네이버이미지
 			echo "<tr><td style='width: 700px;' rowspan=4>";

@@ -153,6 +153,13 @@ function viewReview(date) {
 	return;
 }
 
+// 문서 이미지 선택 시 오른쪽 프레임에 차트 + Xray 체결 보기
+function xrayTick(search_date) {
+	brWidth = window.innerWidth;
+	iframeR.src = "xrayTick_Watchlist.php?search_date="+search_date+"&brWidth="+brWidth;
+	return;
+}
+
 // 차트돋보기 선택 시 오른쪽 프레임에 내역 조회 - 차트 보기
 function viewChart(search_date) {
 	brWidth = window.innerWidth;

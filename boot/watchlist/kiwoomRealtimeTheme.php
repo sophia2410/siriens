@@ -42,17 +42,23 @@
 	?>
 	/ 대표종목 :
 	<?php
-		echo "<input type=text id=detail_cnt name=detail_cnt style='width:40px' value='7' onkeydown=\"if(event.keyCode==13) search()\"> 개&nbsp;";
+		echo "<input type=text id=detail_cnt name=detail_cnt style='width:40px' value='10' onkeydown=\"if(event.keyCode==13) search()\"> 개&nbsp;";
 	?>
 	<button class="btn btn-danger btn-sm" onclick="search()"> 조 회 </button> &nbsp;&nbsp;&nbsp;
 	<button class="btn btn-info btn-sm" id="excel_down">관종엑셀 다운로드</button>&nbsp;
 	* [코드] 클릭 : 종목 기간별 15분단위 거래대금 조회, [종목명] 클릭 : 조회일 1분 거래대금 조회
 </div>
 <table style="width:100%;">
-	<tr>
-	<td>
+	<tr valign=top>
+	<td width=80% valign=top>
 		<div style="margin: 0; border: 0; font: inherit;vertical-align: baseline; padding: 0;height: calc(100vh - 100px);">
-			<iframe id="iframeR" style="width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 100px);" src="kiwoomRealtimeTheme_B.php">
+			<iframe id="iframeL" style="width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 100px);" src="kiwoomRealtimeTheme_L.php">
+			</iframe>
+		</div>
+	</td>
+	<td width=20% valign=top>
+		<div style="margin: 0; border: 0; font: inherit;vertical-align: baseline; padding: 0;height: calc(100vh - 100px);">
+			<iframe id="iframeR" style="width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 100px);" src="kiwoomRealtimeTheme_R.php">
 			</iframe>
 		</div>
 	</td>
@@ -78,7 +84,8 @@ function search(sortBy='amount_last_min') {
 	min_amount   = document.getElementById('min_amount').value;
 	detail_cnt   = document.getElementById('detail_cnt').value;
 	
-	iframeR.src = "kiwoomRealtimeTheme_B.php?date="+date+"&minute="+minute+"&min_amount="+min_amount+"&detail_cnt="+detail_cnt+"&sortBy="+sortBy;
+	iframeL.src = "kiwoomRealtimeTheme_L.php?date="+date+"&minute="+minute+"&min_amount="+min_amount+"&detail_cnt="+detail_cnt+"&sortBy="+sortBy;
+	iframeR.src = "kiwoomRealtimeTheme_R.php?date="+date+"&minute="+minute+"&min_amount="+min_amount+"&detail_cnt="+detail_cnt+"&sortBy="+sortBy;
 	return;
 }
 

@@ -19,6 +19,7 @@ db = pymysql.connect(
 try:
     with db.cursor() as cursor:
         sql = "SELECT max(date) date FROM calendar a WHERE date <= (select DATE_FORMAT(now(), '%Y%m%d'))"
+        # sql = "SELECT date FROM calendar a WHERE date = '20240411'"
         cursor.execute(sql)
         date = cursor.fetchone()[0].decode('utf-8')
 
@@ -40,10 +41,12 @@ try:
             INSERT INTO `kiwoom_xray_tick_executions` (`date`, `time`, `code`, `name`, `current_price`, `change_rate`, `volume`, `type`)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             '''
+
+            code = str(row['코드']).zfill(6)  # 종목코드를 문자열로 변환하고, 6자리가 될 때까지 앞에 0을 채웁니다.
             cursor.execute(sql, (
                 date,  # date
                 row['시간'],         # time
-                row['코드'],         # code
+                code,                # code
                 row['종목명'],       # name
                 row['현재가'],       # current_price
                 row['등락률'],       # change_rate
