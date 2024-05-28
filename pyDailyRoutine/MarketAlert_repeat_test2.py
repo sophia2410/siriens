@@ -1,5 +1,5 @@
-# 기 발생 데이터로 테스트 하기 24.03.15
-# 특정금액, 건수 이상 데이터 전송
+# 기 발생 데이터로 테스트 하기 24.05.28
+# 특정금액, 건수 이상 테마별로 묶어서 전송
 
 import sys
 import datetime
@@ -40,7 +40,7 @@ async def test_alerts():
 			with db.cursor() as cursor:
 				# 테스트하고자 하는 데이터의 시간 범위를 결정합니다.
 				# 예: '20240101'의 데이터를 시간 순으로 검사하고 싶은 경우
-				test_date = '20240328'
+				test_date = '20240528'
 
 				# 시간 순으로 데이터 조회
 				cursor.execute('''
@@ -59,19 +59,19 @@ async def test_alerts():
 					cursor.execute('''
 					SELECT 
 						w.theme, s.code, s.name, last_min, minute_cnt,
-						ROUND(volume_sign_last_min  * amount_last_min / 100,0) AS amount_last_min,
-						ROUND(volume_sign_last_1min * amount_last_1min / 100,0) AS amount_last_1min,
-						ROUND(amount_acc_day/100,0) amount_acc_day,
+						ROUND(volume_sign_last_min * amount_last_min / 100, 0) AS amount_last_min,
+						ROUND(volume_sign_last_1min * amount_last_1min / 100, 0) AS amount_last_1min,
+						ROUND(amount_acc_day / 100, 0) amount_acc_day,
 						rate
 					FROM (
 						SELECT
 							m.code,
 							t.last_min,
-							IFNULL(MAX(CASE WHEN minute = t.last_min   THEN minute_cnt ELSE NULL END), 0) minute_cnt,
-							IFNULL(MAX(CASE WHEN minute = t.last_min   THEN CASE WHEN (minus_tick_cnt - plus_tick_cnt) > 5 THEN -1 ELSE CASE WHEN minute_volume > 0 THEN 1 ELSE -1 END END ELSE NULL END), 0) volume_sign_last_min,
-							IFNULL(MAX(CASE WHEN minute = t.last_1min  THEN CASE WHEN (minus_tick_cnt - plus_tick_cnt) > 5 THEN -1 ELSE CASE WHEN minute_volume > 0 THEN 1 ELSE -1 END END ELSE NULL END), 0) volume_sign_last_1min,
-							IFNULL(MAX(CASE WHEN minute = t.last_min   THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= t.last_1min  THEN acc_trade_amount ELSE 0 END), 0) AS amount_last_min,
-							IFNULL(MAX(CASE WHEN minute = t.last_1min  THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= t.last_2min  THEN acc_trade_amount ELSE 0 END), 0) AS amount_last_1min,
+							IFNULL(MAX(CASE WHEN minute = t.last_min THEN minute_cnt ELSE NULL END), 0) minute_cnt,
+							IFNULL(MAX(CASE WHEN minute = t.last_min THEN CASE WHEN (minus_tick_cnt - plus_tick_cnt) > 5 THEN -1 ELSE CASE WHEN minute_volume > 0 THEN 1 ELSE -1 END END ELSE NULL END), 0) volume_sign_last_min,
+							IFNULL(MAX(CASE WHEN minute = t.last_1min THEN CASE WHEN (minus_tick_cnt - plus_tick_cnt) > 5 THEN -1 ELSE CASE WHEN minute_volume > 0 THEN 1 ELSE -1 END END ELSE NULL END), 0) volume_sign_last_1min,
+							IFNULL(MAX(CASE WHEN minute = t.last_min THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= t.last_1min THEN acc_trade_amount ELSE 0 END), 0) AS amount_last_min,
+							IFNULL(MAX(CASE WHEN minute = t.last_1min THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= t.last_2min THEN acc_trade_amount ELSE 0 END), 0) AS amount_last_1min,
 							IFNULL(MAX(CASE WHEN minute <= t.last_min THEN acc_trade_amount ELSE NULL END), 0) AS amount_acc_day,
 							(
 							SELECT m2.rate
@@ -87,8 +87,8 @@ async def test_alerts():
 							SELECT
 								specific_datetime,
 								DATE_FORMAT(sd.specific_datetime, '%%H%%i') AS last_min,
-								DATE_FORMAT(sd.specific_datetime - INTERVAL 1  MINUTE, '%%H%%i') AS last_1min,
-								DATE_FORMAT(sd.specific_datetime - INTERVAL 2  MINUTE, '%%H%%i') AS last_2min
+								DATE_FORMAT(sd.specific_datetime - INTERVAL 1 MINUTE, '%%H%%i') AS last_1min,
+								DATE_FORMAT(sd.specific_datetime - INTERVAL 2 MINUTE, '%%H%%i') AS last_2min
 							FROM
 								(SELECT STR_TO_DATE(%s, '%%Y%%m%%d%%H%%i') AS specific_datetime) sd
 							) t
@@ -106,46 +106,54 @@ async def test_alerts():
 							(SELECT code, MIN(theme) theme FROM watchlist_sophia WHERE realtime_yn = 'Y' or sector in( '5 끼있는친구들1', '6 끼있는친구들2') GROUP BY code) w
 						ON
 							w.code = g.code
-						LEFT OUTER JOIN 
-							(SELECT DISTINCT code FROM telegram_message_history WHERE date = %s) h
-						ON 
-							h.code = g.code
 						WHERE
-							g.amount_acc_day > 2000 AND
 							minute_cnt > 5 AND
 							amount_last_min > 500 AND
-							ROUND(volume_sign_last_min  * amount_last_min /100,0) > 0 AND 
-							ROUND(volume_sign_last_1min * amount_last_1min /100,0) >= 0 AND
-							h.code is null
+							ROUND(volume_sign_last_min * amount_last_min / 100, 0) > 0 AND 
+							ROUND(volume_sign_last_1min * amount_last_1min / 100, 0) >= 0
 						ORDER BY theme, amount_acc_day DESC, rate DESC;
-					''', (test_datetime,test_date,))
+					''', (test_datetime,))
 					results = cursor.fetchall()
-					
-					for result in results:
-						date  = test_date
-						minute= result['last_min'].decode('utf-8')
-						theme = result['theme'].decode('utf-8')
-						code  = result['code'].decode('utf-8')
-						name  = result['name'].decode('utf-8')
-						rate  = result['rate']
-						minute_cnt  = result['minute_cnt']
-						acc_amount  = result['amount_acc_day']
-						amount_last_min = result['amount_last_min']
 
-						h = minute[:2]
-						m = minute[2:]
-						message_minute = f'{h}:{m}'
+					# Group results by theme
+					grouped_results = {}
+					for result in results:
+						theme = result['theme'].decode('utf-8')
+						if theme not in grouped_results:
+							grouped_results[theme] = []
+						grouped_results[theme].append(result)
+
+					# Generate and send messages for each theme
+					for theme, items in grouped_results.items():
+						messages = []
+						for item in items:
+							date = test_date
+							minute = item['last_min'].decode('utf-8')
+							code = item['code'].decode('utf-8')
+							name = item['name'].decode('utf-8')
+							rate = item['rate']
+							minute_cnt = item['minute_cnt']
+							acc_amount = item['amount_acc_day']
+							amount_last_min = item['amount_last_min']
+
+							h = minute[:2]
+							m = minute[2:]
+							message_minute = f'{h}:{m}'
+
+							message = f"[{name}] {rate}%, {amount_last_min}억/{acc_amount}억, {minute_cnt}건"
+							messages.append(message)
 						
-						message = f"{message_minute} [{theme}] {name} {rate} % 누적 {acc_amount} 억, 최근 {amount_last_min} 억, 건수 {minute_cnt} 건"
-						print(f"알림 전송: {message}")
-						await send_alert(bot, chat_id, message)
+						# Join messages for the same theme
+						final_message = f"{message_minute} [{theme}]\n" + "\n".join(messages)
+						print(f"알림 전송: {final_message}")
+						await send_alert(bot, chat_id, final_message)
 						
-						# 메시지 이력 등록
-						cursor.execute('''
-						INSERT INTO telegram_message_history (date, minute, code, name, message, first_alert, message_fg)
-						VALUES (%s, %s, %s, %s, %s, %s, %s);
-						''', (date, minute, code, name, message, 'Y', '1'))
-						db.commit()
+						# # 메시지 이력 등록
+						# cursor.execute('''
+						# INSERT INTO telegram_message_history (date, minute, code, name, message, first_alert, message_fg)
+						# VALUES (%s, %s, %s, %s, %s, %s, %s);
+						# ''', (date, minute, code, name, message, 'Y', '1'))
+						# db.commit()
 					
 		finally:
 			db.close()

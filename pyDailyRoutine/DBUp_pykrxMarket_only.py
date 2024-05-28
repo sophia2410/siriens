@@ -47,12 +47,12 @@ class DBUpdater:
 
 	# pykrxMarket --------------------------------------------------------------------------------------------------------------------------------------------------
 	def get_ticker(self):
-		# kospi_tickers = stock.get_market_ticker_list(None)
-		# kosdaq_tickers = stock.get_market_ticker_list(None, "KOSDAQ")
-		# tickers = kospi_tickers + kosdaq_tickers
+		kospi_tickers = stock.get_market_ticker_list(None)
+		kosdaq_tickers = stock.get_market_ticker_list(None, "KOSDAQ")
+		tickers = kospi_tickers + kosdaq_tickers
 
 		# tickers = ["085370", "290510", "096640", "217600", "100090", "096300"]
-		tickers = stock.get_market_ticker_list(None, "KOSDAQ")
+		# tickers = stock.get_market_ticker_list(None, "KOSDAQ")
 
 		return tickers
 
@@ -323,4 +323,4 @@ class DBUpdater:
 if __name__ == '__main__':
 	dbu = DBUpdater()
 	# dbu.execute_daily()
-	dbu.pykrxMarket_execute('20240308','20240308')
+	dbu.pykrxMarket_execute('20240425','20240425')

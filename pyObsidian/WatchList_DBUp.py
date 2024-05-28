@@ -35,9 +35,9 @@ folder_path = 'D:/Obsidian/Trader Sophia/10 Database/WatchList'
 only_specific_file = False
 
 # 특정 파일 처리
-only_specific_file = True
+# only_specific_file = True
 specific_file_name = "0 당일관종☆.md"
-# specific_file_name = "2 최근0일차☆.md"
+specific_file_name = "2 최근0일차☆.md"
 
 # 전체 파일을 처리하는 경우, 관종 삭제 후 재등록 되도록 한다.
 if only_specific_file != True:

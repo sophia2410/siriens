@@ -5,6 +5,11 @@
 	$signal_page = (isset($_POST['stock'])) ? $_POST['stock'] : '';
 	$signal_page = (isset($_POST['stock_nm'])) ? $_POST['stock_nm'] : '';
 ?>
+<script 
+  src="https://code.jquery.com/jquery-3.6.0.min.js"
+  integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" 
+  crossorigin="anonymous">
+</script>
 </head>
 
 <body id="page-top">
@@ -18,7 +23,7 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
 <!-- Content Wrapper -->
 <div id="content-wrapper" class="d-flex flex-column">
 
-<form id="form" method=post>
+<form id="form">
 <!-- Main Content -->
 
 <?php
@@ -35,7 +40,7 @@ $result = $mysqli->query($query);
 <table style="width:100%; height:100%" class="table table-danger text-dark">
 	<tr>
 		<td>
-			<select id="date" class="select" style='width:120px;'>
+			<select id="date" name="date" class="select" style='width:120px;'>
 			<?php
 				$option = "";
 				while($row = $result->fetch_array(MYSQLI_BOTH)) {
@@ -48,7 +53,8 @@ $result = $mysqli->query($query);
 				echo $option;
 			?>
 			</select>
-			<button class="btn btn-danger btn-sm" onclick="search()"> 조 회 </button>
+			<button type="button" class="btn btn-danger btn-sm" onclick="search()">조 회 </button>&nbsp;&nbsp;
+			<button type="button" class="btn btn-info btn-sm" id="excel_down">관종엑셀 다운로드</button>
 		</td>
 	</tr>
 	<tr>
@@ -65,14 +71,25 @@ $result = $mysqli->query($query);
 </div>
 </div>
 </body>
+
 <script>
 // 종목 조회하기
 function search(){
 	key_val  = document.getElementById('date').options[document.getElementById("date").selectedIndex].value;
 	brWidth = window.innerWidth;
 	iframeB.src = "xrayTick_Date_B.php?search_date="+key_val+"&brWidth="+brWidth;
-	return;
 }
+
+$("#excel_down").click(function() {
+	$.ajax({
+	method: "POST",
+	url: "../watchlist/viewChart_runPy.php",
+	data: {downfile: "excel"}
+	})
+	.done(function(result) {
+      alert('다운로드 완료!');
+	});
+});
 </script>
 
 <?php

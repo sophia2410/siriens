@@ -1,11 +1,4 @@
 <?php
-
-	// 종목정보
-	$code = isset($_GET['code']) ? $_GET['code'] : '';
-	$name = isset($_GET['name']) ? $_GET['name'] : ''; 
-
-	$pageTitle = "실시간 1Month-$name";
-	
 	require($_SERVER['DOCUMENT_ROOT']."/boot/common/top.php");
 	require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 ?>
@@ -13,7 +6,10 @@
 </head>
 
 <?php
-$search_date = (isset($_GET['search_date'])) ? $_GET['search_date'] : '20240419';
+// echo "<pre>"; // 브라우저에서 보기 좋게 포맷팅
+// print_r($_GET); // $_GET 배열의 내용을 출력
+// echo "</pre>";
+$search_date = (isset($_GET['search_date'])) ? $_GET['search_date'] : '';
 ?>
 
 <body>
@@ -107,8 +103,16 @@ if($search_date == '') {
 		  MAX(CASE WHEN xray.date = td.date AND td.rank = 2 THEN xray.amount ELSE 0 END) DESC
 		";
 		// echo "<pre>$query</pre>";
+
+		// 특징주 등록을 위한 엑셀파일용 쿼리문, 파이썬 프로그램에서 사용.
+		$filename = 'XrayTick';
+		$file_where = "WHERE `D-day0 Date` != '' ORDER BY `D-0 Amount` DESC";
+		$text =  $filename. "\n" .$file_where. "\n" .$query;
+
 		// 데이터베이스 연결 및 쿼리 실행
 		$result = $mysqli->query($query);
+
+		file_put_contents('E:/Project/202410/www/pyObsidian/vars_downExcel.txt', $text);
 		
 		// 테이블 헤더
 		echo "<table class='table table-sm small table-bordered text-dark'>";
@@ -137,7 +141,8 @@ if($search_date == '') {
 			echo "<td align=center>".$row['code']."</td>";
 			echo "<td align=left><h6><b><a href='../siriens/stock_B.php?code=".$row['code']."&name=".$row['name']."&brWidth=2500' onclick='window.open(this.href, \'stock\' target='_blank'>".$row['name']."</a></b></h6></td>";
 			for ($i = 0; $i <= 10; $i++) {
-				echo "<td style='border-left: 2px solid gray' title='".$row["D-day$i Date"]."'><a href=\"javascript:openPopupXrayTick('".$row['code']."', '".$row["D-day$i Date"]."')\">".$row["D-$i CloseRate"]."% </a></td>";
+				if($row["D-$i Amount"] > 0) echo "<td style='border-left: 2px solid gray' title='".$row["D-day$i Date"]."'><a href=\"javascript:openPopupXrayTick('".$row['code']."', '".$row["D-day$i Date"]."')\">".$row["D-$i CloseRate"]."% </a></td>";
+				else echo "<td style='border-left: 2px solid gray' title='".$row["D-day$i Date"]."'>".$row["D-$i CloseRate"]."% </td>";
 
 				$amt_style = ($row["D-$i Amount"] > 500) ? "mark text-danger font-weight-bold" : (($row["D-$i Amount"] > 100) ? "text-danger font-weight-bold" : "font-weight-bold");
 

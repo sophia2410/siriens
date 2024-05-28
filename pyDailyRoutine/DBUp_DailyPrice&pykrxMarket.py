@@ -1,5 +1,6 @@
 import pandas as pd
 import subprocess
+from io import StringIO
 from bs4 import BeautifulSoup
 import pymysql, calendar, json
 import requests
@@ -160,7 +161,8 @@ class DBUpdater:
 
 		df = pd.read_sql(sql, self.conn)
 		for idx in range(len(df)):
-			self.codes[df['code'].values[idx]] = df['company'].values[idx]
+			# 바이트 문자열을 일반 문자열로 변환
+			self.codes[df['code'].values[idx].decode('utf-8')] = df['company'].values[idx].decode('utf-8')
 
 		with self.conn.cursor() as curs:
 			sql = "SELECT max(last_update) FROM company_info"
@@ -171,6 +173,7 @@ class DBUpdater:
 				for idx in range(len(krx)):
 					code = krx.code.values[idx]
 					company = krx.company.values[idx]
+					# 바이트 문자열을 일반 문자열로 변환 (이미 정수형 코드를 문자열로 변환할 때 처리가 되어야 하므로 여기서는 따로 변환하지 않음)
 					sql = f"REPLACE INTO company_info (code, company, last_update) VALUES ('{code}', '{company}', '{today}')"
 					curs.execute(sql)
 					self.codes[code] = company
@@ -185,42 +188,63 @@ class DBUpdater:
 			# url = f"http://finance.naver.com/item/sise_day.nhn?code={code}" #URL 막힘 2023.09.01 #URL 변경 및 Header에 referer 추가
 			url = f"https://finance.naver.com/item/sise_day.naver?code={code}&page=1"
 			print(url)
-			html = BeautifulSoup(requests.get(url,
-				headers={'referer':'https://finance.naver.com/','User-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36'}).text, "lxml")
-			
-			# 1page 인 경우 class가 pgRR 이 아니라 on 라서 읽어오지 못하는 경우 발생. 로직 변경. 20230315
-			pgrr = html.find("td", class_="pgRR")
-			if pgrr is None:
-				print('pgrr is None')
-				pgrr2 = html.find("td", class_="on")
-				if pgrr2 is None:
-					return None
-				else:
-					s = str(pgrr2.a["href"]).split('=')
-					df = pd.DataFrame()
-					df = pd.concat([df, pd.read_html(requests.get(url,
-						headers={'referer':'https://finance.naver.com/','User-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36'}).text)[0]])
-					tmnow = datetime.now().strftime('%Y-%m-%d %H:%M')
-					print('[{}] {} ({}) pages are downloading...'.
-						format(tmnow, company, code), end="\r")
-			else:
-				s = str(pgrr.a["href"]).split('=')
-				lastpage = s[-1]
-				df = pd.DataFrame()
-				pages = min(int(lastpage), pages_to_fetch)
-				for page in range(1, pages + 1):
-					pg_url = '{}&page={}'.format(url, page)
-					df = pd.concat([df, pd.read_html(requests.get(url,
-						headers={'referer':'https://finance.naver.com/','User-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36'}).text)[0]])
-					tmnow = datetime.now().strftime('%Y-%m-%d %H:%M')
-					print('[{}] {} ({}) : {:04d}/{:04d} pages are downloading...'.
-						format(tmnow, company, code, page, pages), end="\r")
 
+			df = pd.DataFrame()
+			# 요청한 URL에서 HTML 내용을 가져오고
+			response = requests.get(url, headers={
+				'referer': 'https://finance.naver.com/',
+				'User-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36'
+			})
+			html_content = response.text
+
+			# StringIO를 사용하여 HTML을 pandas에 전달
+			df = pd.concat([df, pd.read_html(StringIO(html_content))[0]])
+
+			# 1page만 읽어오면 되기 때문에 복잡한 로직 생략... 2024.04.24
+   
+						# html = BeautifulSoup(requests.get(url,
+						# 	headers={'referer':'https://finance.naver.com/','User-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36'}).text, "lxml")
+
+						# 1page 인 경우 class가 pgRR 이 아니라 on 라서 읽어오지 못하는 경우 발생. 로직 변경. 20230315
+						# pgrr = html.find("td", class_="pgRR")
+						# if pgrr is None:
+						# 	print('pgrr is None')
+						# 	pgrr2 = html.find("td", class_="on")
+						# 	if pgrr2 is None:
+						# 		return None
+						# 	else:
+						# 		s = str(pgrr2.a["href"]).split('=')
+						# 		df = pd.DataFrame()
+						# 		df = pd.concat([df, pd.read_html(requests.get(url,
+						# 			headers={'referer':'https://finance.naver.com/','User-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36'}).text)[0]])
+						# 		tmnow = datetime.now().strftime('%Y-%m-%d %H:%M')
+						# 		print('[{}] {} ({}) pages are downloading...'.
+						# 			format(tmnow, company, code), end="\r")
+						# else:
+						# 	s = str(pgrr.a["href"]).split('=')
+						# 	lastpage = s[-1]
+						# 	df = pd.DataFrame()
+						# 	pages = min(int(lastpage), pages_to_fetch)
+						# 	for page in range(1, pages + 1):
+						# 		pg_url = '{}&page={}'.format(url, page)
+						# 		df = pd.concat([df, pd.read_html(requests.get(pg_url,
+						# 			headers={'referer':'https://finance.naver.com/','User-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36'}).text)[0]])
+						# 		tmnow = datetime.now().strftime('%Y-%m-%d %H:%M')
+						# 		print('[{}] {} ({}) : {:04d}/{:04d} pages are downloading...'.
+						# 			format(tmnow, company, code, page, pages), end="\r")
+
+	
 			df = df.rename(columns={'날짜':'date','종가':'close','전일비':'diff','시가':'open','고가':'high','저가':'low','거래량':'volume'})
+
+			# 데이터 전처리
+			df['diff'] = df['diff'].replace('[^0-9]', '', regex=True).fillna(0).astype(int)
+
+			# 날짜 형식 수정 및 나머지 데이터 정리
 			df['date'] = df['date'].replace('.', '-')
+			df.dropna(inplace=True)
+			df[['close', 'open', 'high', 'low', 'volume']] = df[['close', 'open', 'high', 'low', 'volume']].astype(int)
+			
 			# print(df)
-			df = df.dropna()
-			df[['close', 'diff', 'open', 'high', 'low', 'volume']] = df[['close','diff', 'open', 'high', 'low', 'volume']].astype(int)
 			df = df[['date', 'open', 'high', 'low', 'close', 'diff', 'volume']]
 		except Exception as e:
 			print('Exception occured :', str(e))

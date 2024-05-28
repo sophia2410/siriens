@@ -1,10 +1,13 @@
-# 실제 사용 버전. 2024.05.28
+# 기 발생 데이터로 테스트 하기 24.05.28
+# 특정금액, 건수 이상 테마별로 묶어서 전송
+# test2 버전에 html 형식 추가. 성공하면 최종버전 될듯
+
 import sys
+import datetime
 import asyncio
 from telegram import Bot
 import pymysql.cursors
 import configparser
-from datetime import datetime, timedelta
 
 # asyncio 정책 변경 (Windows 환경에서)
 if sys.platform == 'win32':
@@ -23,32 +26,36 @@ bot = Bot(token=bot_token)
 async def send_alert(bot, chat_id, message, parse_mode=None):
     await bot.send_message(chat_id=chat_id, text=message, parse_mode=parse_mode)
 	
-async def fetch_and_send_alerts():
+async def test_alerts():
     while True:
+        db = pymysql.connect(
+            host=config.get('database', 'host'),
+            user=config.get('database', 'user'),
+            password=config.get('database', 'password'),
+            db=config.get('database', 'db'),
+            charset=config.get('database', 'charset'),
+            cursorclass=pymysql.cursors.DictCursor
+        )
 
-        current_time = datetime.now()
-        start_time = current_time.replace(hour=9, minute=1, second=0, microsecond=0)
-        end_time = current_time.replace(hour=15, minute=31, second=0, microsecond=0)
+        try:
+            with db.cursor() as cursor:
+                # 테스트하고자 하는 데이터의 시간 범위를 결정합니다.
+                test_date = '20240528'
 
-        if start_time <= current_time <= end_time:
-            db = pymysql.connect(
-                host=config.get('database', 'host'),
-                user=config.get('database', 'user'),
-                password=config.get('database', 'password'),
-                db=config.get('database', 'db'),
-                charset=config.get('database', 'charset'),
-                cursorclass=pymysql.cursors.DictCursor
-            )
-    
-            try:
-                with db.cursor() as cursor:
-                    # 현재 시간을 기준으로 1분 전 시간 계산
-                    current_time = datetime.now()
-                    one_minute_ago = current_time - timedelta(minutes=1)
-                    test_datetime = one_minute_ago.strftime('%Y%m%d%H%M')
-    
+                # 시간 순으로 데이터 조회
+                cursor.execute('''
+                SELECT DISTINCT minute FROM kiwoom_realtime_minute
+                WHERE date = %s
+                AND minute >= '0902'
+                ORDER BY minute ASC;
+                ''', (test_date,))
+                test_results = cursor.fetchall()
+
+                # 시뮬레이션 실행
+                for test_result in test_results:
+                    test_datetime = test_date + test_result['minute'].decode('utf-8')
                     print(f" ## {test_datetime} ############################")
-    
+
                     cursor.execute('''
                     SELECT 
                         w.theme, s.code, s.name, last_min, minute_cnt,
@@ -107,7 +114,7 @@ async def fetch_and_send_alerts():
                         ORDER BY theme, amount_acc_day DESC, rate DESC;
                     ''', (test_datetime,))
                     results = cursor.fetchall()
-    
+
                     # Group results by theme
                     grouped_results = {}
                     for result in results:
@@ -115,12 +122,12 @@ async def fetch_and_send_alerts():
                         if theme not in grouped_results:
                             grouped_results[theme] = []
                         grouped_results[theme].append(result)
-    
+
                     # Generate and send messages for each theme
                     for theme, items in grouped_results.items():
                         messages = []
                         for item in items:
-                            date = current_time.strftime('%Y%m%d')
+                            date = test_date
                             minute = item['last_min'].decode('utf-8')
                             code = item['code'].decode('utf-8')
                             name = item['name'].decode('utf-8')
@@ -128,36 +135,33 @@ async def fetch_and_send_alerts():
                             minute_cnt = item['minute_cnt']
                             acc_amount = item['amount_acc_day']
                             amount_last_min = item['amount_last_min']
-    
+
                             h = minute[:2]
                             m = minute[2:]
                             message_minute = f'{h}:{m}'
-    
-                            # Bold the amount_last_min if it is 30억 or more
-                            if amount_last_min >= 30:  # Assuming 30 is equivalent to 30억
+
+                            # Bold the amount_last_min if it is 50억 or more
+                            if amount_last_min >= 50:  # Assuming 50 is equivalent to 50억
                                 name_str = f"<b>{name}</b>"
                                 amount_last_min_str = f"<b>{amount_last_min}억</b>"
                             else:
                                 name_str = f"{name}"
                                 amount_last_min_str = f"{amount_last_min}억"
-    
+
                             message = f"[{name_str}] {rate}%, {amount_last_min_str}/{acc_amount}억, {minute_cnt}건"
                             messages.append(message)
-                    
+                        
                         # Join messages for the same theme
                         final_message = f"{message_minute} [{theme}]\n" + "\n".join(messages)
                         print(f"알림 전송: {final_message}")
                         await send_alert(bot, chat_id, final_message, parse_mode='HTML')
 
-            finally:
-                db.close()
-        
-        # 1분 대기
-        await asyncio.sleep(60)
+        finally:
+            db.close()
 
 # 비동기 실행을 위한 메인 함수
 async def main():
-    await fetch_and_send_alerts()
+    await test_alerts()
 
 # 비동기 실행
 if __name__ == "__main__":

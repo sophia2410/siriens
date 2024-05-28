@@ -20,7 +20,7 @@ if __name__ == "__main__":
 	
 	# call(sys.argv[1])
 
-	call('https://biz.heraldcorp.com/view.php?ud=20240416050314&mod=skb')
+	call('https://https//m.yna.co.kr/view/AKR20240503005751091?input=1195m')
 
 	# http://www.thebigdata.co.kr/view.php?ud=202308071124588701cd1e7f0bdf_23
 	# https://www.businesspost.co.kr/BP?command=article_view&num=322864

@@ -164,18 +164,25 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 		$xray_amount = "";
 		$xray_cnt = "";
 		while($row = $result->fetch_array(MYSQLI_BOTH)) {
-			// 거래대금에 따라 스타일 적용
-			if($row['amount'] > 500)
-				$amt_style = "mark text-danger font-weight-bold h6";
-			else if($row['amount'] > 100)
-				$amt_style = "text-danger font-weight-bold h6";
-			else
-				$amt_style = "font-weight-bold";
+			$xray_date .= "<th align=center style='width:80px; height: 30px;'><a href=\"javascript:openPopupXrayTick('{$code}', '".$row['date']."')\">". $row['date_str']."</a></th>";
+			
+			if($row['cnt'] > 0) {
+				// 거래대금에 따라 스타일 적용
+				if($row['amount'] > 500)
+					$amt_style = "mark text-danger font-weight-bold h6";
+				else if($row['amount'] > 100)
+					$amt_style = "text-danger font-weight-bold h6";
+				else
+					$amt_style = "font-weight-bold";
 
-			$xray_date      .= "<th align=center style='width:80px; height: 30px;'><a href=\"javascript:openPopupXrayTick('{$code}', '".$row['date']."')\">". $row['date_str']."</a></th>";
-			$xray_close_rate.= "<td align=center style='width:80px; height: 30px;'>". $row['close_rate']."%</td>";
-			$xray_cnt       .= "<td align=center style='width:80px; height: 30px;'>". number_format($row['cnt'])."</td>";
-			$xray_amount    .= "<td align=center style='width:80px; height: 30px;' class='"."$amt_style"."'>". number_format($row['amount'])."억</td>";
+				$xray_close_rate.= "<td align=center style='width:80px; height: 30px;'>". $row['close_rate']."%</td>";
+				$xray_cnt       .= "<td align=center style='width:80px; height: 30px;'>". number_format($row['cnt'])."</td>";
+				$xray_amount    .= "<td align=center style='width:80px; height: 30px;' class='"."$amt_style"."'>". number_format($row['amount'])."억</td>";
+			} else {
+				$xray_close_rate.= "<td align=center>-</td>";
+				$xray_cnt       .= "<td align=center>-</td>";
+				$xray_amount    .= "<td align=center>-</td>";
+			}
 		}
 
 		// 종목 키워드
@@ -272,7 +279,7 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 							, title
 							, link
 						FROM signals B
-						WHERE B.code =  '$code'
+						WHERE B.code = '$code'
 						AND B.date <= (select max(date) from calendar where date < '$mochaten_date')
 						ORDER BY date DESC
 						LIMIT 1 " ;

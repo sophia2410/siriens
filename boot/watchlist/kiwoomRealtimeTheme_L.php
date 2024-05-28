@@ -469,10 +469,10 @@ else {
 		// echo "<table class='table table-sm text-dark'>";
 		echo "<table border='1' width='100%'>";
 		echo "<tr align=center class='small'>";
-		echo "<th width=60>코드</th>";
+		// echo "<th width=60>코드</th>"; // 코드 출력 임시 막기 24.05.28
 		echo "<th width=120>종목명</th>";
-		echo "<th width=70 >등락률</th>";
-		echo "<th width=110 onclick=\"sortTable('amount_acc_day')\" >당일누적</th>";
+		echo "<th width=70 >등락</th>";
+		echo "<th width=110 onclick=\"sortTable('amount_acc_day')\" >누적</th>";
 		echo "<th width=85  onclick=\"sortTable('amount_last_min')\">".substr($minute,0,2).":".substr($minute,2,2)."</th>";
 		echo "<th width=85>1분전</th>";
 		echo "<th width=85>2분전</th>";
@@ -510,7 +510,9 @@ else {
 				// 테마별로 합계 금액 조회
 				if($pre_theme != $row['theme']) {
 					echo "<tr align=right>";
-						echo "<td align=left colspan=3 bgcolor='#FFF9CC'><b> ( {$themeOrder[$row['theme']]} ) <font color=red>{$row['theme']}</font></b></td>";
+						// 코드 출력 임시 막기 24.05.28
+						// echo "<td align=left colspan=3 bgcolor='#FFF9CC'><b> ( {$themeOrder[$row['theme']]} ) <font color=red>{$row['theme']}</font></b></td>";
+						echo "<td align=left colspan=2 bgcolor='#FFF9CC'><b> ( {$themeOrder[$row['theme']]} ) <font color=red>{$row['theme']}</font></b></td>";
 						$amountTdE = setAmountTdE($amounts, 'theme_acc_day', 'N');
 						echo $amountTdE;
 						$amountTdE = setAmountTdE($amounts, 'theme_last_min', 'N');
@@ -529,9 +531,10 @@ else {
 				}
 				
 				echo "<tr align=right>";
-					echo "<td align=center class='small-fraction'>";
-					echo "<a href='kiwoomRealtime15Min_AStock.php?code={$row['code']}&name={$row['name']}&date={$date}' target='_blank'>";
-					echo $row['code']."</a></td>";
+					// 코드 출력 임시 막기 24.05.28
+					// echo "<td align=center class='small-fraction'>";
+					// echo "<a href='kiwoomRealtime15Min_AStock.php?code={$row['code']}&name={$row['name']}&date={$date}' target='_blank'>";
+					// echo $row['code']."</a></td>";
 					echo "<td align=left class='cut-text-100' title={$row['name']} style='background-color:{$bgcolor}'>";
 					echo "<a href='kiwoomRealtime_AStock.php?code={$row['code']}&name={$row['name']}&date={$date}' target='_blank'>";
 					echo "<b>{$row['first_alert']}{$row['name']}</b></a></td>";
