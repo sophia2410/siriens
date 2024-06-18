@@ -33,18 +33,18 @@ if($_SERVER["HTTP_HOST"] == 'localhost') {
             </li>
 
             <!-- Nav Item -->
-            <li class="nav-item">
+            <!-- <li class="nav-item">
                 <a class="nav-link" href="<?=$PATH?>signalDeep/marketIndex.php">
                     <i class="fas fa-fw fa-flag"></i>
                     <span>Market Index</span></a>
-            </li>
+            </li> -->
 
             <!-- Nav Item -->
-            <li class="nav-item">
+            <!-- <li class="nav-item">
                 <a class="nav-link" href="<?=$PATH?>signalDeep/marketReview.php">
                     <i class="fas fa-fw fa-flag"></i>
                     <span>Market Review</span></a>
-            </li>
+            </li> -->
 
             <!-- Divider -->
             <hr class="sidebar-divider d-none d-md-block">
@@ -72,14 +72,21 @@ if($_SERVER["HTTP_HOST"] == 'localhost') {
             <li class="nav-item">
                 <a class="nav-link" href="<?=$PATH?>siriens/xrayTick_Stock.php">
                     <i class="fas fa-fw fa-book"></i>
-                    <span>Xray Tick Stock</span></a>
+                    <span>Xray-Tick Stock</span></a>
             </li>
 
             <!-- Nav Item -->
             <li class="nav-item">
                 <a class="nav-link" href="<?=$PATH?>siriens/xrayTick_Date.php">
                     <i class="fas fa-fw fa-book"></i>
-                    <span>Xray Tick Date</span></a>
+                    <span>Xray-Tick Date</span></a>
+            </li>
+
+            <!-- Nav Item -->
+            <li class="nav-item">
+                <a class="nav-link" href="<?=$PATH?>siriens/xrayTick_Analysis.php">
+                    <i class="fas fa-fw fa-book"></i>
+                    <span>Xray-Tick Analysis</span></a>
             </li>
 
             <!-- Nav Item -->
@@ -179,7 +186,7 @@ if($_SERVER["HTTP_HOST"] == 'localhost') {
 
             <!-- Nav Item -->
             <li class="nav-item">
-                <a class="nav-link" href="<?=$PATH?>watchlist/watchList.php">
+                <a class="nav-link" href="<?=$PATH?>watchlist/0dayStocks.php">
                     <i class="fas fa-fw fa-gift"></i>
                     <span>0-Day Stock </span></a>
             </li>

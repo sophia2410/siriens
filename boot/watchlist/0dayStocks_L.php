@@ -3,6 +3,8 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/top.php");
 require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 
 $watchlist_date = (isset($_GET['watchlist_date'])) ? $_GET['watchlist_date'] : date('Ymd',time());
+$increase_rate = (isset($_GET['increase_rate'])) ? $_GET['increase_rate'] : 10;
+
 $browser_width = (isset($_GET['brWidth'])) ? $_GET['brWidth'] : 2000;
 
 // 다음거래일 구하기 (시나리오일자)
@@ -44,6 +46,7 @@ $query = " SELECT Y.date, STR_TO_DATE(Y.date, '%Y%m%d') watchlist_date_str, Z.*
 						ON E.report_date = A.watchlist_date
 						WHERE A.watchlist_date >= (select DATE_FORMAT(DATE_ADD('$watchlist_date', INTERVAL -30 DAY), '%Y%m%d'))
 						AND   A.watchlist_date <= '$watchlist_date'
+						AND   A.close_rate >= $increase_rate
 					) Z
 			ON Y.date = Z.watchlist_date
 			WHERE Y.date >= (select DATE_FORMAT(DATE_ADD('$watchlist_date', INTERVAL -10 DAY), '%Y%m%d'))
@@ -68,8 +71,8 @@ $result = $mysqli->query($query);
 		if($pre_watchlist_date != $row['date']) {
 			echo "<tr class='table-danger text-dark' align=left><th colspan=4>[+] <b><a href=\"javascript:callFrameRD('".$row['date']."')\">".$row['watchlist_date_str']."</b></a>&nbsp; ";
 			echo "(코스피: ".$row['kospi_index']." , 코스닥: ".$row['kosdaq_index'].") ";
-			echo "<a href=\"javascript:callviewChart('".$row['date']."')\"><img style='width:28px; height:28px; border:solid thin' src='https://siriens.mycafe24.com/image/view_chart.png'></a> ";
-			echo "<a href=\"javascript:callxrayTick('".$row['date']."')\"><img style='width:28px; height:28px; border:solid thin' src='https://siriens.mycafe24.com/image/view_review.png'></a></th></tr>";
+			echo "<a href=\"javascript:callviewChart('".$row['date']."', '$increase_rate')\"><img style='width:24px; height:24px; border:solid thin' src='https://siriens.mycafe24.com/image/view_chart.png'></a> ";
+			echo "<a href=\"javascript:callxrayTick('".$row['date']."', '$increase_rate')\"><img style='width:24px; height:24px; border:solid thin' src='https://siriens.mycafe24.com/image/view_review.png'></a></th></tr>";
 			// 리뷰 등록 잠시 막아두기
 			// echo "<a href=\"javascript:callFrameRV('".$row['date']."')\"><img style='width:28px; height:28px; border:solid thin' src='https://siriens.mycafe24.com/image/view_review.png'></a></th></tr>";
 			if($row['evening_subject'] != '') 
@@ -126,13 +129,13 @@ function callFrameRV(date, cd, nm, idx) {
 }
 
 // parent 함수 호출
-function callxrayTick(date) {
-	window.parent.xrayTick(date);
+function callxrayTick(date, increase_rate) {
+	window.parent.xrayTick(date, increase_rate);
 }
 
 // parent 함수 호출
-function callviewChart(date) {
-	window.parent.viewChart(date);
+function callviewChart(date, increase_rate) {
+	window.parent.viewChart(date, increase_rate);
 }
 </script>
 </html>

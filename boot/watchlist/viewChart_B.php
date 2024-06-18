@@ -35,6 +35,8 @@ $category = (isset($_GET['category'])) ? $_GET['category'] : '';
 
 $getRealData = (isset($_GET['getRealData'])) ? $_GET['getRealData'] : '';
 
+$increase_rate = (isset($_GET['increase_rate'])  ) ? $_GET['increase_rate'] : 10;
+
 $show4 = (isset($_GET['show4'])) ? $_GET['show4'] : '';
 
 $brWidth = (isset($_GET['brWidth'])) ? $_GET['brWidth'] : '1800';

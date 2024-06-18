@@ -138,8 +138,8 @@ if($search_date == '') {
 		// 데이터 행 생성
 		while ($row = $result->fetch_assoc()) {
 			echo "<tr align=right>";
-			echo "<td align=center>".$row['code']."</td>";
-			echo "<td align=left><h6><b><a href='../siriens/stock_B.php?code=".$row['code']."&name=".$row['name']."&brWidth=2500' onclick='window.open(this.href, \'stock\' target='_blank'>".$row['name']."</a></b></h6></td>";
+			echo "<td align=center><a href='../siriens/stock_B.php?code=".$row['code']."&name=".$row['name']."&brWidth=2500' onclick='window.open(this.href, \'stock\' target='_blank'>".$row['code']."</a></td>";
+			echo "<td align=left><h6><b>".$row['name']."</b></h6></td>";
 			for ($i = 0; $i <= 10; $i++) {
 				if($row["D-$i Amount"] > 0) echo "<td style='border-left: 2px solid gray' title='".$row["D-day$i Date"]."'><a href=\"javascript:openPopupXrayTick('".$row['code']."', '".$row["D-day$i Date"]."')\">".$row["D-$i CloseRate"]."% </a></td>";
 				else echo "<td style='border-left: 2px solid gray' title='".$row["D-day$i Date"]."'>".$row["D-$i CloseRate"]."% </td>";

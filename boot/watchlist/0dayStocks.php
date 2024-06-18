@@ -55,12 +55,18 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
 					echo $option;
 				?>
 				</select>
+				<select id="increase_rate" class="select">
+					<option value='10'>전체</option>
+					<option value='29.5'>상한가</option>
+					<option value='20'>20%↑</option>
+				</select>
 				<button class="btn btn-danger btn-sm" onclick="search()"> 조 회 </button>
 				<button class="btn btn-info btn-sm" onclick="showT()"> 테 마 </button>
 				<button class="btn btn-info btn-sm" onclick="showC()"> 차 트 </button>
-				<button class="btn btn-secondary btn-sm" onclick="getData()">Get</button> ||
-				<input type=text id=stock style='width:90px' placeholder='종목코드/명'>
-				<button class="btn btn-secondary btn-sm" onclick="addData()">Add</button>
+				<button class="btn btn-secondary btn-sm" onclick="getData()">Get</button>
+				<!-- 종목추가기능 사용하지 않아 잠시 막아두기 24.06.11 -->
+				<!-- || <input type=text id=stock style='width:90px' placeholder='종목코드/명'>
+				<button class="btn btn-secondary btn-sm" onclick="addData()">Add</button> -->
 				
 			</div>
 		</td>
@@ -74,7 +80,7 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
 	<tr>
 		<td>
 			<div style="margin: 0; border: 0; font: inherit;vertical-align: baseline; padding: 0;height: calc(100vh - 100px);">
-				<iframe id="iframeL" style="width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 100px);" src="watchlist_L.php">
+				<iframe id="iframeL" style="width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 100px);" src="0dayStocks_L.php">
 				</iframe>
 			</div>
 		</td>
@@ -93,9 +99,10 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
 <script>
 // 관종등록일자 선택후 조회 - 왼쪽 프레임에 종목 리스트업
 function search() {
-	key_val  = document.getElementById('watchlist_date').options[document.getElementById("watchlist_date").selectedIndex].value;
+	key_val1  = document.getElementById('watchlist_date').options[document.getElementById("watchlist_date").selectedIndex].value;
+	key_val2  = document.getElementById('increase_rate').options[document.getElementById("increase_rate").selectedIndex].value;
 	brWidth = window.innerWidth;
-	iframeL.src = "watchlist_L.php?watchlist_date="+key_val+"&brWidth="+brWidth;
+	iframeL.src = "0dayStocks_L.php?watchlist_date="+key_val1+"&increase_rate="+key_val2+"&brWidth="+brWidth;
 	return;
 }
 
@@ -154,17 +161,18 @@ function viewReview(date) {
 }
 
 // 문서 이미지 선택 시 오른쪽 프레임에 차트 + Xray 체결 보기
-function xrayTick(search_date) {
+function xrayTick(search_date, increase_rate) {
 	brWidth = window.innerWidth;
-	iframeR.src = "xrayTick_Watchlist.php?search_date="+search_date+"&brWidth="+brWidth;
+	pgmId = '0dayStocks';
+	iframeR.src = "../siriens/xrayTick_StockList.php?pgmId="+pgmId+"&search_date="+search_date+"&increase_rate="+increase_rate+"&brWidth="+brWidth;
 	return;
 }
 
 // 차트돋보기 선택 시 오른쪽 프레임에 내역 조회 - 차트 보기
-function viewChart(search_date) {
+function viewChart(search_date, increase_rate) {
 	brWidth = window.innerWidth;
 	pgmId = 'watchlist';
-	iframeR.src = "viewChart.php?pgmId="+pgmId+"&search_date="+search_date+"&brWidth="+brWidth;
+	iframeR.src = "viewChart.php?pgmId="+pgmId+"&search_date="+search_date+"&increase_rate="+increase_rate+"&brWidth="+brWidth;
 	return;
 }
 

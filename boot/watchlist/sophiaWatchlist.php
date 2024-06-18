@@ -36,7 +36,7 @@ if (!$mainFrame) {
 		</td>
 		<td rowspan=2 style='width:92%'>
 			<div style="margin: 0; border: 1; font: inherit;vertical-align: baseline; padding: 0;height: calc(100vh - 70px);">
-				<iframe id="iframeR" scrolling="no" style="width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 70px); overflow:hidden;" src="viewChart.php">
+				<iframe id="iframeR" style="width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 70px); overflow:hidden;" src="viewChart.php">
 				</iframe>
 			</div>
 		</td>
@@ -74,6 +74,13 @@ function viewChart(sector, theme, category, getRealData) {
 	brWidth = window.innerWidth;
 
 	iframeR.src = "viewChart.php?pgmId=sophiaWatchlist&sector="+sector+"&theme="+theme+"&category="+category+"&getRealData="+getRealData+"&brWidth="+brWidth;
+	return;
+}
+
+// 문서 이미지 선택 시 오른쪽 프레임에 차트 + Xray 체결 보기
+function xrayTick(sector, theme) {
+	brWidth = window.innerWidth;
+	iframeR.src = "../siriens/xrayTick_StockList.php?pgmId=sophiaWatchlist&sector="+sector+"&theme="+theme+"&brWidth="+brWidth;
 	return;
 }
 </script>

@@ -48,7 +48,7 @@ if(isset($_POST['proc_fg'])) {
 				FROM mochaten A
 				WHERE A.trade_date = '".$watchlist_date."'
 				AND A.cha_fg = 'MC000'
-				AND (A.tot_trade_amt >= 500 OR (A.close_rate > 29 AND A.tot_trade_amt >= 250))";
+				AND (A.tot_trade_amt >= 500 OR (A.close_rate > 29 AND A.tot_trade_amt >= 150))";
 
 		echo $qry."<br><br>";
 		$mysqli->query($qry);

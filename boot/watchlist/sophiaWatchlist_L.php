@@ -29,7 +29,8 @@ $result = $mysqli->query($query);
 	while($row = $result->fetch_array(MYSQLI_BOTH)) {
 		if($pre_sector != $row['sector']) {
 			echo "<tr class='table-danger'>";
-			echo "<td colspan=2><a href=\"javascript:callViewChart('".$row['sector']."','','','')\"><b>".$row['sector']."</b></a></td>" ;
+			echo "<td><a href=\"javascript:callViewChart('".$row['sector']."','','','')\"><b>".$row['sector']."</b></a></td>" ;
+			echo "<td><a href=\"javascript:callxrayTick('".$row['sector']."','')\"><img style='width:20px; height:20px; border:solid thin' src='https://siriens.mycafe24.com/image/view_review.png'></a></td>";
 			echo "</tr>";
 		}
 
@@ -50,8 +51,10 @@ $result = $mysqli->query($query);
 		// theme 출력
 		echo "<tr>";
 
-		if($pre_theme != $row['sector'].$row['theme'])
+		if($pre_theme != $row['sector'].$row['theme']) {
 			echo "<td><a href=\"javascript:callViewChart('".$row['sector']."','".$row['theme']."','','Y')\"><b>".$row['theme']."</b></a></td>" ;
+			echo "<td><a href=\"javascript:callxrayTick('".$row['sector']."','".$row['theme']."')\"><img style='width:20px; height:20px; border:solid thin' src='https://siriens.mycafe24.com/image/view_review.png'></a></td>";
+		}
 		echo "</tr>" ;
 		
 		$pre_sector = $row['sector'];
@@ -65,6 +68,11 @@ $result = $mysqli->query($query);
 // parent 함수 호출, 오른쪽 프레임 종목정보 표시
 function callViewChart(sector, theme, category, getRealData) {
 	window.parent.viewChart(sector, theme, category, getRealData);
+}
+
+// parent 함수 호출, 오른쪽 프레임 종목정보 표시
+function callxrayTick(sector, theme) {
+	window.parent.xrayTick(sector, theme);
 }
 </script>
 </html>
