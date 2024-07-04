@@ -1,0 +1,28 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
+    color: #333;
+}
+
+.container {
+    width: 90%;
+    margin: 0 auto;
+}
+
+.header {
+    text-align: center;
+    margin: 20px 0;
+}
+
+.main-content {
+    display: flex;
+    justify-content: space-between;
+}
+
+.left-panel, .right-panel {
+    width: 48%;
+}
+
+.market-comment, .stocks, .recent-themes, .top-gainers {
+    background: #fff;
+   

@@ -51,7 +51,7 @@ def market_index(date, mkidx, file, conn, cur):
 			idxrt  = ''
 
 		# 해당 지수명이 없어도 일단 테이블 등록은 될 수 있도록 union 처리
-		sql = f"   REPLACE INTO siriens_market_index (report_date, index_cd, index_nm, index_value, index_diff, index_close_rate,comment, create_dtime) "\
+		sql = f"   REPLACE INTO infostock_market_index (report_date, index_cd, index_nm, index_value, index_diff, index_close_rate,comment, create_dtime) "\
 			f"		SELECT '{date}', MAX(cd) cd, '{idxnm}', '{idxval}', '{idxdf}', '{idxrt}', '{date}', NOW() "\
 			f"		  FROM (SELECT cd "\
 			f"				  FROM comm_cd A WHERE l_cd = 'A0000' and nm = '{idxnm}' "\

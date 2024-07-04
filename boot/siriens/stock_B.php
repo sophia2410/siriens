@@ -414,8 +414,7 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 		//재료
         $query = "SELECT 'REPORT' seq
 						, STR_TO_DATE(A.report_date, '%Y%m%d') date
-						, CONCAT(CASE WHEN Y.keyword_nm is not null THEN concat('[',Y.keyword_nm,'] ') ELSE '' END
-								, CASE WHEN A.today_issue is not null THEN concat(' #',A.today_issue) ELSE '' END) title
+						, CONCAT(CASE WHEN A.today_issue is not null THEN concat(' #',A.today_issue) ELSE '' END) title
 						, '' content
 						, '' publisher
 						, '' writer
@@ -460,16 +459,6 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 									   FROM daily_price B
 									  WHERE B.code =  '$code') Z
 					  		ON Z.date = A.report_date
-							LEFT OUTER JOIN (SELECT J.report_date
-												, J.code
-												, GROUP_CONCAT(K.keyword_cd ORDER BY K.sort_no, K.keyword_cd) keyword_cd
-												, GROUP_CONCAT(K.keyword_nm ORDER BY K.sort_no, K.keyword_cd) keyword_nm
-											FROM siriens_report_keyword J
-											INNER JOIN theme_keyword K
-												ON K.keyword_cd = J.keyword_cd
-											GROUP BY report_date, code) Y
-							ON  Y.report_date = A.report_date
-							AND Y.code = A.code
 				  UNION ALL
 				  SELECT 'NEWS' seq
 						, STR_TO_DATE(date, '%Y%m%d') date

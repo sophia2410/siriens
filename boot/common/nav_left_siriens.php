@@ -33,6 +33,13 @@ if($_SERVER["HTTP_HOST"] == 'localhost') {
             </li>
 
             <!-- Nav Item -->
+            <li class="nav-item">
+                <a class="nav-link" href="<?=$PATH?>signalDeep/marketReport.php">
+                    <i class="fas fa-fw fa-flag"></i>
+                    <span>Market Report</span></a>
+            </li>
+
+            <!-- Nav Item -->
             <!-- <li class="nav-item">
                 <a class="nav-link" href="<?=$PATH?>signalDeep/marketIndex.php">
                     <i class="fas fa-fw fa-flag"></i>
@@ -41,7 +48,7 @@ if($_SERVER["HTTP_HOST"] == 'localhost') {
 
             <!-- Nav Item -->
             <!-- <li class="nav-item">
-                <a class="nav-link" href="<?=$PATH?>signalDeep/marketReview.php">
+                <a class="nav-link" href="<?=$PATH?>signalDeep/marketReviewIMI.php">
                     <i class="fas fa-fw fa-flag"></i>
                     <span>Market Review</span></a>
             </li> -->

@@ -57,7 +57,7 @@ $query = " SELECT STR_TO_DATE(A.date, '%Y%m%d') issue_date, DAYOFWEEK(A.date) - 
 			LEFT OUTER JOIN market_index C
 			on C.date = A.date
 			and C.market_fg = 'KOSDAQ'
-			LEFT OUTER JOIN siriens_report E
+			LEFT OUTER JOIN market_report E
 			ON E.report_date = A.date
 			LEFT OUTER JOIN (SELECT watchlist_date
 									, GROUP_CONCAT('<tr class=\'font-weight-bold\'><td>', CASE WHEN hot_theme = 'Y' THEN CONCAT('<font color=red>',today_theme,'</font>') ELSE today_theme END ,'</td></tr>' ORDER BY hot_theme DESC, tot_trade_amt DESC SEPARATOR '') today_theme

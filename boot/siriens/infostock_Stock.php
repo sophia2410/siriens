@@ -25,7 +25,7 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
 <?php
 	$query = " SELECT A.date, B.evening_subject, IF(C.proc_cnt>0,'Y', 'N') proc_yn
 				 FROM calendar A
-				 LEFT OUTER JOIN siriens_report B
+				 LEFT OUTER JOIN market_report B
 				   ON B.report_date = A.date
 				 LEFT OUTER JOIN (SELECT report_date, COUNT(*) proc_cnt FROM siriens_infostock WHERE report_date <= DATE_ADD(now(), INTERVAL 0 DAY) GROUP BY report_date ORDER BY report_date desc LIMIT 100) C
 				   ON C.report_date = A.date

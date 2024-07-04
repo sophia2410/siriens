@@ -149,7 +149,7 @@ function viewStock(wdate, sdate, cd, nm) {
 // 일자 선택 시 오른쪽 프레임에 내역 조회
 function viewDay(date) {
 	brWidth = window.innerWidth;
-	iframeR.src = "scenario_RD.php?search_fg=watchlist&search_date="+date+"&brWidth="+brWidth;
+	iframeR.src = "0dayStocks_R_0DayReview.php?search_fg=0dayStocks&search_date="+date+"&brWidth="+brWidth;
 	return;
 }
 

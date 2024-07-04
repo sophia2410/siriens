@@ -26,12 +26,10 @@ $signal_page = (isset($_POST['stock_nm'])) ? $_POST['stock_nm'] : '';
           display: flex;
         }
         .left {
-          flex: 3; /* 비율 3 */
-          background-color: #f2f2f2; /* 배경색은 예시로 추가한 것입니다 */
+          flex: 2; /* 비율 2 */
         }
         .right {
-          flex: 2; /* 비율 1 */
-          background-color: #d9d9d9; /* 배경색은 예시로 추가한 것입니다 */
+          flex: 2; /* 비율 2 */
         }
     </style>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"
@@ -97,14 +95,16 @@ $result = $mysqli->query($query);
 		</select>
         <button type="button" class="btn btn-danger btn-sm" onclick="xrayTick('0dayStocks','29.5', '0')">상한가</button>
         <button type="button" class="btn btn-danger btn-sm" onclick="xrayTick('0dayStocks','20','2000')">20% || 2000억↑</button>
+        <button type="button" class="btn btn-danger btn-sm" onclick="xrayTick('0dayStocks','0','0')">0일차모음</button>
         <button type="button" class="btn btn-danger btn-sm" onclick="xrayTick('mochaten')">모차십</button>
         <button type="button" class="btn btn-danger btn-sm" id="themeButton">최근테마(관.종)</button>
         <button type="button" class="btn btn-danger btn-sm" onclick="xrayTick('sophiaWatchlist','2 최근0일차☆','')">최근0일차(관.종)</button>
-        <button type="button" class="btn btn-danger btn-sm" onclick="xrayTick('xraytick')">최근일자</button> &nbsp; 
-        <input type=text id=buy_cnt style='width:30px' value=3>건/<input type=text id=buy_period style='width:30px' value=4>일내
+        <button type="button" class="btn btn-danger btn-sm" onclick="xrayTick('xraytick')">조회일자</button> &nbsp; 
+        <input type=text id=buy_cnt style='width:30px' value=4>건/<input type=text id=buy_period style='width:30px' value=7>일내
         <button type="button" class="btn btn-danger btn-sm" onclick="xrayTick('buy_streak')">연속매수</button> 
-        </div>
+    </div>
     <div class="right">
+    <button type="button" class="btn btn-info btn-sm" onclick="comment_save()">코멘트 저장</button> 
         <button type="button" class="btn btn-info btn-sm" id="excel_down">관종엑셀 다운로드</button>
     </div>
 </div>
@@ -114,7 +114,7 @@ $result = $mysqli->query($query);
     <tr>
         <td colspan=2>
             <div style="margin: 0; border: 0; font: inherit;vertical-align: baseline; padding: 0;height: calc(100vh - 80px);">
-                <iframe id="iframeB" style="width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 80px);" src="xrayTick_Date_B.php">
+                <iframe id="iframeB" style="width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 80px);" src="xrayTick_StockList.php">
                 </iframe>
             </div>
         </td>
@@ -189,21 +189,28 @@ function selectSector(id, name) {
 function xrayTick(pgmId, key1='', key2='') {
 	search_date  = document.getElementById('search_date').options[document.getElementById("search_date").selectedIndex].value;
     if(pgmId == '0dayStocks') {
-        parm = "&search_date=" + search_date + "&increase_rate=" + key1 + "&trade_amt=" + key2;
+        parm = "&increase_rate=" + key1 + "&trade_amt=" + key2;
     } else if(pgmId == 'mochaten') {
-        parm = "&search_date=" + search_date;
+        parm = "";
     } else if(pgmId == 'sophiaWatchlist') {
         parm = "&sector=" + key1 + "&theme=" + key2;
     } else if(pgmId == 'xraytick') {
-        parm = "&search_date=" + search_date;
+        parm = "";
     } else if(pgmId == 'buy_streak') {
         buy_cnt    = document.getElementById('buy_cnt').value;
         buy_period = document.getElementById('buy_period').value;
-        parm = "&search_date=" + kesearch_datey1 + "&buy_cnt=" + buy_cnt + "&buy_period=" + buy_period;
+        parm = "&buy_cnt=" + buy_cnt + "&buy_period=" + buy_period;
     }
 
-    iframeB.src = "xrayTick_StockList.php?pgmId=" + pgmId + parm;
+    iframeB.src = "xrayTick_StockList.php?pgmId=" + pgmId + "&search_date=" + search_date + parm;
     return;
+}
+
+
+// 코멘트 저장
+function comment_save() {
+    document.getElementById("iframeB").contentWindow.saveComment();
+	return;
 }
 
 </script>

@@ -54,5 +54,34 @@ try:
                 row['구분']          # type
             ))
         db.commit()
+
+    # 집계 테이블에서 기존 데이터 삭제
+    with db.cursor() as cursor:
+        del_summary_sql = f"DELETE FROM `kiwoom_xray_tick_summary` WHERE date = '{date}'"
+        cursor.execute(del_summary_sql)
+        db.commit()
+
+    # 집계 테이블에 데이터 삽입
+    with db.cursor() as cursor:
+        summary_sql = '''
+        INSERT INTO kiwoom_xray_tick_summary (date, code, name, tot_cnt, tot_volume, tot_amt)
+        SELECT 
+            date, 
+            code, 
+            name, 
+            COUNT(*) AS tot_cnt, 
+            SUM(volume) AS tot_volume, 
+            SUM(current_price * volume) AS tot_amt
+        FROM 
+            kiwoom_xray_tick_executions
+        WHERE
+            date = %s
+        GROUP BY 
+            date, code, name;
+        '''
+        cursor.execute(summary_sql, (date,))
+        db.commit()
+
+
 finally:
     db.close()

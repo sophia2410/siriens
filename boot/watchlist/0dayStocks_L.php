@@ -42,7 +42,7 @@ $query = " SELECT Y.date, STR_TO_DATE(Y.date, '%Y%m%d') watchlist_date_str, Z.*
 						INNER JOIN stock D
 						ON D.code = A.code
 						AND D.last_yn = 'Y'
-						LEFT OUTER JOIN siriens_report E
+						LEFT OUTER JOIN market_report E
 						ON E.report_date = A.watchlist_date
 						WHERE A.watchlist_date >= (select DATE_FORMAT(DATE_ADD('$watchlist_date', INTERVAL -30 DAY), '%Y%m%d'))
 						AND   A.watchlist_date <= '$watchlist_date'

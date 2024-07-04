@@ -45,32 +45,32 @@ if($code == '') {
 	$ready = 'N';
 }
 else {
-
-	echo "<table border=1 class='table table-sm text-dark'>";
+	echo "<table class='table table-sm text-dark'>";
 	// 차트 -- 네이버이미지
-		echo "<tr><td style='width: 700px;' rowspan=5>";
-		echo "<h4><b>$name</b><h4>";
-		echo "<img id='img_chart_area' src='https://ssl.pstatic.net/imgfinance/chart/item/candle/day/".$code.".png?sidcode=1681518352718' width='80%' alt='이미지 차트' onerror='this.src='https://ssl.pstatic.net/imgstock/chart3/world2008/error_700x289.png'>";
-		echo "</td></tr>";
+		echo "<tr><td style='width: 700px;' colspan=2>";
+		echo "<h4><b>$name</b><h4></td></tr>";
+		echo "<tr>";
+		echo "<td>일봉<br><img id='img_chart_area_day' src='https://ssl.pstatic.net/imgfinance/chart/item/candle/day/".$code.".png?sidcode=1681518352718' width='100%' alt='일봉'></td>";
+		echo "<td>주봉<br><img id='img_chart_area_week' src='https://ssl.pstatic.net/imgfinance/chart/item/candle/week/".$code.".png?sidcode=1681518352718' width='100%' alt='주봉'></td>";
+		echo "</tr>";
 	echo "</table>";
 
-
 		//X-RAY 순간체결 거래량
-		$query = "	SELECT cal.date, SUBSTR(STR_TO_DATE(cal.date, '%Y%m%d'),6) date_str, xray.close_rate, xray.amount, xray.cnt
+		$query = "	SELECT cal.date, SUBSTR(STR_TO_DATE(cal.date, '%Y%m%d'),6) date_str, xray.close_rate, xray.close_amt, xray.tot_trade_amt, xray.amount, xray.cnt
 					FROM calendar cal
 					LEFT OUTER JOIN 
 						(
-							SELECT xr.code, xr.name, xr.date, max(dp.close_rate) close_rate, round(sum(xr.volume*xr.current_price)/100000000,1) amount,  count(*) cnt, min(xr.time), max(xr.time) 
-							FROM kiwoom_xray_tick_executions xr
+							SELECT xr.code, xr.name, xr.date, dp.close_rate close_rate, dp.close close_amt, round(dp.amount/100000000,0) tot_trade_amt, round(xr.tot_amt/100000000,1) amount, xr.tot_cnt cnt
+							FROM kiwoom_xray_tick_summary xr
 							LEFT OUTER JOIN daily_price dp
 							ON dp.date = xr.date
 							AND dp.code = xr.code
 							WHERE xr.code = '$code'
-							GROUP BY xr.date
 						) xray
 					ON xray.date = cal.date
-					WHERE cal.date >= (select max(date) from calendar where date <=(select DATE_FORMAT(DATE_ADD(now(), INTERVAL -2 MONTH), '%Y%m%d')))
+					WHERE cal.date >= (select max(date) from calendar where date <=(select DATE_FORMAT(DATE_ADD(now(), INTERVAL -5 MONTH), '%Y%m%d')))
 					AND cal.date <= (select max(date) from calendar where date <=(select DATE_FORMAT(DATE_ADD(now(), INTERVAL 0 DAY), '%Y%m%d')))
+					AND cal.date >= '20240226'
 					ORDER BY cal.date desc
 					";
 
@@ -88,28 +88,56 @@ else {
 
 			if (!isset($weekly_data[$week_number])) {
 				$weekly_data[$week_number] = [
-					'Mon' => ['date' => '', 'close_rate' => '', 'amount' => '', 'cnt' => ''],
-					'Tue' => ['date' => '', 'close_rate' => '', 'amount' => '', 'cnt' => ''],
-					'Wed' => ['date' => '', 'close_rate' => '', 'amount' => '', 'cnt' => ''],
-					'Thu' => ['date' => '', 'close_rate' => '', 'amount' => '', 'cnt' => ''],
-					'Fri' => ['date' => '', 'close_rate' => '', 'amount' => '', 'cnt' => ''],
+					'Mon' => ['date' => '', 'close_rate' => '', 'close_amt' => '', 'tot_trade_amt' => '', 'amount' => '', 'cnt' => ''],
+					'Tue' => ['date' => '', 'close_rate' => '', 'close_amt' => '', 'tot_trade_amt' => '', 'amount' => '', 'cnt' => ''],
+					'Wed' => ['date' => '', 'close_rate' => '', 'close_amt' => '', 'tot_trade_amt' => '', 'amount' => '', 'cnt' => ''],
+					'Thu' => ['date' => '', 'close_rate' => '', 'close_amt' => '', 'tot_trade_amt' => '', 'amount' => '', 'cnt' => ''],
+					'Fri' => ['date' => '', 'close_rate' => '', 'close_amt' => '', 'tot_trade_amt' => '', 'amount' => '', 'cnt' => ''],
 				];
 			}
 			// 요일별 데이터 저장
 			if (isset($weekly_data[$week_number][$day_of_week])) {
-
 				$weekly_data[$week_number][$day_of_week]['date'] = "<td align=center width=90  style='background-color:#fae4f1;'><b><a href=\"javascript:callFrameR('".$date."')\">". $row['date_str']."</a></b></td>";
 				if($row['cnt'] > 0) {
-					$weekly_data[$week_number][$day_of_week]['close_rate'] = "<td align=center>". $row['close_rate']."%</td>";
-					$weekly_data[$week_number][$day_of_week]['cnt'] = "<td align=center>". number_format($row['cnt'])."</td>";
+					// 등락률 따라 스타일 적용
+					if($row['close_rate'] > 29.5)
+						$rate_style = "class='text-danger font-weight-bold'";
+					else if($row['close_rate'] > 15)
+						$rate_style = "class='text-danger'";
+					else
+						$rate_style = "";
 
-					// 거래대금에 따라 스타일 적용
-					$amt_style = ($row['amount'] > 500) ? "mark text-danger font-weight-bold" : (($row['amount'] > 100) ? "text-danger font-weight-bold" : "font-weight-bold");
-					$weekly_data[$week_number][$day_of_week]['amount'] = "<td align=center class='".$amt_style."'>". number_format($row['amount'])."억</td>";
+					// 총 거래대금에 따라 스타일 적용
+					if($row['tot_trade_amt'] >= 1000)
+						$tot_amt_style = "style='color:#fcb9b2;' class='font-weight-bold'";
+					else if($row['tot_trade_amt'] >= 500)
+						$tot_amt_style = "style='color:#ffccd5;' class='font-weight-bold'";
+					else if($row['tot_trade_amt'] < 9)
+						$tot_amt_style = "class='small'";
+					else
+						$tot_amt_style = "";
+
+					// xray 거래대금에 따라 스타일 적용
+					if($row['amount'] >= 500)
+						$amt_style = "mark text-danger font-weight-bold h6";
+					else if($row['amount'] >= 100)
+						$amt_style = "text-danger font-weight-bold h6";
+					else if($row['amount'] < 9)
+						$amt_style = "small";
+					else
+						$amt_style = "font-weight-bold";
+
+					$weekly_data[$week_number][$day_of_week]['close_rate'] = "<td align=center $rate_style>". $row['close_rate']."%</td>";
+					$weekly_data[$week_number][$day_of_week]['tot_trade_amt'] = "<td align=center $tot_amt_style>". number_format($row['tot_trade_amt'])."</td>";
+					$weekly_data[$week_number][$day_of_week]['close_amt'] = "<td align=center>". number_format($row['close_amt'])."</td>";
+					$weekly_data[$week_number][$day_of_week]['cnt'] = "<td align=right>". number_format($row['cnt'])."</td>";
+					$weekly_data[$week_number][$day_of_week]['amount'] = "<td align=right class='{$amt_style}'>". number_format($row['amount'])."</td>";
 				} else {
-					$weekly_data[$week_number][$day_of_week]['close_rate'] = "<td align=center>-</td>";
-					$weekly_data[$week_number][$day_of_week]['cnt'] = "<td align=center>-</td>";
-					$weekly_data[$week_number][$day_of_week]['amount'] = "<td align=center>-</td>";
+					$weekly_data[$week_number][$day_of_week]['close_rate'] = "<td align=center>&nbsp;</td>";
+					$weekly_data[$week_number][$day_of_week]['tot_trade_amt'] = "<td align=center>&nbsp;</td>";
+					$weekly_data[$week_number][$day_of_week]['close_amt'] = "<td align=center>&nbsp;</td>";
+					$weekly_data[$week_number][$day_of_week]['cnt'] = "<td align=center>&nbsp;</td>";
+					$weekly_data[$week_number][$day_of_week]['amount'] = "<td align=center>&nbsp;</td>";
 				}
 			}
 		}
@@ -135,12 +163,24 @@ else {
 					echo $data[$day]['close_rate'] ?? "<td></td>";
 				}
 			}
-			echo "</tr><tr>";  // 거래량 행
+			echo "</tr><tr>";  // 총 거래대금 행
 			foreach ($pair as $week => $data) {
 				foreach (['Fri', 'Thu', 'Wed', 'Tue', 'Mon'] as $day) {
-					echo $data[$day]['cnt'] ?? "<td></td>";
+					echo $data[$day]['tot_trade_amt'] ?? "<td></td>";
 				}
 			}
+			echo "</tr><tr>";  // 종가
+			foreach ($pair as $week => $data) {
+				foreach (['Fri', 'Thu', 'Wed', 'Tue', 'Mon'] as $day) {
+					echo $data[$day]['close_amt'] ?? "<td></td>";
+				}
+			}
+			// echo "</tr><tr>";  // 거래량 행
+			// foreach ($pair as $week => $data) {
+			// 	foreach (['Fri', 'Thu', 'Wed', 'Tue', 'Mon'] as $day) {
+			// 		echo $data[$day]['cnt'] ?? "<td></td>";
+			// 	}
+			// }
 			echo "</tr><tr>";  // 거래대금 행
 			foreach ($pair as $week => $data) {
 				foreach (['Fri', 'Thu', 'Wed', 'Tue', 'Mon'] as $day) {

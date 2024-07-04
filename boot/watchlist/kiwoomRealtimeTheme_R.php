@@ -98,6 +98,8 @@ $where = '';
 if($theme != '') {
 	echo $sector."&nbsp;".$theme;
 	$where = "AND m.code IN (SELECT code FROM watchlist_sophia WHERE sector = '$sector' AND theme = '$theme')";
+// } else { // 임시로 '2 최근0일차☆' 만 보이게 처리 24.06.20
+// 	$where = "AND m.code IN (SELECT code FROM watchlist_sophia WHERE sector = '2 최근0일차☆')";
 }
 ?>
 

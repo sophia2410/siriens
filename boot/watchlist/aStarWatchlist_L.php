@@ -39,6 +39,7 @@ $result = $mysqli->query($query);
 		echo "<tr>";
 		if($pre_theme != $row['sector'].$row['theme'])
 			echo "<td><a href=\"javascript:callViewChart('".$row['sector']."','".$row['theme']."')\"><b>".$row['theme']."</b></a></td>" ;
+			echo "<td><a href=\"javascript:callxrayTick('".$row['sector']."','".$row['theme']."')\"><img style='width:20px; height:20px; border:solid thin' src='https://siriens.mycafe24.com/image/view_review.png'></a></td>";
 		echo "</tr>" ;
 
 		$pre_sector = $row['sector'];
@@ -52,6 +53,11 @@ $result = $mysqli->query($query);
 // parent 함수 호출, 오른쪽 프레임 종목정보 표시
 function callViewChart(sector, theme) {
 	window.parent.viewChart(sector, theme);
+}
+
+// parent 함수 호출, 오른쪽 프레임 종목정보 표시
+function callxrayTick(sector, theme) {
+	window.parent.xrayTick(sector, theme);
 }
 </script>
 </html>

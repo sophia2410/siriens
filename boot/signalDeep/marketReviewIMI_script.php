@@ -23,7 +23,7 @@ if(isset($_POST['proc_fg'])) {
 			$content_val = str_replace("'", "\'", $_POST[$str]);
 			$content_val = str_replace('"', '\"', $content_val);
 
-			$query = "UPDATE siriens_market_review
+			$query = "UPDATE market_report_imi
 						 SET content_str = '$content_val'
 						WHERE report_date = '".$_POST['report_date']."'
 						AND content_cd = '$_POST[$cd]'";

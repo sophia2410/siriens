@@ -43,7 +43,7 @@ $query = " SELECT Z.*
 					INNER JOIN stock D
 					ON D.code = A.code
 					AND D.last_yn = 'Y'
-					LEFT OUTER JOIN siriens_report E
+					LEFT OUTER JOIN market_report E
 					ON E.report_date = A.scenario_date
 					INNER JOIN daily_watchlist S
 					ON S.watchlist_date = A.watchlist_date

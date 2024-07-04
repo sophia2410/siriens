@@ -119,6 +119,50 @@ if($_POST['proc_fg'] == 'D') {	// 뉴스삭제처리
 		$mysqli->query($qry);
 
 		// signals 테이블에 뉴스 데이터 반영
+		// 같은 뉴스에 종목이 중복 등록된 경우 제일 먼저 적용된 종목이 signals 테이블에 반영되도록 수정 - 2024.06.23
+		// $qry = "INSERT INTO signals
+		// 		(
+		// 			date,
+		// 			news_date,
+		// 			time,
+		// 			title,
+		// 			content,
+		// 			publisher,
+		// 			writer,
+		// 			link,
+		// 			code,
+		// 			name,
+		// 			grouping,
+		// 			keyword,
+		// 			remark,
+		// 			confirm_fg,
+		// 			create_date ,
+		// 			create_id
+		// 		)
+		// 		SELECT date,
+		// 				date,
+		// 				time,
+		// 				title,
+		// 				content,
+		// 				publisher,
+		// 				writer,
+		// 				link,
+		// 				code,
+		// 				stock,
+		// 				grouping,
+		// 				keyword,
+		// 				stocks,
+		// 				'1',
+		// 				now(),
+		// 				now()
+		// 			FROM rawdata_siri_report A
+		// 			WHERE page_date = '$_POST[page_date]'
+		// 			AND page_fg = '$_POST[page_fg]'
+		// 			AND exists_yn = 'N'
+		// 			AND del_yn	  = 'N'
+		// 			AND link is not null";
+		
+		// 같은 뉴스에 종목이 중복 등록된 경우 제일 먼저 적용된 종목이 signals 테이블에 반영되는 쿼리 - 2024.06.23
 		$qry = "INSERT INTO signals
 				(
 					date,
@@ -135,31 +179,37 @@ if($_POST['proc_fg'] == 'D') {	// 뉴스삭제처리
 					keyword,
 					remark,
 					confirm_fg,
-					create_date ,
+					create_date,
 					create_id
 				)
-				SELECT date,
-						date,
-						time,
-						title,
-						content,
-						publisher,
-						writer,
-						link,
-						code,
-						stock,
-						grouping,
-						keyword,
-						stocks,
-						'1',
-						now(),
-						now()
-					FROM rawdata_siri_report A
+				SELECT
+					date,
+					date AS news_date,
+					time,
+					title,
+					content,
+					publisher,
+					writer,
+					link,
+					code,
+					stock AS name,
+					grouping,
+					keyword,
+					stocks AS remark,
+					'1' AS confirm_fg,
+					NOW() AS create_date,
+					NOW() AS create_id
+				FROM rawdata_siri_report
+				WHERE id IN (
+					SELECT MIN(id)
+					FROM rawdata_siri_report
 					WHERE page_date = '$_POST[page_date]'
 					AND page_fg = '$_POST[page_fg]'
 					AND exists_yn = 'N'
-					AND del_yn	  = 'N'
-					AND link is not null";
+					AND del_yn = 'N'
+					AND link IS NOT NULL
+					GROUP BY link
+				)";
 
 		echo $qry."<br><br>";
 		$mysqli->query($qry);
@@ -238,7 +288,7 @@ if($_POST['proc_fg'] == 'D') {	// 뉴스삭제처리
 	// 2023.09.23 주석 END------------------------------------------------------------------------------------------------
 
 		// siriens_report 에 title 적용
-		$qry = "REPLACE INTO siriens_report
+		$qry = "REPLACE INTO market_report
 				(
 					report_date,
 					evening_subject

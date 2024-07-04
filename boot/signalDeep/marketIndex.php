@@ -60,7 +60,7 @@ $query = " SELECT STR_TO_DATE(A.date, '%Y%m%d') report_date, DAYOFWEEK(A.date) -
 			FROM calendar A
 			LEFT OUTER JOIN siriens_report B
 			ON B.report_date = A.date
-			LEFT OUTER JOIN siriens_market_index C
+			LEFT OUTER JOIN infostock_market_index C
 			ON C.report_date = A.date
 			WHERE A.date BETWEEN CONCAT('$report_mon','01') AND CONCAT('$report_mon','31')
 			ORDER BY A.date, C.index_cd";

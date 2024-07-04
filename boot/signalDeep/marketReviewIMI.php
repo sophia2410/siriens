@@ -49,7 +49,7 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
 
 
 	<div style="margin: 0; border: 0; font: inherit;vertical-align: baseline; padding: 0;height: calc(100vh - 100px);">
-		<iframe id="iframe" style="width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 100px);" src="marketReview_B.php">
+		<iframe id="iframe" style="width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 100px);" src="marketReviewIMI_B.php">
 		</iframe>
 	</div>
 </div>
@@ -74,7 +74,7 @@ function search() {
 
 	brWidth = window.innerWidth;
 	report_date = document.getElementById('report_dt').value;
-	iframe.src = "marketReview_B.php?report_date="+report_date+"&brWidth="+brWidth;
+	iframe.src = "marketReviewIMI_B.php?report_date="+report_date+"&brWidth="+brWidth;
 	return;
 }
 

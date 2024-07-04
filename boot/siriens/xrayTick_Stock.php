@@ -2,8 +2,8 @@
     require($_SERVER['DOCUMENT_ROOT']."/boot/common/top.php");
 	require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 
-	$signal_page = (isset($_POST['stock'])) ? $_POST['stock'] : '';
-	$signal_page = (isset($_POST['stock_nm'])) ? $_POST['stock_nm'] : '';
+	$stock = (isset($_GET['stock'])) ? $_GET['stock'] : '';
+	$stock_nm = (isset($_GET['stock_nm'])) ? $_GET['stock_nm'] : '';
 ?>
 </head>
 
@@ -24,8 +24,8 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
 <table style="width:100%; height:100%" class="table table-danger text-dark">
 	<tr>
 			<label>종목</label>
-			<input type=text id=stock    name=stock placeholder='종목코드'>
-			<input type=text id=stock_nm name=stock_nm  placeholder='종목명' onkeydown='keyDown()'>
+			<input type=text id=stock    name=stock value='<?=$stock?>' placeholder='종목코드'>
+			<input type=text id=stock_nm name=stock_nm value='<?=$stock_nm?>' placeholder='종목명' onkeydown='keyDown()'>
 
 			<input type=button value="조 회" class="" onclick='getList()'> &nbsp;&nbsp;
 	</tr>
@@ -80,7 +80,14 @@ function viewDetail(date) {
 	code  = document.getElementById("stock").value;
 	brWidth = window.innerWidth;
 	iframeR.src = "xrayTick_Stock_R.php?date="+date+"&code="+code+"&brWidth="+brWidth;
+	iframeR.src = "/boot/common/popup/stock_xray_tick.php?date="+date+"&code="+code+"&brWidth="+brWidth;
 	return;
+}
+window.onload = function() {
+	var stock = document.getElementById('stock');
+	if (stock.value != '') {
+		getList();
+	}
 }
 </script>
 

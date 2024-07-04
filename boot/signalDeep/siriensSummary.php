@@ -134,9 +134,9 @@ else {
 	// 			ORDER BY A.date, D.today_theme_rank, D.today_theme_nm, C.stock_keyword, C.close_rate DESC";
 
 	// 테마 - 시리언즈이브닝 기준 뽑아오기
-	$query = " SELECT STR_TO_DATE(A.date, '%Y%m%d') report_date, DAYOFWEEK(A.date) - 2 arr_idx , B.evening_subject, D.today_theme_cd, D.today_theme_nm, D.today_theme_rank, C.code, C.name, C.close_rate, C.volume, C.tot_trade_amt, C.stock_keyword
+	$query = " SELECT STR_TO_DATE(A.date, '%Y%m%d') report_date, DAYOFWEEK(A.date) - 2 arr_idx , B.evening_subject, '' today_theme_cd, '' today_theme_nm, '' today_theme_rank, C.code, C.name, C.close_rate, C.volume, C.tot_trade_amt, C.stock_keyword
 				FROM calendar A
-				LEFT OUTER JOIN siriens_report B
+				LEFT OUTER JOIN market_report B
 				ON B.report_date = A.date
 				INNER JOIN (SELECT M.code, M.name, CH.trade_date, CH.close_rate, CH.volume, CH.tot_trade_amt, CH.stock_keyword
 							FROM   stock M, mochaten CH
@@ -146,21 +146,9 @@ else {
 							AND M.last_yn = 'Y'
 							) C
 				ON C.trade_date = A.date
-				LEFT OUTER JOIN (SELECT report_date
-										, code
-										, GROUP_CONCAT(G.keyword_cd ORDER BY G.sort_no, G.keyword_cd) today_theme_cd
-										, GROUP_CONCAT(G.keyword_nm ORDER BY G.sort_no, G.keyword_cd) today_theme_nm
-										, 0 today_theme_rank
-									FROM siriens_report_keyword F
-									INNER JOIN theme_keyword G
-									ON F.keyword_cd = G.keyword_cd 
-									AND G.keyword_fg IN ('G','C')
-									GROUP BY report_date, code) D
-				ON  D.report_date = C.trade_date
-				AND D.code = C.code
 				WHERE A.date BETWEEN CONCAT('$report_mon','01') AND CONCAT('$report_mon','31')
 				$sub_query
-				ORDER BY A.date, D.today_theme_rank, D.today_theme_nm, C.stock_keyword, C.close_rate DESC";
+				ORDER BY A.date, C.stock_keyword, C.close_rate DESC";
 
 	// echo "<pre>$query</pre>";
 	$result = $mysqli->query($query);
