@@ -85,11 +85,38 @@ else {
                 var low = data[i][3];
                 var close = data[i][4];
                 var close_rate = data[i][5];
+                var volume_val = data[i][6];
                 var amount = data[i][7];
                 var xray_amount = data[i][8];
 
                 ohlc.push([date, open, high, low, close]);
-                volume.push([date, data[i][6]]);
+                volume.push([date, volume_val]);
+
+                
+                // 이동평균선 계산
+                if (i >= 2) ma3.push({ date: date, value: (data[i][4] + data[i-1][4] + data[i-2][4]) / 3 });
+                if (i >= 4) ma5.push({ date: date, value: (data[i][4] + data[i-1][4] + data[i-2][4] + data[i-3][4] + data[i-4][4]) / 5 });
+                if (i >= 7) ma8.push({ date: date, value: (data[i][4] + data[i-1][4] + data[i-2][4] + data[i-3][4] + data[i-4][4] + data[i-5][4] + data[i-6][4] + data[i-7][4]) / 8 });
+                if (i >= 19) ma20.push({ date: date, value: (function() {
+                    var sum = 0;
+                    for (var j = 0; j < 20; j++) sum += data[i-j][4];
+                    return sum / 20;
+                })() });
+                if (i >= 59) ma60.push({ date: date, value: (function() {
+                    var sum = 0;
+                    for (var j = 0; j < 60; j++) sum += data[i-j][4];
+                    return sum / 60;
+                })() });
+                if (i >= 119) ma120.push({ date: date, value: (function() {
+                    var sum = 0;
+                    for (var j = 0; j < 120; j++) sum += data[i-j][4];
+                    return sum / 120;
+                })() });
+                if (i >= 223) ma224.push({ date: date, value: (function() {
+                    var sum = 0;
+                    for (var j = 0; j < 224; j++) sum += data[i-j][4];
+                    return sum / 224;
+                })() });
 
                 if (amount > 100000000000 && close_rate > 15) {
                     xAxisPlotLines.push({
@@ -229,30 +256,6 @@ else {
                     });
                 }
 
-                // 이동평균선 계산
-                if (i >= 2) ma3.push([date, (data[i][4] + data[i-1][4] + data[i-2][4]) / 3]);
-                if (i >= 4) ma5.push([date, (data[i][4] + data[i-1][4] + data[i-2][4] + data[i-3][4] + data[i-4][4]) / 5]);
-                if (i >= 8) ma8.push([date, (data[i][4] + data[i-1][4] + data[i-2][4] + data[i-3][4] + data[i-4][4] + data[i-5][4] + data[i-6][4] + data[i-7][4]) / 8]);
-                if (i >= 19) ma20.push([date, (function() {
-                    var sum = 0;
-                    for (var j = 0; j < 20; j++) sum += data[i-j][4];
-                    return sum / 20;
-                })()]);
-                if (i >= 59) ma60.push([date, (function() {
-                    var sum = 0;
-                    for (var j = 0; j < 60; j++) sum += data[i-j][4];
-                    return sum / 60;
-                })()]);
-                if (i >= 119) ma120.push([date, (function() {
-                    var sum = 0;
-                    for (var j = 0; j < 120; j++) sum += data[i-j][4];
-                    return sum / 120;
-                })()]);
-                if (i >= 223) ma224.push([date, (function() {
-                    var sum = 0;
-                    for (var j = 0; j < 224; j++) sum += data[i-j][4];
-                    return sum / 224;
-                })()]);
             }
 
             // Highcharts 차트를 생성합니다.
@@ -332,6 +335,9 @@ else {
                     shared: true,
                     useHTML: true,
                     formatter: function () {
+                        var index = this.points[0].point.index;
+                        var amount = this.points[0].point.amount;
+                        var xray_amount = this.points[0].point.xray_amount;
                         var tooltipHtml = '<div style="text-align: left;">';
                         tooltipHtml += '<b>' + name + '</b><br>';
                         tooltipHtml += '<b>' + Highcharts.dateFormat('%Y-%m-%d', this.x) + '</b><br>';
@@ -340,6 +346,16 @@ else {
                         tooltipHtml += '저가: ' + Highcharts.numberFormat(this.points[0].point.low, 0, '.', ',') + '<br>';
                         tooltipHtml += '종가: ' + Highcharts.numberFormat(this.points[0].point.close, 0, '.', ',') + '<br>';
                         tooltipHtml += '<br>';
+                        tooltipHtml += '거래량: ' + Highcharts.numberFormat(this.points[1].y / 1000, 0, '.', ',') + 'K<br>';
+                        tooltipHtml += '거래대금: ' + Highcharts.numberFormat(data[index][7] / 100000000, 1, '.', ',') + '억<br>';
+                        tooltipHtml += 'Xray 거래대금: ' + Highcharts.numberFormat(data[index][8] / 100000000, 1, '.', ',') + '억<br>';
+                        tooltipHtml += '<br>';
+                        tooltipHtml += '3이평: ' + (index >= 2 ? Highcharts.numberFormat(ma3.find(m => m.date === this.x).value, 0, '.', ',') : 'N/A') + '<br>';
+                        tooltipHtml += '5이평: ' + (index >= 4 ? Highcharts.numberFormat(ma5.find(m => m.date === this.x).value, 0, '.', ',') : 'N/A') + '<br>';
+                        tooltipHtml += '20이평: ' + (index >= 19 ? Highcharts.numberFormat(ma20.find(m => m.date === this.x).value, 0, '.', ',') : 'N/A') + '<br>';
+                        tooltipHtml += '60이평: ' + (index >= 59 ? Highcharts.numberFormat(ma60.find(m => m.date === this.x).value, 0, '.', ',') : 'N/A') + '<br>';
+                        tooltipHtml += '120이평: ' + (index >= 119 ? Highcharts.numberFormat(ma120.find(m => m.date === this.x).value, 0, '.', ',') : 'N/A') + '<br>';
+                        tooltipHtml += '224이평: ' + (index >= 223 ? Highcharts.numberFormat(ma224.find(m => m.date === this.x).value, 0, '.', ',') : 'N/A') + '<br>';
                         tooltipHtml += '</div>';
                         return tooltipHtml;
                     },
@@ -420,7 +436,7 @@ else {
                 }, {
                     type: 'line',
                     name: 'MA 3',
-                    data: ma3,
+                    data: ma3.map(m => [m.date, m.value]),
                     color: 'rgb(219, 27, 180)',
                     dashStyle: 'shortdash',
                     zIndex: 1,
@@ -428,7 +444,7 @@ else {
                 }, {
                     type: 'line',
                     name: 'MA 5',
-                    data: ma5,
+                    data: ma5.map(m => [m.date, m.value]),
                     color: 'rgb(219, 27, 180)',
                     dashStyle: 'solid',
                     zIndex: 1,
@@ -436,7 +452,7 @@ else {
                 }, {
                     type: 'line',
                     name: 'MA 8',
-                    data: ma8,
+                    data: ma8.map(m => [m.date, m.value]),
                     color: 'green',
                     dashStyle: 'longdash',
                     zIndex: 1,
@@ -444,7 +460,7 @@ else {
                 }, {
                     type: 'line',
                     name: 'MA 20',
-                    data: ma20,
+                    data: ma20.map(m => [m.date, m.value]),
                     color: 'rgb(239, 174, 0)',
                     dashStyle: 'solid',
                     zIndex: 1,
@@ -452,7 +468,7 @@ else {
                 }, {
                     type: 'line',
                     name: 'MA 60',
-                    data: ma60,
+                    data: ma60.map(m => [m.date, m.value]),
                     color: 'rgb(10, 41, 174)',
                     dashStyle: 'solid',
                     zIndex: 1,
@@ -460,7 +476,7 @@ else {
                 }, {
                     type: 'line',
                     name: 'MA 120',
-                    data: ma120,
+                    data: ma120.map(m => [m.date, m.value]),
                     color: 'rgb(77, 77, 77)',
                     dashStyle: 'shortdot',
                     zIndex: 1,
@@ -468,7 +484,7 @@ else {
                 }, {
                     type: 'line',
                     name: 'MA 224',
-                    data: ma224,
+                    data: ma224.map(m => [m.date, m.value]),
                     color: 'rgb(119, 119, 119)',
                     dashStyle: 'solid',
                     zIndex: 1,
