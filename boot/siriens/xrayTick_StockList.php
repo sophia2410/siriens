@@ -373,13 +373,16 @@ if($pgmId == '') {
 		$stock_name = $row['name'];
 
 		// xray_tick 조회 화면 연결
-		$xray_tick_detail = "<a href='../siriens/xrayTick_stock.php?stock=".$row['code']."&stock_nm=".$stock_name."' onclick='window.open(this.href, \'stock\', '');return false;' target='_blank'>(+)</a>";
+		$xray_tick_detail1 = "<a href='../siriens/xrayTick_stock.php?stock=".$row['code']."&stock_nm=".$stock_name."' onclick='window.open(this.href, \'stock\', '');return false;' target='_blank'>(→)</a>";
+		//그래프를 잘 보기 위해 팝업으로 연결
+		$xray_tick_detail2 = "<a href='#' onclick=\"window.open('../siriens/xrayTick_stock_L.php?code=".$row['code']."&name=".$stock_name."', 'stock', 'width=1500,height=1800,scrollbars=yes'); return false;\" target='_blank'>(+)</a>";
+
 
 		// echo "<div class='col-xl-3 col-md-6 mb-4' style='margin: 0; margin-left:10px margin-right:10px'>
 		echo "<div class='row no-gutters align-items-center'>
 				<div class='col mr-0'>
 					<div class='font-weight-bold text-primary text-uppercase mb-1' style='height:35px; line-height:35px;'>$mochaten_cnt
-						<font class='h4'><span class='draggable' id=stock_nm$d draggable='true'><b><a href='../siriens/stock_B.php?code=".$row['code']."&name=".$stock_name."&brWidth=2500' onclick='window.open(this.href, \'stock\', 'width=2500px,height=850,scrollbars=1,resizable=yes');return false;' target='_blank'>".$stock_name."</a></b></span>".$row['talent_fg']."</font> &nbsp; $xray_tick_detail &nbsp;".$realtime_data."
+						<font class='h4'><span class='draggable' id=stock_nm$d draggable='true'><b><a href='../siriens/stock_B.php?code=".$row['code']."&name=".$stock_name."&brWidth=2500' onclick='window.open(this.href, \'stock\', 'width=2500px,height=850,scrollbars=1,resizable=yes');return false;' target='_blank'>".$stock_name."</a></b></span>".$row['talent_fg']."</font> &nbsp; $xray_tick_detail1 &nbsp;$xray_tick_detail2 &nbsp;".$realtime_data."
 					</div>
 					<div class='font-weight-bold mb-1 style='margin: 0;'>
 						$info_0day

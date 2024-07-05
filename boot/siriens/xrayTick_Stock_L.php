@@ -36,6 +36,11 @@ $code = (isset($_GET['code'])) ? $_GET['code'] : '';
 $name = (isset($_GET['name'])) ? $_GET['name'] : '';
 ?>
 
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://code.highcharts.com/stock/highstock.js"></script>
+    <script src="https://code.highcharts.com/modules/annotations.js"></script>
+</head>
+
 <body>
 <form name="form1" method='POST' action='siriensEvening_script.php' onsubmit="return false">
 
@@ -45,15 +50,436 @@ if($code == '') {
 	$ready = 'N';
 }
 else {
-	echo "<table class='table table-sm text-dark'>";
-	// 차트 -- 네이버이미지
-		echo "<tr><td style='width: 700px;' colspan=2>";
-		echo "<h4><b>$name</b><h4></td></tr>";
-		echo "<tr>";
-		echo "<td>일봉<br><img id='img_chart_area_day' src='https://ssl.pstatic.net/imgfinance/chart/item/candle/day/".$code.".png?sidcode=1681518352718' width='100%' alt='일봉'></td>";
-		echo "<td>주봉<br><img id='img_chart_area_week' src='https://ssl.pstatic.net/imgfinance/chart/item/candle/week/".$code.".png?sidcode=1681518352718' width='100%' alt='주봉'></td>";
-		echo "</tr>";
-	echo "</table>";
+?>
+
+	<div id="container" style="height: 600px; min-width: 310px;"></div>
+    
+    <script>
+    $(document).ready(function() {
+        var code = '<?= $code ?>';
+        var name = '<?= $name ?>';
+        
+        $.getJSON('/boot/common/ajax/ajaxHighcharts.php', { code: code }, function(data) {
+            if (data.message) {
+                alert(data.message);
+                return;
+            }
+            var ohlc = [],
+                volume = [],
+                xAxisPlotLines = [], // xAxis plotLines array
+                annotations = [],
+                dataLength = data.length,
+                ma3 = [],
+                ma5 = [],
+                ma8 = [],
+                ma20 = [],
+                ma60 = [],
+                ma120 = [],
+                ma224 = [],
+                i = 0;
+
+            for (i; i < dataLength; i += 1) {
+                var date = data[i][0];
+                var open = data[i][1];
+                var high = data[i][2];
+                var low = data[i][3];
+                var close = data[i][4];
+                var close_rate = data[i][5];
+                var amount = data[i][7];
+                var xray_amount = data[i][8];
+
+                ohlc.push([date, open, high, low, close]);
+                volume.push([date, data[i][6]]);
+
+                if (amount > 100000000000 && close_rate > 15) {
+                    xAxisPlotLines.push({
+                        color: 'rgb(204, 255, 204)',
+                        width: 6,
+                        value: date,
+                        dashStyle: 'solid',
+                        zIndex: 3 // 캔들보다 낮은 zIndex 설정
+                    });
+                }
+				
+				// xray-tick 대금에 따른 표시
+				// 1천억 이상
+				if (xray_amount > 100000000000) {
+                    annotations.push({
+                        labels: [{
+                            point: {
+                                xAxis: 0,
+                                yAxis: 0,
+                                x: date,
+                                y: high
+                            },
+                            text: '★',
+                            style: {
+                                color: 'red',
+                                fontSize: '12px',
+                                fontWeight: 'bold'
+                            },
+							backgroundColor: 'transparent',
+							borderColor: 'transparent'
+                        }]
+                    });
+                }
+				// 5백억 이상
+				else if (xray_amount > 50000000000) {
+                    annotations.push({
+                        labels: [{
+                            point: {
+                                xAxis: 0,
+                                yAxis: 0,
+                                x: date,
+                                y: high
+                            },
+                            text: '◆',
+                            style: {
+                                color: 'red',
+                                fontSize: '12px',
+                                fontWeight: 'bold'
+                            },
+							backgroundColor: 'transparent',
+							borderColor: 'transparent'
+                        }]
+                    });
+                }
+				// 1백억 이상
+				else if (xray_amount > 10000000000) {
+                    annotations.push({
+                        labels: [{
+                            point: {
+                                xAxis: 0,
+                                yAxis: 0,
+                                x: date,
+                                y: high
+                            },
+                            text: '◇',
+                            style: {
+                                color: 'red',
+                                fontSize: '12px',
+                                fontWeight: 'bold'
+                            },
+							backgroundColor: 'transparent',
+							borderColor: 'transparent'
+                        }]
+                    });
+                }
+				// 50억 이상
+				else if (xray_amount > 5000000000) {
+                    annotations.push({
+                        labels: [{
+                            point: {
+                                xAxis: 0,
+                                yAxis: 0,
+                                x: date,
+                                y: high
+                            },
+                            text: '▲',
+                            style: {
+                                color: 'black',
+                                fontSize: '12px',
+                                fontWeight: 'bold'
+                            },
+							backgroundColor: 'transparent',
+							borderColor: 'transparent'
+                        }]
+                    });
+                }
+                // 30억 이상
+				else if (xray_amount > 3000000000) {
+                    annotations.push({
+                        labels: [{
+                            point: {
+                                xAxis: 0,
+                                yAxis: 0,
+                                x: date,
+                                y: high
+                            },
+                            text: '△',
+                            style: {
+                                color: 'black',
+                                fontSize: '12px',
+                                fontWeight: 'bold'
+                            },
+							backgroundColor: 'transparent',
+							borderColor: 'transparent'
+                        }]
+                    });
+                }
+				// 10억 이상
+				else if (xray_amount > 1000000000) {
+                    annotations.push({
+                        labels: [{
+                            point: {
+                                xAxis: 0,
+                                yAxis: 0,
+                                x: date,
+                                y: high
+                            },
+                            text: '↑',
+                            style: {
+                                color: 'black',
+                                fontSize: '12px',
+                                fontWeight: 'bold'
+                            },
+							backgroundColor: 'transparent',
+							borderColor: 'transparent'
+                        }]
+                    });
+                }
+
+                // 이동평균선 계산
+                if (i >= 2) ma3.push([date, (data[i][4] + data[i-1][4] + data[i-2][4]) / 3]);
+                if (i >= 4) ma5.push([date, (data[i][4] + data[i-1][4] + data[i-2][4] + data[i-3][4] + data[i-4][4]) / 5]);
+                if (i >= 8) ma8.push([date, (data[i][4] + data[i-1][4] + data[i-2][4] + data[i-3][4] + data[i-4][4] + data[i-5][4] + data[i-6][4] + data[i-7][4]) / 8]);
+                if (i >= 19) ma20.push([date, (function() {
+                    var sum = 0;
+                    for (var j = 0; j < 20; j++) sum += data[i-j][4];
+                    return sum / 20;
+                })()]);
+                if (i >= 59) ma60.push([date, (function() {
+                    var sum = 0;
+                    for (var j = 0; j < 60; j++) sum += data[i-j][4];
+                    return sum / 60;
+                })()]);
+                if (i >= 119) ma120.push([date, (function() {
+                    var sum = 0;
+                    for (var j = 0; j < 120; j++) sum += data[i-j][4];
+                    return sum / 120;
+                })()]);
+                if (i >= 223) ma224.push([date, (function() {
+                    var sum = 0;
+                    for (var j = 0; j < 224; j++) sum += data[i-j][4];
+                    return sum / 224;
+                })()]);
+            }
+
+            // Highcharts 차트를 생성합니다.
+            Highcharts.stockChart('container', {
+                rangeSelector: {
+                    selected: 2, // 6개월 기본 조회로 설정
+                    buttons: [{
+                        type: 'month',
+                        count: 1,
+                        text: '1m'
+                    }, {
+                        type: 'month',
+                        count: 3,
+                        text: '3m'
+                    }, {
+                        type: 'month',
+                        count: 6,
+                        text: '6m'
+                    }, {
+                        type: 'ytd',
+                        text: 'YTD'
+                    }, {
+                        type: 'year',
+                        count: 1,
+                        text: '1y'
+                    }, {
+                        type: 'all',
+                        text: 'All'
+                    }]
+                },
+                chart: {
+                    marginRight: 80 // 오른쪽 여백 추가
+                },
+                xAxis: {
+                    plotLines: xAxisPlotLines, // xAxis에 세로선을 추가
+                    labels: {
+                        x: 10 // 오른쪽 여백 추가
+                    }
+                },
+                yAxis: [{
+                    labels: {
+                        align: 'right',
+                        x: 50, // 왼쪽 여백 추가
+                        formatter: function() {
+                            return Highcharts.numberFormat(this.value, 0, '.', ','); // 모든 값을 포맷팅하여 표시
+                        }
+                    },
+                    height: '85%', // OHLC 차트의 높이
+                    lineWidth: 2,
+                    resize: {
+                        enabled: true
+                    }
+                }, {
+                    labels: {
+                        align: 'right',
+                        x: -10 // 왼쪽 여백 추가
+                    },
+                    title: {
+                        text: 'Volume'
+                    },
+                    top: '87%', // Volume 차트의 시작 위치
+                    height: '13%', // Volume 차트의 높이
+                    offset: 0,
+                    lineWidth: 2
+                }],
+                subtitle: {
+                    text: '['+ code + ']' + name + ' - ' + '★: 1천억 이상, ◆: 5백억 이상, ◇: 1백억 이상, ▲: 50억 이상, △: 30억 이상, ↑: 10억 이상',
+                    align: 'center',
+                    verticalAlign: 'bottom',
+                    style: {
+                        color: '#707070',
+                        fontSize: '12px'
+                    }
+                },
+                tooltip: {
+                    split: false,
+                    shared: true,
+                    useHTML: true,
+                    formatter: function () {
+                        var tooltipHtml = '<div style="text-align: left;">';
+                        tooltipHtml += '<b>' + name + '</b><br>';
+                        tooltipHtml += '<b>' + Highcharts.dateFormat('%Y-%m-%d', this.x) + '</b><br>';
+                        tooltipHtml += '시가: ' + Highcharts.numberFormat(this.points[0].point.open, 0, '.', ',') + '<br>';
+                        tooltipHtml += '고가: ' + Highcharts.numberFormat(this.points[0].point.high, 0, '.', ',') + '<br>';
+                        tooltipHtml += '저가: ' + Highcharts.numberFormat(this.points[0].point.low, 0, '.', ',') + '<br>';
+                        tooltipHtml += '종가: ' + Highcharts.numberFormat(this.points[0].point.close, 0, '.', ',') + '<br>';
+                        tooltipHtml += '<br>';
+                        tooltipHtml += '</div>';
+                        return tooltipHtml;
+                    },
+                    positioner: function (labelWidth, labelHeight, point) {
+                        var chart = this.chart;
+                        return {
+                            x: 10,
+                            y: 50
+                        };
+                    }
+                },
+                annotations: annotations,
+                series: [{
+                    type: 'candlestick',
+                    name: code,
+                    data: ohlc,
+                    color: 'blue',  // 음봉 색상
+                    upColor: 'red', // 양봉 색상
+                    zIndex: 5, // 캔들의 zIndex를 높게 설정
+                    lineWidth: 1,
+                    lineColor: 'blue', // 캔들 외곽선 색상
+                    upLineColor: 'red', // 양봉 외곽선 색상
+                    borderColor: 'blue', // 캔들 외곽선 색상
+                    upBorderColor: 'red', // 양봉 외곽선 색상
+                    dataGrouping: {
+                        units: [[
+                            'week', // unit name
+                            [1] // allowed multiples
+                        ], [
+                            'month',
+                            [1, 2, 3, 4, 6]
+                        ]]
+                    },
+                    events: {
+                        mouseOver: function (event) {
+                            var point = event.target.series.chart.hoverPoint;
+                            if (point) {
+                                var chart = this.chart;
+                                chart.update({
+                                    yAxis: [{
+                                        plotLines: [{
+                                            value: point.close,
+                                            color: 'red',
+                                            width: 2,
+                                            id: 'plot-line-close',
+                                            label: {
+                                                text: 'Close: ' + point.close,
+                                                align: 'right',
+                                                style: {
+                                                    color: 'red',
+                                                    fontWeight: 'bold'
+                                                }
+                                            }
+                                        }]
+                                    }]
+                                });
+                            }
+                        },
+                        mouseOut: function () {
+                            var chart = this.chart;
+                            chart.update({
+                                yAxis: [{
+                                    plotLines: [{
+                                        id: 'plot-line-close',
+                                        value: null,
+                                        width: 0
+                                    }]
+                                }]
+                            });
+                        }
+                    }
+                }, {
+                    type: 'column',
+                    name: 'Volume',
+                    data: volume,
+                    yAxis: 1,
+                    zIndex: 0 // Volume 차트의 zIndex를 낮게 설정
+                }, {
+                    type: 'line',
+                    name: 'MA 3',
+                    data: ma3,
+                    color: 'rgb(219, 27, 180)',
+                    dashStyle: 'shortdash',
+                    zIndex: 1,
+                    lineWidth: 1 // 이동평균선의 두께를 1로 설정
+                }, {
+                    type: 'line',
+                    name: 'MA 5',
+                    data: ma5,
+                    color: 'rgb(219, 27, 180)',
+                    dashStyle: 'solid',
+                    zIndex: 1,
+                    lineWidth: 2 // 이동평균선의 두께를 1로 설정
+                }, {
+                    type: 'line',
+                    name: 'MA 8',
+                    data: ma8,
+                    color: 'green',
+                    dashStyle: 'longdash',
+                    zIndex: 1,
+                    lineWidth: 1 // 이동평균선의 두께를 1로 설정
+                }, {
+                    type: 'line',
+                    name: 'MA 20',
+                    data: ma20,
+                    color: 'rgb(239, 174, 0)',
+                    dashStyle: 'solid',
+                    zIndex: 1,
+                    lineWidth: 2 // 이동평균선의 두께를 1로 설정
+                }, {
+                    type: 'line',
+                    name: 'MA 60',
+                    data: ma60,
+                    color: 'rgb(10, 41, 174)',
+                    dashStyle: 'solid',
+                    zIndex: 1,
+                    lineWidth: 1 // 이동평균선의 두께를 1로 설정
+                }, {
+                    type: 'line',
+                    name: 'MA 120',
+                    data: ma120,
+                    color: 'rgb(77, 77, 77)',
+                    dashStyle: 'shortdot',
+                    zIndex: 1,
+                    lineWidth: 1 // 이동평균선의 두께를 1로 설정
+                }, {
+                    type: 'line',
+                    name: 'MA 224',
+                    data: ma224,
+                    color: 'rgb(119, 119, 119)',
+                    dashStyle: 'solid',
+                    zIndex: 1,
+                    lineWidth: 2 // 이동평균선의 두께를 1로 설정
+                }]
+            });
+        });
+    });
+    </script>
+
+<?php
 
 		//X-RAY 순간체결 거래량
 		$query = "	SELECT cal.date, SUBSTR(STR_TO_DATE(cal.date, '%Y%m%d'),6) date_str, xray.close_rate, xray.close_amt, xray.tot_trade_amt, xray.amount, xray.cnt
@@ -190,207 +616,6 @@ else {
 			echo "</tr>";
 		}
 		echo "</table>";
-
-
-	// 일자별 리스트 출력 방식 ----- 향후 변경 고려.
-
-	// // 종목 / 일자 정보 표시
-	// echo "<div><h4> ▶ [$code] $name </h4></div>";
-
-	// // 함수 :: 거래대금 TD 생성 
-	// function setAmountTdE($array, $key, $bold='N', $sizeUp='N') {
-		
-	// 	// 키의 현재 위치 찾기
-	// 	$keys = array_keys($array);
-	// 	$position = array_search($key, $keys);
-	
-	// 	// 현재 키의 값
-	// 	$amount = isset($array[$key]) ? $array[$key] : 0;
-
-	// 	// 백만원 단위를 억단위로 변경
-	// 	if($amount == 0) {
-	// 		$tdE = "<td>&nbsp;</td>";
-	// 	} else {
-	// 		$amountInBillion = round($amount/100, 1);
-	
-	// 		// 색상 지정
-	// 		if ($amountInBillion >= 1000) {
-	// 			$color = '#fcb9b2'; // 10000억 이상
-	// 		} elseif ($amountInBillion >= 500) {
-	// 			$color = '#ffccd5'; // 500억 이상
-	// 		} elseif ($amountInBillion >= 250) {
-	// 			$color = '#f6dfeb'; // 250억 이상
-	// 		} elseif ($amountInBillion >= 100) {
-	// 			$color = '#fde2e4'; // 100억 이상
-	// 		} elseif ($amountInBillion >= 50) {
-	// 			$color = '#bee1e6'; // 50억 이상
-	// 		} elseif ($amountInBillion >= 30) {
-	// 			$color = '#f0f4f5'; //#e2ece9'; // 30억 이상
-	// 		} else {
-	// 			$color = '#ffffff'; // 30억 미만
-	// 		}
-	
-	// 		if($sizeUp)
-	// 			$h5 = " class='h5'";
-	// 		else
-	// 			$h5 = "";
-	
-	// 		$formattedNumber = number_format($amountInBillion, 1);
-	// 		$parts = explode('.', $formattedNumber);
-	// 		$whole = $parts[0];
-	// 		$fraction = $parts[1] ?? '00'; // 소수점 이하가 없는 경우 '00'으로 처리
-
-	// 		$rtAmount = "<span>".$whole.".<span class='small-fraction'>".$fraction."</span></span>";
-
-	// 		if($bold)
-	// 			$amountInBillion = "<b>".$rtAmount." 억</b>";
-	// 		else
-	// 			$amountInBillion =$rtAmount." 억";
-		
-	// 		$tdE = "<td style='background-color:".$color."'> $amountInBillion </td>";
-	// 	}
-
-	// 	return $tdE;
-	// }
-	// $query = " 
-	// 	SELECT 
-	// 		c.date,
-	// 		STR_TO_DATE(c.date, '%Y%m%d') dateStr,
-	// 		CASE DAYOFWEEK(STR_TO_DATE(c.date, '%Y%m%d'))
-	// 			WHEN 1 THEN '일'
-	// 			WHEN 2 THEN '월'
-	// 			WHEN 3 THEN '화'
-	// 			WHEN 4 THEN '수'
-	// 			WHEN 5 THEN '목'
-	// 			WHEN 6 THEN '금'
-	// 			WHEN 7 THEN '토' END AS day,
-	// 		(SELECT close_rate FROM daily_price p WHERE p.date = c.date AND p.code = '$code') close_rate,
-	// 		time_0900,time_0930,time_1000,time_1030,time_1100,time_1130,
-	// 		time_1200,time_1230,time_1300,time_1330,time_1400,time_1430,time_1500,time_all
-	// 	FROM calendar c
-	// 	LEFT OUTER JOIN
-	// 	(
-	// 		SELECT date,
-	// 			IFNULL(MAX(CASE WHEN minute BETWEEN '0900' AND '0929' THEN amount ELSE NULL END), 0) AS time_0900,
-	// 			IFNULL(MAX(CASE WHEN minute BETWEEN '0930' AND '0959' THEN amount ELSE NULL END) - MAX(CASE WHEN minute <= '0929' THEN amount ELSE 0 END), 0) AS time_0930,
-	// 			IFNULL(MAX(CASE WHEN minute BETWEEN '1000' AND '1029' THEN amount ELSE NULL END) - MAX(CASE WHEN minute <= '0959' THEN amount ELSE 0 END), 0) AS time_1000,
-	// 			IFNULL(MAX(CASE WHEN minute BETWEEN '1030' AND '1059' THEN amount ELSE NULL END) - MAX(CASE WHEN minute <= '1029' THEN amount ELSE 0 END), 0) AS time_1030,
-	// 			IFNULL(MAX(CASE WHEN minute BETWEEN '1100' AND '1129' THEN amount ELSE NULL END) - MAX(CASE WHEN minute <= '1059' THEN amount ELSE 0 END), 0) AS time_1100,
-	// 			IFNULL(MAX(CASE WHEN minute BETWEEN '1130' AND '1159' THEN amount ELSE NULL END) - MAX(CASE WHEN minute <= '1129' THEN amount ELSE 0 END), 0) AS time_1130,
-	// 			IFNULL(MAX(CASE WHEN minute BETWEEN '1200' AND '1229' THEN amount ELSE NULL END) - MAX(CASE WHEN minute <= '1159' THEN amount ELSE 0 END), 0) AS time_1200,
-	// 			IFNULL(MAX(CASE WHEN minute BETWEEN '1230' AND '1259' THEN amount ELSE NULL END) - MAX(CASE WHEN minute <= '1229' THEN amount ELSE 0 END), 0) AS time_1230,
-	// 			IFNULL(MAX(CASE WHEN minute BETWEEN '1300' AND '1329' THEN amount ELSE NULL END) - MAX(CASE WHEN minute <= '1259' THEN amount ELSE 0 END), 0) AS time_1300,
-	// 			IFNULL(MAX(CASE WHEN minute BETWEEN '1330' AND '1359' THEN amount ELSE NULL END) - MAX(CASE WHEN minute <= '1329' THEN amount ELSE 0 END), 0) AS time_1330,
-	// 			IFNULL(MAX(CASE WHEN minute BETWEEN '1400' AND '1429' THEN amount ELSE NULL END) - MAX(CASE WHEN minute <= '1359' THEN amount ELSE 0 END), 0) AS time_1400,
-	// 			IFNULL(MAX(CASE WHEN minute BETWEEN '1430' AND '1459' THEN amount ELSE NULL END) - MAX(CASE WHEN minute <= '1429' THEN amount ELSE 0 END), 0) AS time_1430,
-	// 			IFNULL(MAX(CASE WHEN minute BETWEEN '1500' AND '1530' THEN amount ELSE NULL END) - MAX(CASE WHEN minute <= '1459' THEN amount ELSE 0 END), 0) AS time_1500,
-	// 			IFNULL(MAX(CASE WHEN minute <= '1530' THEN acc_trade_amount ELSE NULL END), 0) AS time_all
-	// 		FROM
-	// 		(
-	// 			SELECT 
-	// 				date, SUBSTR(REPLACE(time, ':',''),1,4) minute, code, name, round(change_rate*100,1) change_rate, current_price, volume, round((current_price * volume)/10000,0) amount
-	// 			FROM
-	// 				kiwoom_xray_tick_executions
-	// 			WHERE 
-	// 				date <= '$date' AND
-	// 				date >= (SELECT DATE_FORMAT(DATE_ADD('$date', INTERVAL -2 MONTH), '%Y%m%d')) AND
-	// 				code = '$code'
-	// 		) m
-	// 		GROUP BY
-	// 			m.date
-	// 	) g
-	// 	ON
-	// 		g.date = c.date
-	// 	WHERE 
-	// 		c.date <= '$date' AND
-	// 		c.date >= (SELECT DATE_FORMAT(DATE_ADD('$date', INTERVAL -1 MONTH), '%Y%m%d'))
-	// 	ORDER BY
-	// 		c.date DESC
-	// 	";
-
-	// // echo "<pre>$query</pre>";
-	// $result = $mysqli->query($query);
-
-	// echo "<table class='table table-sm table-bordered text-dark'>";
-	// echo "<tr align=center>";
-	// echo "<th width=120>일자</th>";
-	// echo "<th width=60>요일</th>";
-	// echo "<th width=60>등락률</th>";
-	// echo "<th width=110>당일누적</th>";
-	// echo "<th width=80>09:00</th>";
-	// echo "<th width=80>09:30</th>";
-	// echo "<th width=80>10:00</th>";
-	// echo "<th width=80>10:30</th>";
-	// echo "<th width=80>11:00</th>";
-	// echo "<th width=80>11:30</th>";
-	// echo "<th width=80>12:00</th>";
-	// echo "<th width=80>12:30</th>";
-	// echo "<th width=80>13:00</th>";
-	// echo "<th width=80>13:30</th>";
-	// echo "<th width=80>14:00</th>";
-	// echo "<th width=80>14:30</th>";
-	// echo "<th width=80>15:00</th>";
-	// echo "</tr>";
-
-	// // 나머지 데이터 출력
-	// while ($row = $result->fetch_array(MYSQLI_BOTH)) {
-	// 	// TD 생성을 위해 거래대금 배열에 담기
-	// 	$amounts = [
-	// 		'amount_time_all'   => $row['time_all'],
-	// 		'amount_time_0900'  => $row['time_0900'],
-	// 		'amount_time_0930'  => $row['time_0930'],
-	// 		'amount_time_1000'  => $row['time_1000'],
-	// 		'amount_time_1030'  => $row['time_1030'],
-	// 		'amount_time_1100'  => $row['time_1100'],
-	// 		'amount_time_1130'  => $row['time_1130'],
-	// 		'amount_time_1200'  => $row['time_1200'],
-	// 		'amount_time_1230'  => $row['time_1230'],
-	// 		'amount_time_1300'  => $row['time_1300'],
-	// 		'amount_time_1330'  => $row['time_1330'],
-	// 		'amount_time_1400'  => $row['time_1400'],
-	// 		'amount_time_1430'  => $row['time_1430'],
-	// 		'amount_time_1500'  => $row['time_1500'],
-	// 	];
-		
-	// 	echo "<tr align=right>";
-	// 		echo "<td align=center>";
-	// 		echo "<a href='kiwoomRealtime_AStock.php?code={$code}&name={$name}&date={$row['date']}' onclick='window.open(this.href, \'realtime_stock\', 'width=2500px,height=850,scrollbars=1,resizable=yes');return false;' target='_blank'>";
-	// 		echo "<b>".$row['dateStr']."</b></a></td>";
-	// 		echo "<td align=center><b>".$row['day']."</b></td>";
-	// 		echo "<td><b>".$row['close_rate']."</b>%</td>";
-			
-	// 		$amountTdE = setAmountTdE($amounts, 'amount_time_all', 'Y', 'Y');
-	// 		echo $amountTdE;
-	// 		$amountTdE = setAmountTdE($amounts, 'amount_time_0900');
-	// 		echo $amountTdE;
-	// 		$amountTdE = setAmountTdE($amounts, 'amount_time_0930');
-	// 		echo $amountTdE;
-	// 		$amountTdE = setAmountTdE($amounts, 'amount_time_1000');
-	// 		echo $amountTdE;
-	// 		$amountTdE = setAmountTdE($amounts, 'amount_time_1030');
-	// 		echo $amountTdE;
-	// 		$amountTdE = setAmountTdE($amounts, 'amount_time_1100');
-	// 		echo $amountTdE;
-	// 		$amountTdE = setAmountTdE($amounts, 'amount_time_1130');
-	// 		echo $amountTdE;
-	// 		$amountTdE = setAmountTdE($amounts, 'amount_time_1200');
-	// 		echo $amountTdE;
-	// 		$amountTdE = setAmountTdE($amounts, 'amount_time_1230');
-	// 		echo $amountTdE;
-	// 		$amountTdE = setAmountTdE($amounts, 'amount_time_1300');
-	// 		echo $amountTdE;
-	// 		$amountTdE = setAmountTdE($amounts, 'amount_time_1330');
-	// 		echo $amountTdE;
-	// 		$amountTdE = setAmountTdE($amounts, 'amount_time_1400');
-	// 		echo $amountTdE;
-	// 		$amountTdE = setAmountTdE($amounts, 'amount_time_1430');
-	// 		echo $amountTdE;
-	// 		$amountTdE = setAmountTdE($amounts, 'amount_time_1500');
-	// 		echo $amountTdE;
-	// 	echo "</tr>";
-	// }
-
-	// echo "</table>";
 }
 ?>
 </form>
