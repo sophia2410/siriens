@@ -17,6 +17,7 @@ $(document).ready(function() {
             ma60 = [],
             ma120 = [],
             ma224 = [],
+            navigatorPlotLines = [], // Navigator plotLines array
             i = 0;
 
         for (i; i < data.length; i += 1) {
@@ -94,6 +95,12 @@ $(document).ready(function() {
                         borderColor: 'transparent'
                     }]
                 });
+                navigatorPlotLines.push({
+                    color: 'orange',
+                    width: 2,
+                    value: date,
+                    dashStyle: 'solid'
+                });
             } else if (xray_amount > 5000000000) {
                 annotations.push({
                     labels: [{
@@ -112,6 +119,12 @@ $(document).ready(function() {
                         backgroundColor: 'transparent',
                         borderColor: 'transparent'
                     }]
+                });
+                navigatorPlotLines.push({
+                    color: 'orange',
+                    width: 2,
+                    value: date,
+                    dashStyle: 'solid'
                 });
             } else if (xray_amount > 10000000000) {
                 annotations.push({
@@ -132,6 +145,12 @@ $(document).ready(function() {
                         borderColor: 'transparent'
                     }]
                 });
+                navigatorPlotLines.push({
+                    color: 'orange',
+                    width: 2,
+                    value: date,
+                    dashStyle: 'solid'
+                });
             } else if (xray_amount > 3000000000) {
                 annotations.push({
                     labels: [{
@@ -151,6 +170,12 @@ $(document).ready(function() {
                         borderColor: 'transparent'
                     }]
                 });
+                navigatorPlotLines.push({
+                    color: 'orange',
+                    width: 2,
+                    value: date,
+                    dashStyle: 'solid'
+                });
             } else if (xray_amount > 1000000000) {
                 annotations.push({
                     labels: [{
@@ -169,6 +194,12 @@ $(document).ready(function() {
                         backgroundColor: 'transparent',
                         borderColor: 'transparent'
                     }]
+                });
+                navigatorPlotLines.push({
+                    color: 'orange',
+                    width: 2,
+                    value: date,
+                    dashStyle: 'solid'
                 });
             }
         }
@@ -251,7 +282,7 @@ $(document).ready(function() {
                 verticalAlign: 'bottom',
                 style: {
                     color: '#707070',
-                    fontSize: '12px'
+                    fontSize: '10px'
                 }
             },
             tooltip: {
@@ -259,16 +290,14 @@ $(document).ready(function() {
                 shared: true,
                 useHTML: true,
                 formatter: function () {
-                    var index = this.points[0].point.index;
-                    var amount = this.points[0].point.amount;
-                    var xray_amount = this.points[0].point.xray_amount;
-
                     var tooltipHtml = '<div style="text-align: left;">';
                     tooltipHtml += '<b>' + Highcharts.dateFormat('%Y-%m-%d', this.x) + '</b><br>';
                     tooltipHtml += '시가: ' + Highcharts.numberFormat(this.points[0].point.open, 0, '.', ',') + '<br>';
                     tooltipHtml += '고가: ' + Highcharts.numberFormat(this.points[0].point.high, 0, '.', ',') + '<br>';
                     tooltipHtml += '저가: ' + Highcharts.numberFormat(this.points[0].point.low, 0, '.', ',') + '<br>';
                     tooltipHtml += '종가: ' + Highcharts.numberFormat(this.points[0].point.close, 0, '.', ',') + '<br>';
+
+                    var index = this.points[0].point.index;
                     tooltipHtml += '3이평: ' + (index >= 2 ? Highcharts.numberFormat(ma3[index].value, 0, '.', ',') : 'N/A') + '<br>';
                     tooltipHtml += '5이평: ' + (index >= 4 ? Highcharts.numberFormat(ma5[index].value, 0, '.', ',') : 'N/A') + '<br>';
                     tooltipHtml += '20이평: ' + (index >= 19 ? Highcharts.numberFormat(ma20[index].value, 0, '.', ',') : 'N/A') + '<br>';
@@ -276,8 +305,8 @@ $(document).ready(function() {
                     tooltipHtml += '120이평: ' + (index >= 119 ? Highcharts.numberFormat(ma120[index].value, 0, '.', ',') : 'N/A') + '<br>';
                     tooltipHtml += '224이평: ' + (index >= 223 ? Highcharts.numberFormat(ma224[index].value, 0, '.', ',') : 'N/A') + '<br>';
                     tooltipHtml += '거래량: ' + Highcharts.numberFormat(volume[index].y / 1000, 0, '.', ',') + 'K<br>';
-                    tooltipHtml += '거래대금: ' + Highcharts.numberFormat(amount / 100000000, 1, '.', ',') + '억<br>';
-                    tooltipHtml += 'Xray 거래대금: ' + Highcharts.numberFormat(xray_amount / 100000000, 1, '.', ',') + '억<br>';
+                    tooltipHtml += '거래대금: ' + Highcharts.numberFormat(this.points[0].point.amount / 100000000, 1, '.', ',') + '억<br>';
+                    tooltipHtml += 'Xray 거래대금: ' + Highcharts.numberFormat(this.points[0].point.xray_amount / 100000000, 1, '.', ',') + '억<br>';
                     tooltipHtml += '</div>';
                     return tooltipHtml;
                 },
@@ -399,7 +428,12 @@ $(document).ready(function() {
                 dashStyle: 'solid',
                 zIndex: 1,
                 lineWidth: 1 // 이동평균선의 두께를 1로 설정
-            }]
+            }],
+            navigator: {
+                xAxis: {
+                    plotLines: navigatorPlotLines // Navigator에 세로선을 추가
+                }
+            }
         });
 
         // 키보드 화살표로 차트 이동

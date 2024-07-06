@@ -76,6 +76,7 @@ else {
                 ma60 = [],
                 ma120 = [],
                 ma224 = [],
+                navigatorPlotLines = [], // Navigator plotLines array
                 i = 0;
 
             for (i; i < dataLength; i += 1) {
@@ -89,8 +90,23 @@ else {
                 var amount = data[i][7];
                 var xray_amount = data[i][8];
 
-                ohlc.push([date, open, high, low, close]);
-                volume.push([date, volume_val]);
+                var isUp = close > open;
+
+                ohlc.push({
+                    x: date,
+                    open: open,
+                    high: high,
+                    low: low,
+                    close: close,
+                    amount: amount,
+                    xray_amount: xray_amount
+                });
+
+                volume.push({
+                    x: date,
+                    y: volume_val,
+                    color: isUp ? 'red' : 'blue'
+                });
 
                 
                 // 이동평균선 계산
@@ -125,6 +141,12 @@ else {
                         value: date,
                         dashStyle: 'solid',
                         zIndex: 3 // 캔들보다 낮은 zIndex 설정
+                    });
+                    navigatorPlotLines.push({
+                        color: 'rgb(204, 255, 204)',
+                        width: 2,
+                        value: date,
+                        dashStyle: 'solid'
                     });
                 }
 				
@@ -181,30 +203,9 @@ else {
                                 x: date,
                                 y: high
                             },
-                            text: '◇',
-                            style: {
-                                color: 'red',
-                                fontSize: '12px',
-                                fontWeight: 'bold'
-                            },
-							backgroundColor: 'transparent',
-							borderColor: 'transparent'
-                        }]
-                    });
-                }
-				// 50억 이상
-				else if (xray_amount > 5000000000) {
-                    annotations.push({
-                        labels: [{
-                            point: {
-                                xAxis: 0,
-                                yAxis: 0,
-                                x: date,
-                                y: high
-                            },
                             text: '▲',
                             style: {
-                                color: 'black',
+                                color: 'red',
                                 fontSize: '12px',
                                 fontWeight: 'bold'
                             },
@@ -292,6 +293,9 @@ else {
                 xAxis: {
                     plotLines: xAxisPlotLines, // xAxis에 세로선을 추가
                     labels: {
+                        formatter: function() {
+                            return Highcharts.dateFormat('%m/%d', this.value);
+                        },
                         x: 10 // 오른쪽 여백 추가
                     }
                 },
@@ -322,7 +326,7 @@ else {
                     lineWidth: 2
                 }],
                 subtitle: {
-                    text: '['+ code + ']' + name + ' - ' + '★: 1천억 이상, ◆: 5백억 이상, ◇: 1백억 이상, ▲: 50억 이상, △: 30억 이상, ↑: 10억 이상',
+                    text: '['+ code + ']' + name + ' - ' + '★: 1천억 이상, ◆: 5백억 이상, ▲: 1백억 이상, △: 30억 이상, ↑: 10억 이상',
                     align: 'center',
                     verticalAlign: 'bottom',
                     style: {
@@ -489,7 +493,12 @@ else {
                     dashStyle: 'solid',
                     zIndex: 1,
                     lineWidth: 2 // 이동평균선의 두께를 1로 설정
-                }]
+                }],
+                navigator: {
+                    xAxis: {
+                        plotLines: navigatorPlotLines // Navigator에 세로선을 추가
+                    }
+                }
             });
         });
     });

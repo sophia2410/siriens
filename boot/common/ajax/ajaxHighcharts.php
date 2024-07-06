@@ -12,7 +12,11 @@ if (empty($code)) {
 }
 
 // 종목코드의 데이터를 가져오는 SQL 쿼리
-$sql = "SELECT mo.date, mo.open, mo.high, mo.low, mo.close, mo.close_rate, mo.volume, mo.amount, xr.tot_amt AS xray_amount
+$sql = "SELECT mo.date, 
+               CASE WHEN mo.open = 0 THEN mo.close ELSE mo.open END AS open, 
+               CASE WHEN mo.open = 0 THEN mo.close ELSE mo.high END AS high, 
+               CASE WHEN mo.open = 0 THEN mo.close ELSE mo.low END  AS low, 
+               mo.close, mo.close_rate, mo.volume, mo.amount, xr.tot_amt AS xray_amount
         FROM market_ohlcv mo
         LEFT OUTER JOIN kiwoom_xray_tick_summary xr
         ON xr.date = mo.date

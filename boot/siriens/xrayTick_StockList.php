@@ -306,6 +306,7 @@ if($pgmId == '') {
 								ORDER BY date DESC
 								LIMIT $buy_period
 							) rd ON ks.date = rd.date
+							WHERE ks.tot_amt > 500000000
 							GROUP BY
 								ks.code, ks.name
 							HAVING
@@ -382,7 +383,7 @@ if($pgmId == '') {
 		echo "<div class='row no-gutters align-items-center'>
 				<div class='col mr-0'>
 					<div class='font-weight-bold text-primary text-uppercase mb-1' style='height:35px; line-height:35px;'>$mochaten_cnt
-						<font class='h4'><span class='draggable' id=stock_nm$d draggable='true'><b><a href='../siriens/stock_B.php?code=".$row['code']."&name=".$stock_name."&brWidth=2500' onclick='window.open(this.href, \'stock\', 'width=2500px,height=850,scrollbars=1,resizable=yes');return false;' target='_blank'>".$stock_name."</a></b></span>".$row['talent_fg']."</font> &nbsp; $xray_tick_detail1 &nbsp;$xray_tick_detail2 &nbsp;".$realtime_data."
+						<font class='h4'><span class='draggable' id=stock_nm$d draggable='true'><b><a href='../siriens/stock_B.php?code=".$row['code']."&name=".$stock_name."&brWidth=2500' onclick='window.open(this.href, \'stock\', 'width=2500px,height=850,scrollbars=1,resizable=yes');return false;' target='_blank'>".$stock_name."</a></b></span>".$row['talent_fg']."</font> $xray_tick_detail1 $xray_tick_detail2 &nbsp;".$realtime_data."
 					</div>
 					<div class='font-weight-bold mb-1 style='margin: 0;'>
 						$info_0day
