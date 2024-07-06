@@ -58,15 +58,20 @@ else {
     $(document).ready(function() {
         var code = '<?= $code ?>';
         var name = '<?= $name ?>';
+
+    // 기존 데이터 로드
+    $.getJSON('/boot/common/ajax/ajaxHighcharts.php', { code: code, name: name }, function(response) {
+        if (response.message) {
+            alert(response.message);
+            return;
+        }
         
-        $.getJSON('/boot/common/ajax/ajaxHighcharts.php', { code: code }, function(data) {
-            if (data.message) {
-                alert(data.message);
-                return;
-            }
+        var data = response.data;
+        var zones = response.zones;
             var ohlc = [],
                 volume = [],
                 xAxisPlotLines = [], // xAxis plotLines array
+                yAxisPlotLines = [],
                 annotations = [],
                 dataLength = data.length,
                 ma3 = [],
@@ -108,7 +113,6 @@ else {
                     color: isUp ? 'red' : 'blue'
                 });
 
-                
                 // 이동평균선 계산
                 if (i >= 2) ma3.push({ date: date, value: (data[i][4] + data[i-1][4] + data[i-2][4]) / 3 });
                 if (i >= 4) ma5.push({ date: date, value: (data[i][4] + data[i-1][4] + data[i-2][4] + data[i-3][4] + data[i-4][4]) / 5 });
@@ -259,6 +263,24 @@ else {
 
             }
 
+            // stock_price_zone 데이터를 yAxisPlotLines에 추가
+            for (var j = 0; j < zones.length; j++) {
+                yAxisPlotLines.push({
+                    color: 'red',
+                    width: 2,
+                    value: zones[j].start_price,
+                    dashStyle: 'dash',
+                    label: {
+                        text: zones[j].zone_type + ': ' + zones[j].start_price,
+                        align: 'left', // 레이블을 왼쪽으로 정렬
+                        x: -10, // 레이블 위치를 왼쪽으로 조정
+                        style: {
+                            color: 'red',
+                            fontWeight: 'bold'
+                        }
+                    }
+                });
+            }
             // Highcharts 차트를 생성합니다.
             Highcharts.stockChart('container', {
                 rangeSelector: {
@@ -311,7 +333,8 @@ else {
                     lineWidth: 2,
                     resize: {
                         enabled: true
-                    }
+                    },
+                    plotLines: yAxisPlotLines // yAxis에 가로선을 추가
                 }, {
                     labels: {
                         align: 'right',
