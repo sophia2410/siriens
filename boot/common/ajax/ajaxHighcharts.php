@@ -79,11 +79,19 @@ if ($zone_result->num_rows > 0) {
     while($zone_row = $zone_result->fetch_assoc()) {
         $zones[] = [
             'zone_type' => $zone_row['zone_type'],
-            'start_price' => (double)$zone_row['start_price'],
-            'end_price' => $zone_row['end_price'] ? (double)$zone_row['end_price'] : null,
+            'price' => $zone_row['start_price'],
             'color' => $zone_row['color'],
             'dash_style' => $zone_row['dash_style']
         ];
+        // end_price가 존재하면 추가
+        if (!empty($zone_row['end_price'])) {
+            $zones[] = [
+                'zone_type' => $zone_row['zone_type'],
+                'price' => $zone_row['end_price'],
+                'color' => $zone_row['color'],
+                'dash_style' => $zone_row['dash_style']
+            ];
+        }
     }
 }
 

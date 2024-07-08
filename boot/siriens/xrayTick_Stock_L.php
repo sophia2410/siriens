@@ -293,7 +293,7 @@ else {
 
 	<div class="price-zones-list">
 		<?php
-		$price_zones_query = "SELECT zone_type, start_price, end_price FROM stock_price_zone WHERE code = '$code' AND name = '$name'";
+		$price_zones_query = "SELECT zone_type, start_price, end_price FROM stock_price_zone WHERE code = '$code'";
 		$price_zones_result = $mysqli->query($price_zones_query);
 		echo "<div class='price-zone-items' style='display: flex; flex-wrap: wrap;'>";
 		while ($zone = $price_zones_result->fetch_assoc()) {

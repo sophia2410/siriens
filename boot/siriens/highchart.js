@@ -198,15 +198,15 @@ $.getJSON('/boot/common/ajax/ajaxHighcharts.php', { code: code, name: name }, fu
                 });
             }
         }
-        // stock_price_zone 데이터를 yAxisPlotLines에 추가
+        // stock_price_zone 데이터를 yAxisPlotLines와 yAxisPlotBands에 추가
         for (var j = 0; j < zones.length; j++) {
             yAxisPlotLines.push({
-                color: zones[j].color, // 쿼리문에서 가져온 색상 사용
+                color: zones[j].color,
                 width: 2,
-                value: zones[j].start_price,
-                dashStyle: zones[j].dash_style, // 쿼리문에서 가져온 dash 스타일 사용
+                value: zones[j].price,
+                dashStyle: zones[j].dash_style,
                 label: {
-                    text: zones[j].zone_type + ': ' + zones[j].start_price,
+                    text: zones[j].zone_type + ': ' + zones[j].price,
                     align: 'left', // 레이블을 왼쪽으로 정렬
                     x: -10, // 레이블 위치를 왼쪽으로 조정
                     style: {
