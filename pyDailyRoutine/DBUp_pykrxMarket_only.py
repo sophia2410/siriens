@@ -324,3 +324,9 @@ if __name__ == '__main__':
 	dbu = DBUpdater()
 	# dbu.execute_daily()
 	dbu.pykrxMarket_execute('20240705','20240705')
+
+# 2024.07.07 
+	# C:\Users\elf96\AppData\Local\Programs\Python\Python39\Lib\site-packages\pykrx\website\comm
+	# 22라인
+	# self.headers = {"User-Agent": "Mozilla/5.0"} => self.headers = {"User-Agent": "Mozilla/5.0", 'Referer': 'http://data.krx.co.kr/'}
+	# 수정 후 정상 작동. 눈물날뻔 ㅠㅠ

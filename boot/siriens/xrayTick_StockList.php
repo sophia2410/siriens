@@ -10,27 +10,6 @@
 	require($_SERVER['DOCUMENT_ROOT']."/boot/common/top.php");
 	require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 ?>
-<head>
-<style>
-.small-fraction {
-    font-size: 0.75em; /* 소수점 이하 값을 작게 표시 */
-}
-.cut-text {
-    max-width: 120px; /* 최대 너비 설정 */
-    white-space: nowrap; /* 텍스트를 한 줄로 표시 */
-    overflow: hidden; /* 내용이 넘칠 경우 숨김 */
-    text-overflow: ellipsis; /* 넘친 내용을 생략 부호로 표시 */
-    /* cursor: help; */ /* 마우스 오버 시 커서 모양 변경 */
-}
-.cut-text2 {
-    max-width: 75px; /* 최대 너비 설정 */
-    white-space: nowrap; /* 텍스트를 한 줄로 표시 */
-    overflow: hidden; /* 내용이 넘칠 경우 숨김 */
-    text-overflow: ellipsis; /* 넘친 내용을 생략 부호로 표시 */
-    cursor: help; /* 마우스 오버 시 커서 모양 변경 */
-}
-</style>
-</head>
 
 <?php
 $pgmId = (isset($_GET['pgmId'])) ? $_GET['pgmId'] : '';
@@ -376,8 +355,7 @@ if($pgmId == '') {
 		// xray_tick 조회 화면 연결
 		$xray_tick_detail1 = "<a href='../siriens/xrayTick_stock.php?stock=".$row['code']."&stock_nm=".$stock_name."' onclick='window.open(this.href, \'stock\', '');return false;' target='_blank'>(→)</a>";
 		//그래프를 잘 보기 위해 팝업으로 연결
-		$xray_tick_detail2 = "<a href='#' onclick=\"window.open('../siriens/xrayTick_stock_L.php?code=".$row['code']."&name=".$stock_name."', 'stock', 'width=1500,height=1800,scrollbars=yes'); return false;\" target='_blank'>(+)</a>";
-
+		$xray_tick_detail2 = "<a href='#' onclick=\"window.open('../siriens/xrayTick_Stock_L.php?page_fg=popup&code=".$row['code']."&name=".$stock_name."', 'stock', 'width=1330,height=1800,left=680,top=0,screenX=680,screenY=0,scrollbars=yes'); return false;\" target='_blank'>(+)</a>";
 
 		// echo "<div class='col-xl-3 col-md-6 mb-4' style='margin: 0; margin-left:10px margin-right:10px'>
 		echo "<div class='row no-gutters align-items-center'>
@@ -388,8 +366,8 @@ if($pgmId == '') {
 					<div class='font-weight-bold mb-1 style='margin: 0;'>
 						$info_0day
 					</div>
-					<div style='margin: 0;'>
-						<img class='img-fluid' id='stockChart_$d' src='https://ssl.pstatic.net/imgfinance/chart/item/candle/day/{$row['code']}.png?sidcode=1705826920773' onclick='toggleImage(\"stockChart_$d\", \"{$row['code']}\")'>
+					<div style='margin: 0; width:610px;'>
+						<img class='img-fluid' id='stockChart_$d' src='https://ssl.pstatic.net/imgfinance/chart/item/candle/day/{$row['code']}.png?sidcode=1705826920773' onclick='toggleImage(\"stockChart_$d\", \"{$row['code']}\")' width='600'>
 					</div>
 
 				</div>
@@ -463,7 +441,7 @@ if($pgmId == '') {
 							WHERE xr.code = '$code'
 						) xray
 					ON xray.date = cal.date
-					WHERE cal.date >= (select max(date) from calendar where date <=(select DATE_FORMAT(DATE_ADD('$search_date', INTERVAL -27 DAY), '%Y%m%d')))
+					WHERE cal.date >= (select max(date) from calendar where date <=(select DATE_FORMAT(DATE_ADD('$search_date', INTERVAL -30 DAY), '%Y%m%d')))
 					AND cal.date <= (select max(date) from calendar where date <=(select DATE_FORMAT(DATE_ADD('$search_date', INTERVAL 0 DAY), '%Y%m%d')))
 					ORDER BY cal.date desc";
 		// echo "<pre>$query2</pre>";
@@ -575,7 +553,7 @@ if($pgmId == '') {
 <input type="hidden" name='tot_cnt' value='<?=$d?>'>
 </form>
 
-<iframe name="saveFrame" src="xrayTick_script.php" style='border:0px;' width=1000 height=700>
+<iframe name="saveFrame" src="xrayTick_script.php" style='border:0px;' width=0 height=0>
 </iframe>
 
 <script>

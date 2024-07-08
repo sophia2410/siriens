@@ -4,6 +4,9 @@
 
 	$stock = (isset($_GET['stock'])) ? $_GET['stock'] : '';
 	$stock_nm = (isset($_GET['stock_nm'])) ? $_GET['stock_nm'] : '';
+
+	$page_fg  = (isset($_GET['page_fg'])) ? $_GET['page_fg'] : '';
+	
 ?>
 </head>
 
@@ -12,7 +15,8 @@
 <div id="wrapper">
 	
 <?php
-require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
+if($page_fg != 'popup')
+	require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
 ?>
 
 <!-- Content Wrapper -->

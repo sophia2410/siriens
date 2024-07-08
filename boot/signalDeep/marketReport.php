@@ -196,7 +196,8 @@ while($row = $stocks_20_result->fetch_assoc()) {
             if (select.options.length > 0) {
                 var initialDate = select.options[0].value;
                 select.value = initialDate;
-                search(); // Automatically trigger search with the first date
+                // 무한으로 조회되어 일단 막음 24.07.07
+                // search(); // Automatically trigger search with the first date
             }
         }
     </script>

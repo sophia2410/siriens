@@ -1,21 +1,20 @@
 $(document).ready(function() {
-    var code = '<?= $code ?>';
-    var name = '<?= $name ?>';
-
-    // 기존 데이터 로드
-    $.getJSON('/boot/common/ajax/ajaxHighcharts.php', { code: code, name: name }, function(response) {
-        if (response.message) {
-            alert(response.message);
-            return;
-        }
-        
-        var data = response.data;
-        var zones = response.zones;
+    // HTML 요소에서 data-code와 data-name 값을 가져옵니다.
+    var code = $('#container').data('code');
+    var name = $('#container').data('name');
+// 기존 데이터 로드
+$.getJSON('/boot/common/ajax/ajaxHighcharts.php', { code: code, name: name }, function(response) {
+    if (response.message) {
+        alert(response.message);
+        return;
+    }
+    
+    var data = response.data;
+    var zones = response.zones;
         var ohlc = [],
             volume = [],
             xAxisPlotLines = [], // xAxis plotLines array
             yAxisPlotLines = [],
-            yAxisPlotBands = [], // yAxis plotBands array
             annotations = [],
             dataLength = data.length,
             ma3 = [],
@@ -27,7 +26,6 @@ $(document).ready(function() {
             ma224 = [],
             navigatorPlotLines = [], // Navigator plotLines array
             i = 0;
-
         for (i; i < dataLength; i += 1) {
             var date = data[i][0];
             var open = data[i][1];
@@ -38,9 +36,7 @@ $(document).ready(function() {
             var volume_val = data[i][6];
             var amount = data[i][7];
             var xray_amount = data[i][8];
-
             var isUp = close > open;
-
             ohlc.push({
                 x: date,
                 open: open,
@@ -50,13 +46,11 @@ $(document).ready(function() {
                 amount: amount,
                 xray_amount: xray_amount
             });
-
             volume.push({
                 x: date,
                 y: volume_val,
                 color: isUp ? 'red' : 'blue'
             });
-
             // 이동평균선 계산
             if (i >= 2) ma3.push({ date: date, value: (data[i][4] + data[i-1][4] + data[i-2][4]) / 3 });
             if (i >= 4) ma5.push({ date: date, value: (data[i][4] + data[i-1][4] + data[i-2][4] + data[i-3][4] + data[i-4][4]) / 5 });
@@ -81,7 +75,6 @@ $(document).ready(function() {
                 for (var j = 0; j < 224; j++) sum += data[i-j][4];
                 return sum / 224;
             })() });
-
             if (amount > 100000000000 && close_rate > 15) {
                 xAxisPlotLines.push({
                     color: 'rgb(204, 255, 204)',
@@ -97,10 +90,10 @@ $(document).ready(function() {
                     dashStyle: 'solid'
                 });
             }
-
-            // xray-tick 대금에 따른 표시
-            // 1천억 이상
-            if (xray_amount > 100000000000) {
+			
+			// xray-tick 대금에 따른 표시
+			// 1천억 이상
+			if (xray_amount > 100000000000) {
                 annotations.push({
                     labels: [{
                         point: {
@@ -115,13 +108,13 @@ $(document).ready(function() {
                             fontSize: '12px',
                             fontWeight: 'bold'
                         },
-                        backgroundColor: 'transparent',
-                        borderColor: 'transparent'
+						backgroundColor: 'transparent',
+						borderColor: 'transparent'
                     }]
                 });
             }
-            // 5백억 이상
-            else if (xray_amount > 50000000000) {
+			// 5백억 이상
+			else if (xray_amount > 50000000000) {
                 annotations.push({
                     labels: [{
                         point: {
@@ -136,13 +129,13 @@ $(document).ready(function() {
                             fontSize: '12px',
                             fontWeight: 'bold'
                         },
-                        backgroundColor: 'transparent',
-                        borderColor: 'transparent'
+						backgroundColor: 'transparent',
+						borderColor: 'transparent'
                     }]
                 });
             }
-            // 1백억 이상
-            else if (xray_amount > 10000000000) {
+			// 1백억 이상
+			else if (xray_amount > 10000000000) {
                 annotations.push({
                     labels: [{
                         point: {
@@ -157,13 +150,13 @@ $(document).ready(function() {
                             fontSize: '12px',
                             fontWeight: 'bold'
                         },
-                        backgroundColor: 'transparent',
-                        borderColor: 'transparent'
+						backgroundColor: 'transparent',
+						borderColor: 'transparent'
                     }]
                 });
             }
             // 30억 이상
-            else if (xray_amount > 3000000000) {
+			else if (xray_amount > 3000000000) {
                 annotations.push({
                     labels: [{
                         point: {
@@ -178,13 +171,13 @@ $(document).ready(function() {
                             fontSize: '12px',
                             fontWeight: 'bold'
                         },
-                        backgroundColor: 'transparent',
-                        borderColor: 'transparent'
+						backgroundColor: 'transparent',
+						borderColor: 'transparent'
                     }]
                 });
             }
-            // 10억 이상
-            else if (xray_amount > 1000000000) {
+			// 10억 이상
+			else if (xray_amount > 1000000000) {
                 annotations.push({
                     labels: [{
                         point: {
@@ -199,49 +192,30 @@ $(document).ready(function() {
                             fontSize: '12px',
                             fontWeight: 'bold'
                         },
-                        backgroundColor: 'transparent',
-                        borderColor: 'transparent'
+						backgroundColor: 'transparent',
+						borderColor: 'transparent'
                     }]
                 });
             }
         }
-
-        // stock_price_zone 데이터를 yAxisPlotLines와 yAxisPlotBands에 추가
+        // stock_price_zone 데이터를 yAxisPlotLines에 추가
         for (var j = 0; j < zones.length; j++) {
-            if (zones[j].end_price) {
-                yAxisPlotBands.push({
-                    color: zones[j].color,
-                    from: zones[j].start_price,
-                    to: zones[j].end_price,
-                    label: {
-                        text: zones[j].zone_type,
-                        align: 'left',
-                        x: -10,
-                        style: {
-                            color: zones[j].color,
-                            fontWeight: 'bold'
-                        }
+            yAxisPlotLines.push({
+                color: zones[j].color, // 쿼리문에서 가져온 색상 사용
+                width: 2,
+                value: zones[j].start_price,
+                dashStyle: zones[j].dash_style, // 쿼리문에서 가져온 dash 스타일 사용
+                label: {
+                    text: zones[j].zone_type + ': ' + zones[j].start_price,
+                    align: 'left', // 레이블을 왼쪽으로 정렬
+                    x: -10, // 레이블 위치를 왼쪽으로 조정
+                    style: {
+                        color: zones[j].color,
+                        fontWeight: 'bold'
                     }
-                });
-            } else {
-                yAxisPlotLines.push({
-                    color: zones[j].color,
-                    width: 2,
-                    value: zones[j].start_price,
-                    dashStyle: zones[j].dash_style,
-                    label: {
-                        text: zones[j].zone_type + ': ' + zones[j].start_price,
-                        align: 'left', // 레이블을 왼쪽으로 정렬
-                        x: -10, // 레이블 위치를 왼쪽으로 조정
-                        style: {
-                            color: zones[j].color,
-                            fontWeight: 'bold'
-                        }
-                    }
-                });
-            }
+                }
+            });
         }
-
         // Highcharts 차트를 생성합니다.
         Highcharts.stockChart('container', {
             rangeSelector: {
@@ -309,8 +283,7 @@ $(document).ready(function() {
                 resize: {
                     enabled: true
                 },
-                plotLines: yAxisPlotLines, // yAxis에 가로선을 추가
-                plotBands: yAxisPlotBands // yAxis에 가로 영역을 추가
+                plotLines: yAxisPlotLines // yAxis에 가로선을 추가
             }, {
                 labels: {
                     align: 'right',
@@ -391,6 +364,44 @@ $(document).ready(function() {
                         'month',
                         [1, 2, 3, 4, 6]
                     ]]
+                },
+                events: {
+                    mouseOver: function (event) {
+                        var point = event.target.series.chart.hoverPoint;
+                        if (point) {
+                            var chart = this.chart;
+                            chart.update({
+                                yAxis: [{
+                                    plotLines: [{
+                                        value: point.close,
+                                        color: 'red',
+                                        width: 2,
+                                        id: 'plot-line-close',
+                                        label: {
+                                            text: 'Close: ' + point.close,
+                                            align: 'right',
+                                            style: {
+                                                color: 'red',
+                                                fontWeight: 'bold'
+                                            }
+                                        }
+                                    }]
+                                }]
+                            });
+                        }
+                    },
+                    mouseOut: function () {
+                        var chart = this.chart;
+                        chart.update({
+                            yAxis: [{
+                                plotLines: [{
+                                    id: 'plot-line-close',
+                                    value: null,
+                                    width: 0
+                                }]
+                            }]
+                        });
+                    }
                 }
             }, {
                 type: 'column',
