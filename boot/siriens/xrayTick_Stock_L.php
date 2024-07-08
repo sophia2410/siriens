@@ -282,6 +282,7 @@ else {
                     <option value='support'>지지선</option>
                     <option value='resistance'>저항선</option>
                     <option value='range'>박스권</option>
+                    <option value='standard'>기준봉</option>
                     <option value='kswing'>K스윙</option>
                 </select>
                 <input type='number' name='start_price' id='start_price' placeholder='시작 가격' style='margin-right: 10px;'>
@@ -308,6 +309,9 @@ else {
 				case 'range':
 					$zone_type_kr = '박스권';
 					break;
+				case 'standard':
+					$zone_type_kr = '기준봉';
+					break;
 				case 'kswing':
 					$zone_type_kr = 'K스윙';
 					break;
@@ -316,7 +320,9 @@ else {
 			}
 
 			// 가격 형식 설정
-			$price_display = $zone['end_price'] ? "{$zone['start_price']}~{$zone['end_price']}" : "{$zone['start_price']}";
+			$start_price_formatted = number_format($zone['start_price']);
+			$end_price_formatted = $zone['end_price'] ? number_format($zone['end_price']) : '';
+			$price_display = $zone['end_price'] ? "{$start_price_formatted}~{$end_price_formatted}" : "{$start_price_formatted}";
 
 			echo "<div class='price-zone-item' style='margin-right: 20px; display: flex; align-items: center;'>";
 			echo "<span>{$zone_type_kr}: {$price_display}</span>";
@@ -337,7 +343,7 @@ function saveData(formId) {
     $.post('xrayTick_script.php', formData, function(response) {
         console.log('Response:', response); // 응답 확인용 로그
         if (response.success) {
-            alert(response.message);
+            // alert(response.message);
             location.reload();
         } else {
             alert('Error: ' + response.message);
@@ -354,7 +360,7 @@ function deleteData(formId) {
     $.post('xrayTick_script.php', formData + '&proc_fg=DC', function(response) {
         console.log('Response:', response); // 응답 확인용 로그
         if (response.success) {
-            alert(response.message);
+            // alert(response.message);
             location.reload();
         } else {
             alert('Error: ' + response.message);
@@ -381,7 +387,7 @@ function deletePriceZone(zone_type, start_price) {
     $.post('xrayTick_script.php', formData, function(response) {
         console.log('Response:', response); // 응답 확인용 로그
         if (response.success) {
-            alert(response.message);
+            // alert(response.message);
             location.reload();
         } else {
             alert('Error: ' + response.message);

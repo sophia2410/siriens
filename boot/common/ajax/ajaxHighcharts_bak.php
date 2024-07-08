@@ -53,27 +53,18 @@ if ($result->num_rows > 0) {
 $stmt->close();
 
 // stock_price_zone 데이터를 가져오는 SQL 쿼리
-$zone_sql = "SELECT start_price, end_price,
-                    CASE zone_type
-                        WHEN 'support' THEN '지지'
-                        WHEN 'resistance' THEN '저항'
-                        WHEN 'range' THEN '박스권'
-                        WHEN 'kswing' THEN 'K스윙'
-                        WHEN 'standard' THEN '기준봉'
-                    END AS zone_type,
+$zone_sql = "SELECT zone_type, start_price, end_price,
                     CASE zone_type
                         WHEN 'support' THEN 'green'
                         WHEN 'resistance' THEN 'red'
-                        WHEN 'range' THEN 'rgba(0, 0, 255, 0.2)'
+                        WHEN 'range' THEN 'blue'
                         WHEN 'kswing' THEN 'orange'
-                        WHEN 'standard' THEN 'rgba(255, 0, 0, 0.2)'
                     END AS color,
                     CASE zone_type
                         WHEN 'support' THEN 'solid'
                         WHEN 'resistance' THEN 'dash'
                         WHEN 'range' THEN 'dot'
                         WHEN 'kswing' THEN 'shortdash'
-                        WHEN 'standard' THEN 'solid'
                     END AS dash_style
              FROM stock_price_zone
              WHERE code = ?";
@@ -88,11 +79,19 @@ if ($zone_result->num_rows > 0) {
     while($zone_row = $zone_result->fetch_assoc()) {
         $zones[] = [
             'zone_type' => $zone_row['zone_type'],
-            'start_price' => (double)$zone_row['start_price'],
-            'end_price' => $zone_row['end_price'] ? (double)$zone_row['end_price'] : null,
+            'price' => $zone_row['start_price'],
             'color' => $zone_row['color'],
             'dash_style' => $zone_row['dash_style']
         ];
+        // end_price가 존재하면 추가
+        if (!empty($zone_row['end_price'])) {
+            $zones[] = [
+                'zone_type' => $zone_row['zone_type'],
+                'price' => $zone_row['end_price'],
+                'color' => $zone_row['color'],
+                'dash_style' => $zone_row['dash_style']
+            ];
+        }
     }
 }
 

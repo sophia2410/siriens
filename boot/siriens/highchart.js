@@ -1,3 +1,15 @@
+function formatDate(timestamp) {
+    var date = new Date(timestamp);
+    var year = date.getFullYear();
+    var month = ('0' + (date.getMonth() + 1)).slice(-2);
+    var day = ('0' + date.getDate()).slice(-2);
+    return year + '-' + month + '-' + day;
+}
+
+function formatAmount(amount) {
+    return (amount / 100000000).toFixed(2) + '억';
+}
+
 $(document).ready(function() {
     // HTML 요소에서 data-code와 data-name 값을 가져옵니다.
     var code = $('#container').data('code');
@@ -15,6 +27,7 @@ $.getJSON('/boot/common/ajax/ajaxHighcharts.php', { code: code, name: name }, fu
             volume = [],
             xAxisPlotLines = [], // xAxis plotLines array
             yAxisPlotLines = [],
+            yAxisPlotBands = [],
             annotations = [],
             dataLength = data.length,
             ma3 = [],
@@ -26,6 +39,7 @@ $.getJSON('/boot/common/ajax/ajaxHighcharts.php', { code: code, name: name }, fu
             ma224 = [],
             navigatorPlotLines = [], // Navigator plotLines array
             i = 0;
+
         for (i; i < dataLength; i += 1) {
             var date = data[i][0];
             var open = data[i][1];
@@ -94,6 +108,7 @@ $.getJSON('/boot/common/ajax/ajaxHighcharts.php', { code: code, name: name }, fu
 			// xray-tick 대금에 따른 표시
 			// 1천억 이상
 			if (xray_amount > 100000000000) {
+                // console.log('xray_amount > 1천억이상:', formatAmount(xray_amount), 'Date:', formatDate(date), 'Date:', formatDate(date), 'High:', high);
                 annotations.push({
                     labels: [{
                         point: {
@@ -115,6 +130,7 @@ $.getJSON('/boot/common/ajax/ajaxHighcharts.php', { code: code, name: name }, fu
             }
 			// 5백억 이상
 			else if (xray_amount > 50000000000) {
+                // console.log('xray_amount > 5백억이상:', formatAmount(xray_amount), 'Date:', formatDate(date), 'x:', formatDate(date), 'High: ',high);
                 annotations.push({
                     labels: [{
                         point: {
@@ -136,6 +152,7 @@ $.getJSON('/boot/common/ajax/ajaxHighcharts.php', { code: code, name: name }, fu
             }
 			// 1백억 이상
 			else if (xray_amount > 10000000000) {
+                // console.log('xray_amount > 1백억이상:', formatAmount(xray_amount), 'Date:', formatDate(date), 'x:', formatDate(date), 'High: ',high);
                 annotations.push({
                     labels: [{
                         point: {
@@ -157,6 +174,7 @@ $.getJSON('/boot/common/ajax/ajaxHighcharts.php', { code: code, name: name }, fu
             }
             // 30억 이상
 			else if (xray_amount > 3000000000) {
+                // console.log('xray_amount > 3십억이상:', formatAmount(xray_amount), 'Date:', formatDate(date), 'x:', formatDate(date), 'High: ',high);
                 annotations.push({
                     labels: [{
                         point: {
@@ -178,6 +196,7 @@ $.getJSON('/boot/common/ajax/ajaxHighcharts.php', { code: code, name: name }, fu
             }
 			// 10억 이상
 			else if (xray_amount > 1000000000) {
+                // console.log('xray_amount > 1십억이상:', formatAmount(xray_amount), 'Date:', formatDate(date), 'x:', formatDate(date), 'High: ',high);
                 annotations.push({
                     labels: [{
                         point: {
@@ -196,28 +215,47 @@ $.getJSON('/boot/common/ajax/ajaxHighcharts.php', { code: code, name: name }, fu
 						borderColor: 'transparent'
                     }]
                 });
+            } else {
+                console.log('No condition met for xray_amount:', formatAmount(xray_amount), 'Date:', formatDate(date));
             }
         }
         // stock_price_zone 데이터를 yAxisPlotLines와 yAxisPlotBands에 추가
         for (var j = 0; j < zones.length; j++) {
-            yAxisPlotLines.push({
-                color: zones[j].color,
-                width: 2,
-                value: zones[j].price,
-                dashStyle: zones[j].dash_style,
-                label: {
-                    text: zones[j].zone_type + ': ' + zones[j].price,
-                    align: 'left', // 레이블을 왼쪽으로 정렬
-                    x: -10, // 레이블 위치를 왼쪽으로 조정
-                    style: {
-                        color: zones[j].color,
-                        fontWeight: 'bold'
+            if (zones[j].end_price) {
+                yAxisPlotBands.push({
+                    color: zones[j].color,
+                    from: zones[j].start_price,
+                    to: zones[j].end_price,
+                    label: {
+                        text: zones[j].zone_type + ': ' + zones[j].start_price.toLocaleString() + ' ~ ' + zones[j].end_price.toLocaleString(),
+                        align: 'left', // 레이블을 왼쪽으로 정렬
+                        x: -10, // 레이블 위치를 왼쪽으로 조정
+                        style: {
+                            color: zones[j].color,
+                            fontWeight: 'bold'
+                        }
                     }
-                }
-            });
+                });
+            } else {
+                yAxisPlotLines.push({
+                    color: zones[j].color,
+                    width: 2,
+                    value: zones[j].start_price,
+                    dashStyle: zones[j].dash_style,
+                    label: {
+                        text: zones[j].zone_type + ': ' + zones[j].start_price.toLocaleString(),
+                        align: 'left', // 레이블을 왼쪽으로 정렬
+                        x: -10, // 레이블 위치를 왼쪽으로 조정
+                        style: {
+                            color: zones[j].color,
+                            fontWeight: 'bold'
+                        }
+                    }
+                });
+            }
         }
         // Highcharts 차트를 생성합니다.
-        Highcharts.stockChart('container', {
+        var chart = Highcharts.stockChart('container', {
             rangeSelector: {
                 selected: 2, // 6개월 기본 조회로 설정
                 buttons: [{
@@ -283,7 +321,8 @@ $.getJSON('/boot/common/ajax/ajaxHighcharts.php', { code: code, name: name }, fu
                 resize: {
                     enabled: true
                 },
-                plotLines: yAxisPlotLines // yAxis에 가로선을 추가
+                plotLines: yAxisPlotLines, // yAxis에 가로선을 추가
+                plotBands: yAxisPlotBands // yAxis에 범위를 추가
             }, {
                 labels: {
                     align: 'right',
@@ -343,7 +382,6 @@ $.getJSON('/boot/common/ajax/ajaxHighcharts.php', { code: code, name: name }, fu
                     };
                 }
             },
-            annotations: annotations,
             series: [{
                 type: 'candlestick',
                 name: code,
@@ -471,6 +509,12 @@ $.getJSON('/boot/common/ajax/ajaxHighcharts.php', { code: code, name: name }, fu
                     plotLines: navigatorPlotLines // Navigator에 세로선을 추가
                 }
             }
+        });
+
+        // 차트 생성 후 주석 추가
+        annotations.forEach(function(annotation) {
+            // console.log('Adding annotation:', annotation);
+            chart.addAnnotation(annotation);
         });
     });
 });
