@@ -370,18 +370,20 @@ $now = date('H:i:s');  // 현재 시간을 구함
 if ($today == $base_date && $now >= '09:00:0' && $now <= '18:30:00') {
 	// 당일 시세 정보 등록전에는 실시간 등록 정보에서 받아오기..
 	$trade_qry = "
-		, CONCAT('*',  DATE_FORMAT(concat(Z.date, Z.time), '%m/%d %H:%i')) trade_date
-		, Z.price trade_price
-		, CASE WHEN Z.rate >= 0 THEN CONCAT('<font color=red> +',Z.rate,'% </font>') ELSE  CONCAT('<font color=blue> -',ABS(Z.rate),'% </font>') END close_rate_str
-		, FLOOR(Z.acc_trade_amount/100) acc_trade_amount";
-	$trade_table = "kiwoom_realtime";
+		, CONCAT('*',  DATE_FORMAT(crawl_time, '%H:%i')) trade_date
+		, Z.current_price trade_price
+		, CASE WHEN Z.change_rate >= 0 THEN CONCAT('<font color=red> +',Z.change_rate,'% </font>') ELSE  CONCAT('<font color=blue> -',ABS(Z.change_rate),'% </font>') END trade_rate_str
+		, FLOOR((Z.volume*Z.current_price)/100000000) acc_trade_amount
+		, Z.market_cap";
+	$trade_table = "naver_finance_stock";
 } else {
 	// 당일 시세 정보 가져오기
 	$trade_qry = "
 	, DATE_FORMAT(Z.date, '%m/%d') trade_date
 	, Z.close trade_price
 	, CASE WHEN Z.close_rate >= 0 THEN CONCAT('<font color=red> +',Z.close_rate,'% </font>') ELSE  CONCAT('<font color=blue> -',ABS(Z.close_rate),'% </font>') END close_rate_str
-	, FLOOR(Z.amount/100000000) acc_trade_amount";
+	, FLOOR(Z.amount/100000000) acc_trade_amount
+	, (SELECT round(market_cap/1000,2) FROM naver_finance_stock NF WHERE NF.date = Z.date AND NF.code = Z.code) AS market_cap";
 	$trade_table = "daily_price";
 }
 
@@ -655,7 +657,7 @@ if($pgmId == '') {
 		$realtime_data = "";
 		if ($row['trade_date'] != '') {
 			$realtime_data = "<font class='h5'>" . number_format($row['acc_trade_amount']) . "억  &nbsp " . $row['close_rate_str'] . " </font> &nbsp";
-			$realtime_data .= "<font class='text-dark'>" . number_format($row['trade_price']) . "&nbsp " . $row['trade_date'] . "</font> ";
+			$realtime_data .= "<font class='text-dark'>" . number_format($row['trade_price']) . "&nbsp " .number_format($row['market_cap'],2)."&nbsp ". $row['trade_date'] . "</font> ";
 		}
 	
 		// 모차십 0일차 등록건이 있는 경우 건수 표시되게 함.

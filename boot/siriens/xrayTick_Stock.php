@@ -80,8 +80,7 @@ function getList(){
 }
 
 // 일자 선택 시 상세 내역 조회
-function viewDetail(date) {
-	code  = document.getElementById("stock").value;
+function viewDetail(date, code) {
 	brWidth = window.innerWidth;
 	iframeR.src = "xrayTick_Stock_R.php?date="+date+"&code="+code+"&brWidth="+brWidth;
 	iframeR.src = "/boot/common/popup/stock_xray_tick.php?date="+date+"&code="+code+"&brWidth="+brWidth;

@@ -57,6 +57,7 @@ $.getJSON('/boot/common/ajax/ajaxHighcharts.php', { code: code, name: name }, fu
                 high: high,
                 low: low,
                 close: close,
+                close_rate: close_rate,
                 amount: amount,
                 xray_amount: xray_amount
             });
@@ -89,6 +90,8 @@ $.getJSON('/boot/common/ajax/ajaxHighcharts.php', { code: code, name: name }, fu
                 for (var j = 0; j < 224; j++) sum += data[i-j][4];
                 return sum / 224;
             })() });
+
+            // 500억봉 1000억봉 표시
             if (amount > 100000000000 && close_rate > 15) {
                 xAxisPlotLines.push({
                     color: 'rgb(204, 255, 204)',
@@ -99,6 +102,21 @@ $.getJSON('/boot/common/ajax/ajaxHighcharts.php', { code: code, name: name }, fu
                 });
                 navigatorPlotLines.push({
                     color: 'rgb(204, 255, 204)',
+                    width: 2,
+                    value: date,
+                    dashStyle: 'solid'
+                });
+            }
+            else if (amount > 50000000000 && close_rate > 15) {
+                xAxisPlotLines.push({
+                    color: 'rgb(255, 255, 0)',
+                    width: 6,
+                    value: date,
+                    dashStyle: 'solid',
+                    zIndex: 3 // 캔들보다 낮은 zIndex 설정
+                });
+                navigatorPlotLines.push({
+                    color: 'rgb(255, 255, 0)',
                     width: 2,
                     value: date,
                     dashStyle: 'solid'
@@ -215,9 +233,32 @@ $.getJSON('/boot/common/ajax/ajaxHighcharts.php', { code: code, name: name }, fu
 						borderColor: 'transparent'
                     }]
                 });
-            } else {
-                console.log('No condition met for xray_amount:', formatAmount(xray_amount), 'Date:', formatDate(date));
             }
+			// 3억 이상
+			else if (xray_amount > 300000000) {
+                // console.log('xray_amount > 3억이상:', formatAmount(xray_amount), 'Date:', formatDate(date), 'x:', formatDate(date), 'High: ',high);
+                annotations.push({
+                    labels: [{
+                        point: {
+                            xAxis: 0,
+                            yAxis: 0,
+                            x: date,
+                            y: high
+                        },
+                        text: '＊',
+                        style: {
+                            color: 'black',
+                            fontSize: '12px',
+                            fontWeight: 'bold'
+                        },
+						backgroundColor: 'transparent',
+						borderColor: 'transparent'
+                    }]
+                });
+            }
+            //  else {
+            //     console.log('No condition met for xray_amount:', formatAmount(xray_amount), 'Date:', formatDate(date));
+            // }
         }
         // stock_price_zone 데이터를 yAxisPlotLines와 yAxisPlotBands에 추가
         for (var j = 0; j < zones.length; j++) {
@@ -306,7 +347,7 @@ $.getJSON('/boot/common/ajax/ajaxHighcharts.php', { code: code, name: name }, fu
                         return Highcharts.dateFormat('%m/%d', this.value);
                     },
                     x: 10 // 오른쪽 여백 추가
-                }
+                },
             },
             yAxis: [{
                 labels: {
@@ -337,7 +378,7 @@ $.getJSON('/boot/common/ajax/ajaxHighcharts.php', { code: code, name: name }, fu
                 lineWidth: 2
             }],
             subtitle: {
-                text: '['+ code + ']' + name + ' - ' + '★: 1천억 이상, ◆: 5백억 이상, ▲: 1백억 이상, △: 30억 이상, ↑: 10억 이상',
+                text: '['+ code + ']' + name + ' - ' + '★: 1천억 이상, ◆: 5백억 이상, ▲: 1백억 이상, △: 30억 이상, ↑: 10억 이상, *: 3억 이상',
                 align: 'center',
                 verticalAlign: 'bottom',
                 style: {
@@ -361,6 +402,7 @@ $.getJSON('/boot/common/ajax/ajaxHighcharts.php', { code: code, name: name }, fu
                     tooltipHtml += '저가: ' + Highcharts.numberFormat(this.points[0].point.low, 0, '.', ',') + '<br>';
                     tooltipHtml += '종가: ' + Highcharts.numberFormat(this.points[0].point.close, 0, '.', ',') + '<br>';
                     tooltipHtml += '<br>';
+                    tooltipHtml += '등락률: ' + this.points[0].point.close_rate + '%<br>';
                     tooltipHtml += '거래량: ' + Highcharts.numberFormat(this.points[1].y / 1000, 0, '.', ',') + 'K<br>';
                     tooltipHtml += '거래대금: ' + Highcharts.numberFormat(data[index][7] / 100000000, 1, '.', ',') + '억<br>';
                     tooltipHtml += 'Xray 거래대금: ' + Highcharts.numberFormat(data[index][8] / 100000000, 1, '.', ',') + '억<br>';

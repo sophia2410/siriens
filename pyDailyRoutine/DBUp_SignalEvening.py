@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup
 from datetime import datetime
 import pymysql
 import sys
-sys.path.append("E:/Project/202410/www/boot/common/python")
+sys.path.append("E:/Project/202410/www/boot/common/python") 
 from crawling_news import crawling_news
 
 import requests
@@ -31,7 +31,7 @@ def main():
 	cur = conn.cursor()
 	
 	sql = "SELECT max(date) date FROM calendar a WHERE date <= (select DATE_FORMAT(now(), '%Y%m%d'))"
-	# sql = "SELECT date FROM calendar a WHERE date = '20240620'"
+	# sql = "SELECT date FROM calendar a WHERE date = '20240718'"
 	
 	df = pd.read_sql(sql, conn)
 	date = df['date'].values[0].decode('utf-8')
@@ -238,12 +238,12 @@ def main():
 
 	# 크롤링한 데이터 반영 안정화 되었다 판단하여 수동처리 로직 다시 코드화. 2024.06.23
 	# 타이틀 누락건 업데이트 처리
-	sql = "UPDATE rawdata_siri_report "\
-		  "SET title = crawling_title "\
-		  "WHERE page_fg = 'E' "\
-		  "AND page_date = (SELECT max(date) FROM calendar WHERE date <= (SELECT DATE_FORMAT(DATE_ADD(now(), INTERVAL 0 DAY), '%Y%m%d'))) "\
-		  "AND title = '' "\
-		  "AND (crawling_title IS NOT NULL OR crawling_title != '')"
+	sql = f"UPDATE rawdata_siri_report "\
+			f"SET title = crawling_title "\
+			f"WHERE page_fg = 'E' "\
+			f"AND page_date = (SELECT max(date) FROM calendar WHERE date <= '{dt}') "\
+			f"AND title = '' "\
+			f"AND (crawling_title IS NOT NULL OR crawling_title != '')"
 
 	file.write(sql)
 	file.write('\n')
@@ -251,15 +251,15 @@ def main():
 	conn.commit()
 
 	# date, time, name을 signals 데이터에 업데이트
-	sql = "UPDATE signals A "\
-		  "INNER JOIN (SELECT * FROM rawdata_siri_report "\
-		  "WHERE page_fg = 'E' "\
-		  "AND page_date = (SELECT max(date) FROM calendar WHERE date <= (SELECT DATE_FORMAT(DATE_ADD(now(), INTERVAL 0 DAY), '%Y%m%d')))) B "\
-		  "ON B.link = A.link "\
-		  "SET A.date = CASE WHEN B.crawling_date != '' AND B.crawling_date IS NOT NULL THEN B.crawling_date ELSE A.date END, "\
-		  "A.news_date = CASE WHEN B.crawling_date != '' AND B.crawling_date IS NOT NULL THEN B.crawling_date ELSE A.date END, "\
-		  "A.time = CASE WHEN B.crawling_time != '' AND B.crawling_time IS NOT NULL THEN B.crawling_time ELSE A.time END, "\
-		  "A.writer = CASE WHEN B.crawling_name != '' AND B.crawling_name IS NOT NULL THEN B.crawling_name ELSE A.writer END"
+	sql = f"UPDATE signals A "\
+			f"INNER JOIN (SELECT * FROM rawdata_siri_report "\
+			f"WHERE page_fg = 'E' "\
+			f"AND page_date = (SELECT max(date) FROM calendar WHERE date <= '{dt}')) B "\
+			f"ON B.link = A.link "\
+			f"SET A.date = CASE WHEN B.crawling_date != '' AND B.crawling_date IS NOT NULL THEN B.crawling_date ELSE A.date END, "\
+			f"A.news_date = CASE WHEN B.crawling_date != '' AND B.crawling_date IS NOT NULL THEN B.crawling_date ELSE A.date END, "\
+			f"A.time = CASE WHEN B.crawling_time != '' AND B.crawling_time IS NOT NULL THEN B.crawling_time ELSE A.time END, "\
+			f"A.writer = CASE WHEN B.crawling_name != '' AND B.crawling_name IS NOT NULL THEN B.crawling_name ELSE A.writer END"
 
 	file.write(sql)
 	file.write('\n')
@@ -267,22 +267,22 @@ def main():
 	conn.commit()
 
 	# signals 데이터 기준으로 rawdata_siri_report 업데이트
-	sql = "UPDATE rawdata_siri_report A "\
-		  "INNER JOIN signals B "\
-		  "ON B.link = A.link "\
-		  "SET A.date = B.date, "\
-		  "A.time = B.time, "\
-		  "A.title = (CASE WHEN A.title = '' THEN B.title ELSE A.title END), "\
-		  "A.publisher = B.publisher, "\
-		  "A.writer = B.writer, "\
-		  "A.code = B.code, "\
-		  "A.stock = B.name, "\
-		  "A.content = (CASE WHEN A.content IS NULL THEN B.content WHEN A.content = '' THEN B.content ELSE A.content END), "\
-		  "A.exists_yn = 'Y', "\
-		  "A.confirm_fg = B.confirm_fg, "\
-		  "A.signal_id = B.signal_id "\
-		  "WHERE page_date = (SELECT max(date) FROM calendar WHERE date <= (SELECT DATE_FORMAT(DATE_ADD(now(), INTERVAL 0 DAY), '%Y%m%d'))) "\
-		  "AND page_fg = 'E'"
+	sql = f"UPDATE rawdata_siri_report A "\
+			f"INNER JOIN signals B "\
+			f"ON B.link = A.link "\
+			f"SET A.date = B.date, "\
+			f"A.time = B.time, "\
+			f"A.title = (CASE WHEN A.title = '' THEN B.title ELSE A.title END), "\
+			f"A.publisher = B.publisher, "\
+			f"A.writer = B.writer, "\
+			f"A.code = B.code, "\
+			f"A.stock = B.name, "\
+			f"A.content = (CASE WHEN A.content IS NULL THEN B.content WHEN A.content = '' THEN B.content ELSE A.content END), "\
+			f"A.exists_yn = 'Y', "\
+			f"A.confirm_fg = B.confirm_fg, "\
+			f"A.signal_id = B.signal_id "\
+			f"WHERE page_date = (SELECT max(date) FROM calendar WHERE date <= '{dt}') "\
+			f"AND page_fg = 'E'"
 
 	file.write(sql)
 	file.write('\n')
@@ -290,14 +290,14 @@ def main():
 	conn.commit()
 
 	# 크롤링한 데이터는 뉴스 확인 처리 안해도 되도록 업데이트
-	sql = "UPDATE rawdata_siri_report "\
-		  "SET confirm_fg = '2', "\
-		  "date = crawling_date, "\
-		  "time = crawling_time "\
-		  "WHERE page_date = (SELECT max(date) FROM calendar WHERE date <= (SELECT DATE_FORMAT(DATE_ADD(now(), INTERVAL 0 DAY), '%Y%m%d'))) "\
-		  "AND page_fg = 'E' "\
-		  "AND (confirm_fg != '1' OR confirm_fg IS NULL) "\
-		  "AND (crawling_date IS NOT NULL AND crawling_date != '')"
+	sql = f"UPDATE rawdata_siri_report "\
+			f"SET confirm_fg = '2', "\
+			f"date = crawling_date, "\
+			f"time = crawling_time "\
+			f"WHERE page_date = (SELECT max(date) FROM calendar WHERE date <= '{dt}') "\
+			f"AND page_fg = 'E' "\
+			f"AND (confirm_fg != '1' OR confirm_fg IS NULL) "\
+			f"AND (crawling_date IS NOT NULL AND crawling_date != '')"
 
 	file.write(sql)
 	file.write('\n')

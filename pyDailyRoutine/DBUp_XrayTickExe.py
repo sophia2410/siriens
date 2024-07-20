@@ -64,14 +64,15 @@ try:
     # 집계 테이블에 데이터 삽입
     with db.cursor() as cursor:
         summary_sql = '''
-        INSERT INTO kiwoom_xray_tick_summary (date, code, name, tot_cnt, tot_volume, tot_amt)
+        INSERT INTO kiwoom_xray_tick_summary (date, code, name, tot_cnt, tot_volume, tot_amt, avg_amt)
         SELECT 
             date, 
             code, 
             name, 
             COUNT(*) AS tot_cnt, 
             SUM(volume) AS tot_volume, 
-            SUM(current_price * volume) AS tot_amt
+            SUM(current_price * volume) AS tot_amt,
+            ROUND(SUM(current_price * volume) / SUM(volume),0) AS avg_amt
         FROM 
             kiwoom_xray_tick_executions
         WHERE
@@ -81,7 +82,6 @@ try:
         '''
         cursor.execute(summary_sql, (date,))
         db.commit()
-
 
 finally:
     db.close()

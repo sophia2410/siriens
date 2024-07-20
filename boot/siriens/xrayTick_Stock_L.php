@@ -13,7 +13,7 @@
 	require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 ?>
 <head>
-	<style>
+<style>
 	.fixed-height-scrollable {
 		height: <?php echo $div_height;?>; /* 고정 높이 설정 */
 		overflow-y: scroll; /* 세로 스크롤바 추가 */
@@ -81,7 +81,15 @@
         background-color: red;
         color: white;
     }
-	</style>
+	.result-container {
+		display: flex;
+		align-items: center;
+		margin-left: 10px;
+	}
+	.result-item {
+		margin-right: 10px;
+	}
+</style>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://code.highcharts.com/stock/highstock.js"></script>
@@ -91,19 +99,125 @@
 <body>
 <?php
 if($code == '') {
-	echo "<h3>종목명 입력 후 엔터</h3>";
+	echo "<h3>종목선택</h3>";
 	$ready = 'N';
 }
 else {
+	// highchart 조회
 	echo "<div id='container' data-code='$code' data-name='$name' style='height: 580px; min-width: 310px;'></div>";
     echo "<script src='highchart.js?v=1.0.1'></script>";
 
+	// 기간 평균 체결금액 조회
+	?>
+
+	<div style="display: flex; align-items: center;">
+		<div>
+			<label for="start_date_select">기간 평균금액:</label>
+			<select id="start_date_select" name="start_date_select">
+				<?php
+					$query = "SELECT date
+								FROM calendar
+								WHERE date <= (select DATE_FORMAT(now(), '%Y%m%d'))
+								AND   date >= '20240226'
+								ORDER BY date
+								LIMIT 120";
+
+					$result = $mysqli->query($query);
+
+					$option = "";
+					while ($row = $result->fetch_array(MYSQLI_BOTH)) {
+						$option .= "<option value='". $row['date']."'>".$row['date']."</option>";
+					}
+					echo $option;
+				?>
+			</select>
+
+			<label for="end_date_select"> ~ </label>
+			<select id="end_date_select" name="end_date_select">
+				<?php
+					$result->data_seek(0); // Reset result pointer to the beginning
+					while ($row = $result->fetch_array(MYSQLI_BOTH)) {
+						$option .= "<option value='". $row['date']."'>".$row['date']."</option>";
+					}
+					echo $option;
+				?>
+			</select>
+
+			<button type="button" class="btn" onclick="fetchAverageAmount()">조회</button>
+
+		</div>
+		<div id="average_amount" class="result-container"></div>
+	</div>
+
+	<script>
+	function fetchAverageAmount() {
+		var code = $('#container').data('code');
+		var startDate = $('#start_date_select').val();
+		var endDate = $('#end_date_select').val();
+
+		if (!startDate || !endDate) {
+			alert('Please select both start and end dates.');
+			return;
+		}
+
+		// 날짜를 localStorage에 저장
+		localStorage.setItem('start_date', startDate);
+		localStorage.setItem('end_date', endDate);
+
+		var requestData = {
+			code: code,
+			start_date: startDate,
+			end_date: endDate,
+			proc_fg: 'AVG_AMT'
+		};
+
+		$.post('xrayTick_script.php', requestData, function(response) {
+			if (response.success) {
+				var averageAmount = parseFloat(response.average_amount);
+				var percentageChanges = response.percentage_changes;
+
+				$('#average_amount').html(
+					'<div class="result-item">Average Amount: ' + averageAmount.toLocaleString() + '</div>' +
+					'<div class="result-item">10% : ' + percentageChanges['10%'].toLocaleString() + '</div>' +
+					'<div class="result-item">20% : ' + percentageChanges['20%'].toLocaleString() + '</div>' +
+					'<div class="result-item">30% : ' + percentageChanges['30%'].toLocaleString() + '</div>'
+				);
+			} else {
+				alert('Error: ' + response.message);
+			}
+		}, 'json').fail(function(jqXHR, textStatus, errorThrown) {
+			console.error('Request failed:', textStatus, errorThrown);
+			alert('Error: ' + textStatus + ' - ' + errorThrown);
+		});
+	}
+
+	$('#start_date_select').on('change', function() {
+		var selectedStartDate = $(this).val();
+		$('#end_date_select').val(selectedStartDate);
+	});
+
+
+	$(document).ready(function() {
+		// localStorage에서 날짜를 불러와 셀렉트 박스에 설정
+		var startDate = localStorage.getItem('start_date');
+		var endDate = localStorage.getItem('end_date');
+
+		if (startDate) {
+			$('#start_date_select').val(startDate);
+		}
+
+		if (endDate) {
+			$('#end_date_select').val(endDate);
+		}
+	});
+	</script>
+	<?php
 	//X-RAY 순간체결 거래량
-	$query = "	SELECT cal.date, SUBSTR(STR_TO_DATE(cal.date, '%Y%m%d'),6) date_str, xray.close_rate, xray.close_amt, xray.tot_trade_amt, xray.amount, xray.cnt
+	$query = "	SELECT cal.date, SUBSTR(STR_TO_DATE(cal.date, '%Y%m%d'),6) date_str, xray.close_rate, xray.close_amt, xray.tot_trade_amt, xray.amount, xray.avg_amt, xray.cnt
 				FROM calendar cal
 				LEFT OUTER JOIN 
 					(
-						SELECT xr.code, xr.name, xr.date, dp.close_rate close_rate, dp.close close_amt, round(dp.amount/100000000,0) tot_trade_amt, round(xr.tot_amt/100000000,1) amount, xr.tot_cnt cnt
+						SELECT xr.code, xr.name, xr.date, dp.close_rate close_rate, dp.close close_amt, round(dp.amount/100000000,0) tot_trade_amt, round(xr.tot_amt/100000000,1) amount, xr.avg_amt, xr.tot_cnt cnt
 						FROM kiwoom_xray_tick_summary xr
 						LEFT OUTER JOIN daily_price dp
 						ON dp.date = xr.date
@@ -127,11 +241,11 @@ else {
 		$week_number = date('W', strtotime($date));  // 주 번호 추출
 		if (!isset($weekly_data[$week_number])) {
 			$weekly_data[$week_number] = [
-				'Mon' => ['date' => '', 'close_rate' => '', 'close_amt' => '', 'tot_trade_amt' => '', 'amount' => '', 'cnt' => ''],
-				'Tue' => ['date' => '', 'close_rate' => '', 'close_amt' => '', 'tot_trade_amt' => '', 'amount' => '', 'cnt' => ''],
-				'Wed' => ['date' => '', 'close_rate' => '', 'close_amt' => '', 'tot_trade_amt' => '', 'amount' => '', 'cnt' => ''],
-				'Thu' => ['date' => '', 'close_rate' => '', 'close_amt' => '', 'tot_trade_amt' => '', 'amount' => '', 'cnt' => ''],
-				'Fri' => ['date' => '', 'close_rate' => '', 'close_amt' => '', 'tot_trade_amt' => '', 'amount' => '', 'cnt' => ''],
+				'Mon' => ['date' => '', 'close_rate' => '', 'avg_amt' => '', 'tot_trade_amt' => '', 'amount' => '', 'cnt' => ''],
+				'Tue' => ['date' => '', 'close_rate' => '', 'avg_amt' => '', 'tot_trade_amt' => '', 'amount' => '', 'cnt' => ''],
+				'Wed' => ['date' => '', 'close_rate' => '', 'avg_amt' => '', 'tot_trade_amt' => '', 'amount' => '', 'cnt' => ''],
+				'Thu' => ['date' => '', 'close_rate' => '', 'avg_amt' => '', 'tot_trade_amt' => '', 'amount' => '', 'cnt' => ''],
+				'Fri' => ['date' => '', 'close_rate' => '', 'avg_amt' => '', 'tot_trade_amt' => '', 'amount' => '', 'cnt' => ''],
 			];
 		}
 		// 요일별 데이터 저장
@@ -139,7 +253,7 @@ else {
 			if($page_fg == 'popup')
 				$showDt = "<a href=\"javascript:openPopupXrayTick('{$code}', '".$row['date']."')\">";
 			else
-				$showDt = "<a href=\"javascript:callFrameR('".$date."')\">";
+				$showDt = "<a href=\"javascript:callFrameR('".$date."', '{$code}')\">";
 			$weekly_data[$week_number][$day_of_week]['date'] = "<td align=center width=90  style='background-color:#fae4f1;'><b>$showDt". $row['date_str']."</a></b></td>";
 			if($row['cnt'] > 0) {
 				// 등락률 따라 스타일 적용
@@ -170,13 +284,13 @@ else {
 
 				$weekly_data[$week_number][$day_of_week]['close_rate'] = "<td align=center $rate_style>". $row['close_rate']."%</td>";
 				$weekly_data[$week_number][$day_of_week]['tot_trade_amt'] = "<td align=center $tot_amt_style>". number_format($row['tot_trade_amt'])."</td>";
-				$weekly_data[$week_number][$day_of_week]['close_amt'] = "<td align=center>". number_format($row['close_amt'])."</td>";
+				$weekly_data[$week_number][$day_of_week]['avg_amt'] = "<td align=center>". number_format($row['avg_amt'])."</td>";
 				$weekly_data[$week_number][$day_of_week]['cnt'] = "<td align=right>". number_format($row['cnt'])."</td>";
 				$weekly_data[$week_number][$day_of_week]['amount'] = "<td align=right class='{$amt_style}'>". number_format($row['amount'])."</td>";
 			} else {
 				$weekly_data[$week_number][$day_of_week]['close_rate'] = "<td align=center>&nbsp;</td>";
 				$weekly_data[$week_number][$day_of_week]['tot_trade_amt'] = "<td align=center>&nbsp;</td>";
-				$weekly_data[$week_number][$day_of_week]['close_amt'] = "<td align=center>&nbsp;</td>";
+				$weekly_data[$week_number][$day_of_week]['avg_amt'] = "<td align=center>&nbsp;</td>";
 				$weekly_data[$week_number][$day_of_week]['cnt'] = "<td align=center>&nbsp;</td>";
 				$weekly_data[$week_number][$day_of_week]['amount'] = "<td align=center>&nbsp;</td>";
 			}
@@ -196,7 +310,7 @@ else {
 					echo $data[$day]['date'] ?? "<th></th>";
 				}
 			}
-			echo "</tr><tr class='small'>";  // 종가 비율 행
+			echo "</tr><tr class='small'>";  // 등락률 행
 			foreach ($pair as $week => $data) {
 				foreach (['Fri', 'Thu', 'Wed', 'Tue', 'Mon'] as $day) {
 					echo $data[$day]['close_rate'] ?? "<td></td>";
@@ -208,10 +322,10 @@ else {
 					echo $data[$day]['tot_trade_amt'] ?? "<td></td>";
 				}
 			}
-			echo "</tr><tr class='small'>";  // 종가
+			echo "</tr><tr class='small'>";  // 평균매수가 행
 			foreach ($pair as $week => $data) {
 				foreach (['Fri', 'Thu', 'Wed', 'Tue', 'Mon'] as $day) {
-					echo $data[$day]['close_amt'] ?? "<td></td>";
+					echo $data[$day]['avg_amt'] ?? "<td></td>";
 				}
 			}
 			// echo "</tr><tr>";  // 거래량 행
@@ -245,7 +359,7 @@ else {
     }
 
     // 최근 코멘트를 가져와서 표시하는 부분 추가
-    $query = "SELECT comment, pick_yn, comment_date FROM kiwoom_xtay_tick_comments WHERE code = '$code' AND comment_date < '$today' ORDER BY comment_date DESC LIMIT 3";
+    $query = "SELECT comment, pick_yn, comment_date FROM kiwoom_xtay_tick_comments WHERE code = '$code' AND comment_date < '$today' ORDER BY comment_date LIMIT 3";
     $result = $mysqli->query($query);
 ?>
     <div class="comment-section" style='border-bottom: 1px solid #ddd;'>
@@ -279,10 +393,10 @@ else {
             <input type='hidden' name='proc_fg' value='PZS'>
             <div class='form-group' style='display: flex; align-items: center;'>
                 <select name='zone_type' id='zone_type' style='margin-right: 10px;'>
+                    <option value='standard'>기준봉</option>
                     <option value='support'>지지선</option>
                     <option value='resistance'>저항선</option>
                     <option value='range'>박스권</option>
-                    <option value='standard'>기준봉</option>
                     <option value='kswing'>K스윙</option>
                 </select>
                 <input type='number' name='start_price' id='start_price' placeholder='시작 가격' style='margin-right: 10px;'>
@@ -398,8 +512,8 @@ function deletePriceZone(zone_type, start_price) {
     });
 }
 
-function callFrameR(date) {
-    window.parent.viewDetail(date);
+function callFrameR(date,code) {
+    window.parent.viewDetail(date,code);
 }
 
 function openPopupXrayTick(code, date) {

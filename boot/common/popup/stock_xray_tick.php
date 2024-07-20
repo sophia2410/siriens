@@ -119,7 +119,7 @@ while ($row = $result_table->fetch_assoc()) {
 <body id="page-top">
     <div id="content">
         <!-- 그래프를 상단에 배치 -->
-        <canvas id="myChart" width="600" height="250"></canvas>
+        <canvas id="myChart" width="600" height="350"></canvas>
         
         <script>
         var ctx = document.getElementById('myChart').getContext('2d');
@@ -206,7 +206,7 @@ while ($row = $result_table->fetch_assoc()) {
     <!-- 테이블을 그대로 유지 -->
     <div>
         <?php
-        echo "<table class='table table-sm table-bordered text-dark'>";
+        echo "<table class='table table-sm small table-bordered text-dark'>";
         echo "<tr align=center><th>시간</th><th>등락률</th><th>거래량</th><th>거래대금</th><th>누계대금</th></tr>";
         
         // 데이터를 다시 가져와 테이블 출력

@@ -26,7 +26,7 @@ $signal_page = (isset($_POST['stock_nm'])) ? $_POST['stock_nm'] : '';
           display: flex;
         }
         .left {
-          flex: 2; /* 비율 2 */
+          flex: 3; /* 비율 2 */
         }
         .right {
           flex: 2; /* 비율 2 */
@@ -93,6 +93,7 @@ $result = $mysqli->query($query);
             echo $option;
         ?>
 		</select>
+		<input type=checkbox id='highchartview' checked> Highchart 바로보기 &nbsp;
         <button type="button" class="btn btn-danger btn-sm" onclick="xrayTick('0dayStocks','29.5', '0')">상한가</button>
         <button type="button" class="btn btn-danger btn-sm" onclick="xrayTick('0dayStocks','20','2000')">20% || 2000억↑</button>
         <button type="button" class="btn btn-danger btn-sm" onclick="xrayTick('0dayStocks','0','0')">0일차모음</button>
@@ -100,7 +101,8 @@ $result = $mysqli->query($query);
         <button type="button" class="btn btn-danger btn-sm" id="themeButton">최근테마(관.종)</button>
         <button type="button" class="btn btn-danger btn-sm" onclick="xrayTick('sophiaWatchlist','2 최근0일차☆','')">최근0일차(관.종)</button>
         <button type="button" class="btn btn-danger btn-sm" onclick="xrayTick('xraytick')">조회일자</button> &nbsp; 
-        <input type=text id=buy_cnt style='width:30px' value=4>건/<input type=text id=buy_period style='width:30px' value=7>일내
+        <input type=text id=buy_cnt style='width:30px' value=6>건/<input type=text id=buy_period style='width:30px' value=10>일내
+        <input type=checkbox id='0dayview' checked> 0일차포함 &nbsp;
         <button type="button" class="btn btn-danger btn-sm" onclick="xrayTick('buy_streak')">연속매수</button> 
     </div>
     <div class="right">
@@ -188,6 +190,9 @@ function selectSector(id, name) {
 // 순간체결 데이터 조회하기
 function xrayTick(pgmId, key1='', key2='') {
 	search_date  = document.getElementById('search_date').options[document.getElementById("search_date").selectedIndex].value;
+    if(document.getElementById('highchartview').checked == true) highchartview  = 'Y';
+    else highchartview  = 'N';
+
     if(pgmId == '0dayStocks') {
         parm = "&increase_rate=" + key1 + "&trade_amt=" + key2;
     } else if(pgmId == 'mochaten') {
@@ -199,10 +204,14 @@ function xrayTick(pgmId, key1='', key2='') {
     } else if(pgmId == 'buy_streak') {
         buy_cnt    = document.getElementById('buy_cnt').value;
         buy_period = document.getElementById('buy_period').value;
-        parm = "&buy_cnt=" + buy_cnt + "&buy_period=" + buy_period;
+        zeroday_view = document.getElementById('0dayview').checked;
+        parm = "&buy_cnt=" + buy_cnt + "&buy_period=" + buy_period + "&zeroday_view=" + zeroday_view;
     }
 
-    iframeB.src = "xrayTick_StockList.php?pgmId=" + pgmId + "&search_date=" + search_date + parm;
+    if(highchartview == 'Y')
+        iframeB.src = "xrayTick_HighchartView.php?pgmId=" + pgmId + "&search_date=" + search_date + parm;
+    else
+        iframeB.src = "xrayTick_StockList.php?pgmId=" + pgmId + "&search_date=" + search_date + parm;
     return;
 }
 

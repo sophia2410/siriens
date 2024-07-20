@@ -97,6 +97,41 @@ if(isset($_POST['proc_fg'])) {
         } else {
             $response = ['success' => false, 'message' => 'Error deleting price zone: ' . $mysqli->error];
         }
+    }else if ($_POST['proc_fg'] == 'AVG_AMT') {
+        $code = $_POST['code'];
+        $start_date = $_POST['start_date'];
+        $end_date = $_POST['end_date'];
+    
+        $query = "
+            SELECT AVG(avg_amt) as average_amount
+            FROM kiwoom_xray_tick_summary
+            WHERE code = '$code'
+            AND date BETWEEN '$start_date' AND '$end_date'
+        ";
+
+        $query = "
+            SELECT ROUND(SUM(current_price * volume) / SUM(volume),0) as average_amount
+            FROM kiwoom_xray_tick_executions
+            WHERE code = '$code'
+            AND date BETWEEN '$start_date' AND '$end_date'
+        ";
+
+        $result = $mysqli->query($query);
+        if ($row = $result->fetch_assoc()) {
+            $average_amount = (float)$row['average_amount'];
+    
+            // 상승 비율에 따른 금액 계산
+            $percentage_changes = [
+                '10%' => round($average_amount * 1.10),
+                '20%' => round($average_amount * 1.20),
+                '30%' => round($average_amount * 1.30)
+            ];
+    
+            echo json_encode(['success' => true, 'average_amount' => round($average_amount), 'percentage_changes' => $percentage_changes]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'No data found']);
+        }
+        exit;
     }
 }
 $mysqli->close();
