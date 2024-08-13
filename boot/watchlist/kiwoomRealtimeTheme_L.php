@@ -373,7 +373,7 @@ else {
 	// // 처음 등장하는 종목에만 스타일을 적용하기 위한 배열 초기화
 	// $firstAppearance = [];
 	
-	// 섹터별 종목을 더 잘 보기 위해 우선 화면 표기 막아두기!
+	// // 섹터별 종목을 더 잘 보기 위해 우선 화면 표기 막아두기!
 	// // $times 배열 순서대로 처리 (현재, 1분 전, 2분 전, ... , 12분 전)
 	// echo "<tr><td colspan=3 align=center class=h2>Top7</td>";
 	// foreach ($times as $time) {

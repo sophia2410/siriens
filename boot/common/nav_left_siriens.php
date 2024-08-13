@@ -112,16 +112,16 @@ if($_SERVER["HTTP_HOST"] == 'localhost') {
 
             <!-- Nav Item -->
             <li class="nav-item">
-                <a class="nav-link" href="<?=$PATH?>watchlist/aStarWatchlist.php">
+                <a class="nav-link" href="<?=$PATH?>watchlist/sophiaWatchlist.php">
                     <i class="fas fa-fw fa-gift"></i>
-                    <span>aStar WatchList </span></a>
+                    <span>Sophia WatchList </span></a>
             </li>
 
             <!-- Nav Item -->
             <li class="nav-item">
-                <a class="nav-link" href="<?=$PATH?>watchlist/sophiaWatchlist.php">
+                <a class="nav-link" href="<?=$PATH?>watchlist/aStarWatchlist.php">
                     <i class="fas fa-fw fa-gift"></i>
-                    <span>Sophia WatchList </span></a>
+                    <span>aStar WatchList </span></a>
             </li>
 
             <!-- Nav Item -->

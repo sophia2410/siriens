@@ -107,6 +107,61 @@ else {
 	echo "<div id='container' data-code='$code' data-name='$name' style='height: 580px; min-width: 310px;'></div>";
     echo "<script src='highchart.js?v=1.0.1'></script>";
 
+	// 공통코드 불러오기
+	$status_query = "SELECT cd, nm FROM comm_cd WHERE l_cd = 'HC000' ORDER BY ord_no";
+	$status_result = $mysqli->query($status_query);
+	$status_options = "<option value=''>선택</option>";
+	$comm_codes = [];
+	while ($status_row = $status_result->fetch_assoc()) {
+		$status_options .= "<option value='". $status_row['cd']."'>".$status_row['nm']."</option>";
+		$comm_codes[$status_row['cd']] = $status_row['nm']; // 공통코드 배열에 저장
+	}
+	
+	// 체결빈도 옵션 설정
+	$frequency_options = "<option value=''>선택</option>";
+	$frequency_levels = ['강', '중', '약'];
+	foreach ($frequency_levels as $level) {
+		$frequency_options .= "<option value='$level'>$level</option>";
+	}
+
+	// 최근 저장된 상태 불러오기
+	$current_status_query = "SELECT status_cd, frequency, status_date FROM chart_status WHERE code = '$code' ORDER BY status_date DESC LIMIT 2";
+	$current_status_result = $mysqli->query($current_status_query);
+	$current_statuses = [];
+	while ($current_status_row = $current_status_result->fetch_assoc()) {
+		$status_cd = $current_status_row['status_cd'];
+		$status_nm = isset($comm_codes[$status_cd]) ? $comm_codes[$status_cd] : $status_cd;
+		$frequency = $current_status_row['frequency'];
+		$current_statuses[] = ['cd' => $status_cd, 'nm' => $status_nm, 'freq' => $frequency, 'date' => $current_status_row['status_date']];
+	}
+	?>
+
+	<div class="status-section" style="display: flex; align-items: center; flex-wrap: nowrap;">
+		<form id="status-form" style="display: flex; align-items: center;">
+			<input type='hidden' name='code' value='<?php echo $code; ?>'>
+			<input type='hidden' name='name' value='<?php echo $name; ?>'>
+			<input type='hidden' name='proc_fg' value='SS'>
+			<div class='form-group' style='display: flex; align-items: center;'>
+				<label for='status_cd'>차트 상태:</label>
+				<select name='status_cd' id='status_cd' style='margin-left: 10px;'>
+					<?php echo $status_options; ?>
+				</select>
+				<label for='frequency' style='margin-left: 10px;'>체결 빈도:</label>
+				<select name='frequency' id='frequency' style='margin-left: 10px;'>
+					<?php echo $frequency_options; ?>
+				</select>
+				<button type='button' class='btn btn-info btn-sm' style='margin-left: 10px;' onclick='saveData("status-form")'>저장</button>
+			</div>
+		</form>
+		<div class='current-status' style="margin-left: 20px; display: flex; align-items: center;">
+			<?php foreach ($current_statuses as $status): ?>
+				<span style="margin-left: 10px;"><?php echo $status['nm'] ?>(<?php echo $status['freq']; ?>) (<?php echo $status['date'];?>)</span>
+				<button type='button' class='delete-btn' style="margin-left: 5px;" onclick='deleteStatus("<?php echo $code; ?>", "<?php echo $status['date']; ?>")'>X</button>
+			<?php endforeach; ?>
+		</div>
+	</div>
+
+	<?php
 	// 기간 평균 체결금액 조회
 	?>
 
@@ -394,6 +449,7 @@ else {
             <div class='form-group' style='display: flex; align-items: center;'>
                 <select name='zone_type' id='zone_type' style='margin-right: 10px;'>
                     <option value='standard'>기준봉</option>
+                    <option value='average'>평균값</option>
                     <option value='support'>지지선</option>
                     <option value='resistance'>저항선</option>
                     <option value='range'>박스권</option>
@@ -414,6 +470,9 @@ else {
 		while ($zone = $price_zones_result->fetch_assoc()) {
 			// zone_type을 한국어로 변환
 			switch ($zone['zone_type']) {
+				case 'average':
+					$zone_type_kr = '평균값';
+					break;
 				case 'support':
 					$zone_type_kr = '지지선';
 					break;
@@ -497,6 +556,29 @@ function deletePriceZone(zone_type, start_price) {
     };
 
     console.log('Deleting price zone:', formData); // 데이터 확인용 로그
+
+    $.post('xrayTick_script.php', formData, function(response) {
+        console.log('Response:', response); // 응답 확인용 로그
+        if (response.success) {
+            // alert(response.message);
+            location.reload();
+        } else {
+            alert('Error: ' + response.message);
+        }
+    }, 'json').fail(function(jqXHR, textStatus, errorThrown) {
+        console.error('Request failed:', textStatus, errorThrown); // 에러 확인용 로그
+        alert('Error: ' + textStatus + ' - ' + errorThrown);
+    });
+}
+
+function deleteStatus(code, status_date) {
+    var formData = {
+        code: code,
+        status_date: status_date,
+        proc_fg: 'DS'
+    };
+
+    console.log('Deleting status:', formData); // 데이터 확인용 로그
 
     $.post('xrayTick_script.php', formData, function(response) {
         console.log('Response:', response); // 응답 확인용 로그

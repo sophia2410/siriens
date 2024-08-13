@@ -1,133 +1,100 @@
-import pandas as pd
-from bs4 import BeautifulSoup
-import pymysql
-import calendar
-import json
-import requests
-from datetime import datetime
-from threading import Timer
-import time
-from pykrx import stock
+<?php
+require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 
-class DBUpdater:
-    def __init__(self):
-        """생성자: MariaDB 연결 및 종목코드 딕셔너리 생성"""
-        self.conn = pymysql.connect(
-            host='siriens.mycafe24.com', user='siriens', password='hosting1004!',
-            db='siriens', charset='utf8'
-        )
+// Determine the type of data to fetch based on the `type` parameter
+$type = $_GET['type'] ?? '';
+$query = $_GET['q'] ?? '';
+$response = [];
 
-        with self.conn.cursor() as curs:
-            sql = """
-            CREATE TABLE IF NOT EXISTS company_info (
-                code VARCHAR(20),
-                company VARCHAR(40),
-                last_update DATE,
-                PRIMARY KEY (code))
-            """
-            curs.execute(sql)
-            sql = """
-            CREATE TABLE IF NOT EXISTS daily_price (
-                code VARCHAR(20),
-                date DATE,
-                open BIGINT(20),
-                high BIGINT(20),
-                low BIGINT(20),
-                close BIGINT(20),
-                diff BIGINT(20),
-                volume BIGINT(20),
-                PRIMARY KEY (code, date))
-            """
-            curs.execute(sql)
-        self.conn.commit()
-        self.codes = dict()
+switch ($type) {
+    case 'stocks':
+        // Fetch stocks based on a query
+        if ($query !== '') {
+            $stmt = $mysqli->prepare("SELECT code, name FROM stock WHERE name LIKE CONCAT('%', ?, '%') OR code LIKE CONCAT('%', ?, '%')");
+            $stmt->bind_param('ss', $query, $query);
+            $stmt->execute();
+            $result = $stmt->get_result();
 
-    def __del__(self):
-        """소멸자: MariaDB 연결 해제"""
-        self.conn.close()
+            while ($row = $result->fetch_assoc()) {
+                $response[] = $row;
+            }
 
-    def get_ticker(self):
-        kospi_tickers = stock.get_market_ticker_list(None)
-        kosdaq_tickers = stock.get_market_ticker_list(None, "KOSDAQ")
-        tickers = kospi_tickers + kosdaq_tickers
-        return tickers
+            $stmt->close();
+        }
+        break;
 
-    def get_market(self, from_date, to_date, code):
-        df = stock.get_market_ohlcv(from_date, to_date, code)
-        df = df.rename(columns={'날짜': 'date', '시가': 'open', '고가': 'high', '저가': 'low',
-                                '종가': 'close', '거래량': 'volume', '거래대금': 'amount', '등락률': 'close_rate'})
-        return df
+    case 'keywords':
+        // Fetch keyword groups based on a query
+        if ($query !== '') {
+            $stmt = $mysqli->prepare("SELECT group_name FROM keyword_groups_master WHERE group_name LIKE CONCAT('%', ?, '%')");
+            $stmt->bind_param('s', $query);
+            $stmt->execute();
+            $result = $stmt->get_result();
 
-    def replace_into_ohlcv(self, df, code, idx):
-        with self.conn.cursor() as curs:
-            for r in df.itertuples():
-                date = str(r.Index).replace('-', '')[0:8]
-                sql = f"""
-                INSERT IGNORE INTO market_ohlcv(code, date, open, high, low, close, volume, amount, close_rate)
-                VALUES ('{code}', '{date}', {r.open}, {r.high}, {r.low}, {r.close}, {r.volume}, {r.amount}, {r.close_rate})
-                """
-                print(f'({idx}) {sql}')
-                curs.execute(sql)
-            self.conn.commit()
+            while ($row = $result->fetch_assoc()) {
+                $response[] = $row['group_name'];
+            }
 
-    def update_market_ohlcv(self, codes, from_date, to_date):
-        for idx in range(len(codes)):
-            df = self.get_market(from_date, to_date, codes[idx])
-            if df is None:
-                continue
-            self.replace_into_ohlcv(df, codes[idx], idx)
-            time.sleep(idx % 2 + 1)
-            if idx % 10 == 0:
-                time.sleep(1)
+            $stmt->close();
+        }
+        break;
 
-    def pykrxMarket_execute(self, from_date, to_date):
-        codes = self.get_ticker()
-        print(len(codes))
-        self.update_market_ohlcv(codes, from_date, to_date)
+    case 'stock_comments':
+        // Fetch stock comments for autocomplete
+        $code = $_GET['code'] ?? '';
+        if ($code !== '') {
+            $stmt = $mysqli->prepare("
+                SELECT stock_comment FROM (
+                    SELECT comment AS stock_comment FROM stock_comment WHERE code = ?
+                    UNION
+                    SELECT stock_comment FROM watchlist_sophia WHERE code = ? AND stock_comment != ''
+                    UNION
+                    SELECT stock_comment FROM market_issue_stocks WHERE code = ? AND stock_comment != ''
+                ) AS combined_comments
+            ");
+            $stmt->bind_param('sss', $code, $code, $code);
+            $stmt->execute();
+            $result = $stmt->get_result();
 
-def datetime2string(dt, freq='d'):
-    if freq.upper() == 'Y':
-        return dt.strftime("%Y")
-    elif freq.upper() == 'M':
-        return dt.strftime("%Y%m")
-    else:
-        return dt.strftime("%Y%m%d")
+            while ($row = $result->fetch_assoc()) {
+                $response[] = $row['stock_comment'];
+            }
 
-def get_nearest_business_day_in_a_week(date: str = None, prev: bool = True) -> str:
-    """인접한 영업일을 조회한다."""
-    from pykrx.website.krx.market import get_index_ohlcv_by_date
-    
-    if date is None:
-        curr = datetime.datetime.now()
-    else:
-        curr = datetime.datetime.strptime(date, "%Y%m%d")
+            $stmt->close();
+        }
+        break;
 
-    if prev:
-        prev = curr - datetime.timedelta(days=7)
-        curr_str = curr.strftime("%Y%m%d")
-        prev_str = prev.strftime("%Y%m%d")
-        df = get_index_ohlcv_by_date(prev_str, curr_str, "1001")
-        print(f"Requesting data for date range: {prev_str} to {curr_str}")
-        print(f"Returned DataFrame:\n{df}")
-        if df.empty:
-            print(f"Empty DataFrame returned for date range: {prev_str} to {curr_str}")
-            return None
-        return df.index[-1].strftime("%Y%m%d")
-    else:
-        next = curr + datetime.timedelta(days=7)
-        next_str = next.strftime("%Y%m%d")
-        curr_str = curr.strftime("%Y%m%d")
-        df = get_index_ohlcv_by_date(curr_str, next_str, "1001")
-        print(f"Requesting data for date range: {curr_str} to {next_str}")
-        print(f"Returned DataFrame:\n{df}")
-        if df.empty:
-            print(f"Empty DataFrame returned for date range: {curr_str} to {next_str}")
-            return None
-        return df.index[0].strftime("%Y%m%d")
+    case 'themes_sectors':
+        // Fetch themes and sectors based on keywords
+        if ($query !== '') {
+            $keyword_ids = explode(',', $query); // Assuming $query is a comma-separated list of keyword IDs
+            $types = str_repeat('i', count($keyword_ids)); // Prepare the binding types for the keyword IDs
 
-# 예외 처리 및 다른 날짜 범위 시도
-try:
-    dbu = DBUpdater()
-    dbu.pykrxMarket_execute('20240705', '20240705')
-except Exception as e:
-    print(f"Error occurred: {e}")
+            $stmt = $mysqli->prepare("
+                SELECT DISTINCT theme, sector FROM market_issues
+                WHERE keyword_group_id IN (
+                    SELECT group_id FROM keyword_groups
+                    WHERE keyword_id IN (" . implode(',', array_fill(0, count($keyword_ids), '?')) . ")
+                    GROUP BY group_id
+                    HAVING COUNT(DISTINCT keyword_id) = ?
+                )
+            ");
+            $stmt->bind_param($types . 'i', ...$keyword_ids, count($keyword_ids));
+            $stmt->execute();
+            $result = $stmt->get_result();
+
+            while ($row = $result->fetch_assoc()) {
+                $response[] = ['theme' => $row['theme'], 'sector' => $row['sector']];
+            }
+
+            $stmt->close();
+        }
+        break;
+
+    default:
+        $response['error'] = 'Invalid type specified';
+        break;
+}
+
+echo json_encode($response);
+?>

@@ -50,13 +50,13 @@
 </div>
 <table style="width:100%;">
 	<tr valign=top>
-	<td width=80% valign=top>
+	<td width=65% valign=top>
 		<div style="margin: 0; border: 0; font: inherit;vertical-align: baseline; padding: 0;height: calc(100vh - 100px);">
 			<iframe id="iframeL" style="width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 100px);" src="kiwoomRealtimeTheme_L.php">
 			</iframe>
 		</div>
 	</td>
-	<td width=20% valign=top>
+	<td width=35% valign=top>
 		<div style="margin: 0; border: 0; font: inherit;vertical-align: baseline; padding: 0;height: calc(100vh - 100px);">
 			<iframe id="iframeR" style="width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 100px);" src="kiwoomRealtimeTheme_R.php">
 			</iframe>

@@ -98,8 +98,6 @@ $where = '';
 if($theme != '') {
 	echo $sector."&nbsp;".$theme;
 	$where = "AND m.code IN (SELECT code FROM watchlist_sophia WHERE sector = '$sector' AND theme = '$theme')";
-// } else { // 임시로 '2 최근0일차☆' 만 보이게 처리 24.06.20
-// 	$where = "AND m.code IN (SELECT code FROM watchlist_sophia WHERE sector = '2 최근0일차☆')";
 }
 ?>
 
@@ -190,6 +188,10 @@ else {
 			g.code, name, first_minute, last_minute,
 			volume_sign_last_min   * amount_last_min   AS amount_last_min,
 			volume_sign_last_1min  * amount_last_1min  AS amount_last_1min,
+			volume_sign_last_2min  * amount_last_2min  AS amount_last_2min,
+			volume_sign_last_3min  * amount_last_3min  AS amount_last_3min,
+			volume_sign_last_4min  * amount_last_4min  AS amount_last_4min,
+			volume_sign_last_5min  * amount_last_5min  AS amount_last_5min,
 			amount_acc_day,
 			rate,
 			CASE WHEN h.code IS NULL AND (volume_sign_last_min   * amount_last_min) > 0 THEN '★' ELSE '' END AS first_alert
@@ -200,8 +202,16 @@ else {
 				MAX(minute) AS last_minute,
 				IFNULL(MAX(CASE WHEN minute = t.last_min   THEN CASE WHEN (minus_tick_cnt - plus_tick_cnt) > 5 THEN -1 ELSE CASE WHEN minute_volume > 0 THEN 1 ELSE -1 END END ELSE NULL END), 0) volume_sign_last_min,
 				IFNULL(MAX(CASE WHEN minute = t.last_1min  THEN CASE WHEN (minus_tick_cnt - plus_tick_cnt) > 5 THEN -1 ELSE CASE WHEN minute_volume > 0 THEN 1 ELSE -1 END END ELSE NULL END), 0) volume_sign_last_1min,
+				IFNULL(MAX(CASE WHEN minute = t.last_2min  THEN CASE WHEN (minus_tick_cnt - plus_tick_cnt) > 5 THEN -1 ELSE CASE WHEN minute_volume > 0 THEN 1 ELSE -1 END END ELSE NULL END), 0) volume_sign_last_2min,
+				IFNULL(MAX(CASE WHEN minute = t.last_3min  THEN CASE WHEN (minus_tick_cnt - plus_tick_cnt) > 5 THEN -1 ELSE CASE WHEN minute_volume > 0 THEN 1 ELSE -1 END END ELSE NULL END), 0) volume_sign_last_3min,
+				IFNULL(MAX(CASE WHEN minute = t.last_4min  THEN CASE WHEN (minus_tick_cnt - plus_tick_cnt) > 5 THEN -1 ELSE CASE WHEN minute_volume > 0 THEN 1 ELSE -1 END END ELSE NULL END), 0) volume_sign_last_4min,
+				IFNULL(MAX(CASE WHEN minute = t.last_5min  THEN CASE WHEN (minus_tick_cnt - plus_tick_cnt) > 5 THEN -1 ELSE CASE WHEN minute_volume > 0 THEN 1 ELSE -1 END END ELSE NULL END), 0) volume_sign_last_5min,
 				IFNULL(MAX(CASE WHEN minute = t.last_min   THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= t.last_1min  THEN acc_trade_amount ELSE 0 END), 0) AS amount_last_min,
 				IFNULL(MAX(CASE WHEN minute = t.last_1min  THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= t.last_2min  THEN acc_trade_amount ELSE 0 END), 0) AS amount_last_1min,
+				IFNULL(MAX(CASE WHEN minute = t.last_2min  THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= t.last_3min  THEN acc_trade_amount ELSE 0 END), 0) AS amount_last_2min,
+				IFNULL(MAX(CASE WHEN minute = t.last_3min  THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= t.last_4min  THEN acc_trade_amount ELSE 0 END), 0) AS amount_last_3min,
+				IFNULL(MAX(CASE WHEN minute = t.last_4min  THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= t.last_5min  THEN acc_trade_amount ELSE 0 END), 0) AS amount_last_4min,
+				IFNULL(MAX(CASE WHEN minute = t.last_5min  THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= t.last_6min  THEN acc_trade_amount ELSE 0 END), 0) AS amount_last_5min,
 				IFNULL(MAX(CASE WHEN minute <= t.last_min THEN acc_trade_amount ELSE NULL END), 0) AS amount_acc_day,
 				(
 				SELECT m2.rate
@@ -221,7 +231,11 @@ else {
 					specific_datetime,
 					DATE_FORMAT(sd.specific_datetime, '%H%i') AS last_min,
 					DATE_FORMAT(sd.specific_datetime - INTERVAL 1  MINUTE, '%H%i') AS last_1min,
-					DATE_FORMAT(sd.specific_datetime - INTERVAL 2  MINUTE, '%H%i') AS last_2min
+					DATE_FORMAT(sd.specific_datetime - INTERVAL 2  MINUTE, '%H%i') AS last_2min,
+					DATE_FORMAT(sd.specific_datetime - INTERVAL 3  MINUTE, '%H%i') AS last_3min,
+					DATE_FORMAT(sd.specific_datetime - INTERVAL 4  MINUTE, '%H%i') AS last_4min,
+					DATE_FORMAT(sd.specific_datetime - INTERVAL 5  MINUTE, '%H%i') AS last_5min,
+					DATE_FORMAT(sd.specific_datetime - INTERVAL 6  MINUTE, '%H%i') AS last_6min
 				FROM
 					(SELECT STR_TO_DATE('$specific_datetime', '%Y%m%d%H%i') AS specific_datetime) sd
 				) t
@@ -250,7 +264,7 @@ else {
 	// 데이터베이스 쿼리 결과를 배열에 저장
 	$allData = [];
 	$tradeAmountsByTime = []; // 시간대별 거래대금을 저장할 배열
-	$times = ['acc_day', 'last_min', 'last_1min'];
+	$times = ['acc_day', 'last_min', 'last_1min', 'last_2min', 'last_3min', 'last_4min', 'last_5min'];
 
 	while ($row = $result->fetch_array(MYSQLI_BOTH)) {
 		// 모든 데이터를 $allData 배열에 저장
@@ -275,12 +289,57 @@ else {
 		}
 	}
 
+	// Top 7 계산
+	$topByTime = [];
+	foreach ($tradeAmountsByTime as $timeKey => $items) {
+		usort($items, function($a, $b) {
+			return $b['amount'] - $a['amount'];
+		});
+		$topByTime[$timeKey] = array_slice($items, 0, 7); // 7위까지
+	}
+
+	// Top7 신규 종목 색상 표시
+	// 처음 등장하는 종목에만 스타일을 적용하기 위한 배열 초기화
+	$firstAppearance = [];
+	
+	// 섹터별 종목을 더 잘 보기 위해 우선 화면 표기 막아두기!
+	// $times 배열 순서대로 처리 (현재, 1분 전, 2분 전, ... , 12분 전)
+	echo "<tr><td colspan=2 align=center class=h2>Top7</td>";
+	foreach ($times as $time) {
+		$timeKey = "amount_$time";
+		echo "<td cellpadding=0 cellspacing=0><table class='small table-borderless' cellpadding=0 cellspacing=0>";
+		
+		if (isset($topByTime[$timeKey])) {
+			foreach ($topByTime[$timeKey] as $item) {
+				$link_name = "<a href='kiwoomRealtime_AStock.php?code={$item['code']}&name={$item['name']}&date={$date}' target='_blank' style='text-decoration: none; color: inherit;'>";
+				$link_name.= "<b>{$item['name']}</b></a>";
+
+				// 종목 코드가 첫 등장인지 확인
+				if (!array_key_exists($item['code'], $firstAppearance)) {
+					// 첫 등장 종목에 스타일 적용
+					echo "<tr><td class='cut-text-88' title={$item['name']} style='color: red;'><b>{$link_name}</b></td></tr>";
+					// 첫 등장 기록
+					$firstAppearance[$item['code']] = true;
+				} else {
+					// 이전에 등장한 종목
+					echo "<tr><td class='cut-text-88' title={$item['name']}><b>{$link_name}</b></td></tr>";
+				}
+			}
+		}
+		echo "</table></td>";
+	}
+	echo "</tr>";
+
 	echo "<tr align=center class='small'>";
-	echo "<th width=100 onclick=\"sortTable('name')\">종목명</th>";
+	echo "<th width=120 onclick=\"sortTable('name')\">종목명</th>";
 	echo "<th width=70  onclick=\"sortTable('rate')\">%</th>";
 	echo "<th width=110 onclick=\"sortTable('amount_acc_day')\" >당일누적</th>";
 	echo "<th width=90  onclick=\"sortTable('amount_last_min')\">".substr($minute,0,2).":".substr($minute,2,2)."</th>";
 	echo "<th width=90>1분전</th>";
+	echo "<th width=90>2분전</th>";
+	echo "<th width=90>3분전</th>";
+	echo "<th width=90>4분전</th>";
+	echo "<th width=90>5분전</th>";
 	echo "</tr>";
 		
 	// 나머지 데이터 출력
@@ -290,6 +349,10 @@ else {
 			'amount_acc_day'   => $row['amount_acc_day'],
 			'amount_last_min'  => $row['amount_last_min'],
 			'amount_last_1min' => $row['amount_last_1min'],
+			'amount_last_2min' => $row['amount_last_2min'],
+			'amount_last_3min' => $row['amount_last_3min'],
+			'amount_last_4min' => $row['amount_last_4min'],
+			'amount_last_5min' => $row['amount_last_5min']
 		];
 
 		if($row['amount_last_min'] > 0) {
@@ -308,6 +371,14 @@ else {
 			$amountTdE = setAmountTdE($amounts, 'amount_last_min', 'Y', 'Y');
 			echo $amountTdE;
 			$amountTdE = setAmountTdE($amounts, 'amount_last_1min');
+			echo $amountTdE;
+			$amountTdE = setAmountTdE($amounts, 'amount_last_2min');
+			echo $amountTdE;
+			$amountTdE = setAmountTdE($amounts, 'amount_last_3min');
+			echo $amountTdE;
+			$amountTdE = setAmountTdE($amounts, 'amount_last_4min');
+			echo $amountTdE;
+			$amountTdE = setAmountTdE($amounts, 'amount_last_5min');
 			echo $amountTdE;
 		echo "</tr>";
 

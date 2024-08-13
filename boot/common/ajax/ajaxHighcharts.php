@@ -60,13 +60,15 @@ $zone_sql = "SELECT start_price, end_price,
                         WHEN 'range' THEN '박스권'
                         WHEN 'kswing' THEN 'K스윙'
                         WHEN 'standard' THEN '기준봉'
+                        WHEN 'average' THEN '평균'
                     END AS zone_type,
                     CASE zone_type
-                        WHEN 'support' THEN 'green'
+                        WHEN 'support' THEN 'gray'
                         WHEN 'resistance' THEN 'red'
                         WHEN 'range' THEN 'rgba(0, 0, 255, 0.2)'
                         WHEN 'kswing' THEN 'orange'
                         WHEN 'standard' THEN 'rgba(255, 0, 0, 0.2)'
+                        WHEN 'average' THEN 'green'
                     END AS color,
                     CASE zone_type
                         WHEN 'support' THEN 'solid'
@@ -74,6 +76,7 @@ $zone_sql = "SELECT start_price, end_price,
                         WHEN 'range' THEN 'dot'
                         WHEN 'kswing' THEN 'shortdash'
                         WHEN 'standard' THEN 'solid'
+                        WHEN 'average' THEN 'solid'
                     END AS dash_style
              FROM stock_price_zone
              WHERE code = ?";

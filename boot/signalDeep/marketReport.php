@@ -160,20 +160,11 @@ while($row = $stocks_20_result->fetch_assoc()) {
             font-weight: bold;
         }
     </style>
+
     <script>
         function search() {
             var selectedDate = document.getElementById('report_date').value;
-
-            var xhr = new XMLHttpRequest();
-            xhr.open('GET', 'marketReport.php?report_date=' + selectedDate, true);
-            xhr.onreadystatechange = function() {
-                if (xhr.readyState == 4 && xhr.status == 200) {
-                    document.open();
-                    document.write(xhr.responseText);
-                    document.close();
-                }
-            };
-            xhr.send();
+            window.location.href = 'marketReport.php?report_date=' + selectedDate;
         }
 
         function saveComment() {
@@ -191,13 +182,25 @@ while($row = $stocks_20_result->fetch_assoc()) {
             xhr.send('report_date=' + report_date + '&comment=' + encodeURIComponent(comment));
         }
 
+        function getParameterByName(name) {
+            var url = window.location.href;
+            name = name.replace(/[\[\]]/g, '\\$&');
+            var regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)'),
+                results = regex.exec(url);
+            if (!results) return null;
+            if (!results[2]) return '';
+            return decodeURIComponent(results[2].replace(/\+/g, ' '));
+        }
+
         window.onload = function() {
-            var select = document.getElementById('report_date');
-            if (select.options.length > 0) {
-                var initialDate = select.options[0].value;
-                select.value = initialDate;
-                // 무한으로 조회되어 일단 막음 24.07.07
-                // search(); // Automatically trigger search with the first date
+            var reportDate = getParameterByName('report_date');
+            if (!reportDate) {
+                var select = document.getElementById('report_date');
+                if (select.options.length > 0) {
+                    var initialDate = select.options[0].value;
+                    select.value = initialDate;
+                    search(); // Automatically trigger search with the first date
+                }
             }
         }
     </script>
@@ -215,12 +218,11 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
 
     <!-- Controls -->
     <div id="controls">
-        <select id="report_date">
+        <select id="report_date" onchange="search()">
             <?php foreach($dates as $date): ?>
                 <option value="<?= $date['report_date'] ?>" <?= ($date['report_date'] == $report_date) ? 'selected' : '' ?>><?= $date['report_date_str'] ?></option>
             <?php endforeach; ?>
         </select>
-        <input type="button" class="btn btn-danger btn-sm" value="조회" onclick="search()">
         <span id="evening_subject"></span>
     </div>
 
@@ -323,4 +325,5 @@ if($_SERVER["HTTP_HOST"] == 'localhost') {
 <?php
 require($_SERVER['DOCUMENT_ROOT']."/boot/common/bottom.php");
 ?>
+
 </html>

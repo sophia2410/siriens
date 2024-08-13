@@ -83,7 +83,7 @@ for file_name in os.listdir(folder_path):
         sort_theme = 0
         sort_stock = 0
         talent_fg = ''
-        stock_keyword = ''
+        stock_comment = ''
         news_title = ''
         news_link = ''
         news_content = ''
@@ -98,7 +98,7 @@ for file_name in os.listdir(folder_path):
             # 줄이 #으로 시작한다면 group으로 사용합니다.
             if line.startswith('# '):
                 theme_group = line[2:]
-            # 줄이 #으로 시작한다면 theme으로 사용합니다.
+            # 줄이 ##으로 시작한다면 theme으로 사용합니다.
             if line.startswith('## '):
                 theme = line[2:]
                 # sort_theme를 1 증가시킵니다.
@@ -106,13 +106,13 @@ for file_name in os.listdir(folder_path):
                 # theme이 바뀌면 sort_stock를 0으로, category 는 빈값으로 초기화합니다.
                 sort_stock = 0
                 category = ''
-            # 줄이 ##으로 시작한다면 category로 사용합니다.
+            # 줄이 ###으로 시작한다면 category로 사용합니다.
             elif line.startswith('### '):
                 category = line[3:]
                 # sort_theme를 1 증가시킵니다.
                 sort_theme += 1
                 # category가 바뀌면 sort_stock를 0으로 초기화합니다.
-                stock_sort = 0
+                sort_stock = 0
             # 줄이 - [[으로 시작한다면 name으로 사용합니다.
             elif line.startswith('- [['):
                 # name을 추출합니다.
@@ -123,7 +123,7 @@ for file_name in os.listdir(folder_path):
                 keyword_match = re.search('`([^`]*)`?$', line)  # ` 또는 ``로 쌓인 텍스트를 추출
 
                 talent_fg = talent_fg_match.group(1).strip() if talent_fg_match else ''
-                stock_keyword = keyword_match.group(1).strip() if keyword_match else ''
+                stock_comment = keyword_match.group(1).strip() if keyword_match else ''
 
                 # sort_stock를 1 증가시킵니다.
                 sort_stock += 1
@@ -148,12 +148,12 @@ for file_name in os.listdir(folder_path):
                 # 테이블에 데이터를 삽입합니다.
 
                 sql = """
-                REPLACE INTO watchlist_sophia
-                (sector, theme, category, code, name, theme_group, sort_theme, sort_stock, talent_fg, stock_keyword, news_title, news_link, create_dtime)
+                INSERT INTO watchlist_sophia
+                (sector, theme, category, code, name, theme_group, sort_theme, sort_stock, talent_fg, stock_comment, news_title, news_link, create_dtime)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """
-                val = (sector, theme, category, code, name, theme_group, sort_theme, sort_stock, talent_fg, stock_keyword, news_title, news_link, datetime.now())
-                print(f"Executing: {sql % (sector, theme, category, code, name, theme_group, sort_theme, sort_stock, talent_fg, stock_keyword, news_title, news_link, datetime.now())}")
+                val = (sector, theme, category, code, name, theme_group, sort_theme, sort_stock, talent_fg, stock_comment, news_title, news_link, datetime.now())
+                # print(f"Executing: {sql % (sector, theme, category, code, name, theme_group, sort_theme, sort_stock, talent_fg, stock_comment, news_title, news_link, datetime.now())}")
                 cursor.execute(sql, val)
 
             # 뉴스 제목과 링크 추출
@@ -173,7 +173,7 @@ for file_name in os.listdir(folder_path):
                 # 테이블에 뉴스정보를 업데이트 한다.
                 sql = "UPDATE watchlist_sophia SET news_title = %s, news_link= %s WHERE sector = %s AND theme = %s AND category = %s AND code = %s"
                 val = (news_title, news_link, sector, theme, category, code)
-                print(f"Executing: {sql % (news_title, news_link, sector, theme, category, code)}")
+                # print(f"Executing: {sql % (news_title, news_link, sector, theme, category, code)}")
                 cursor.execute(sql, val)
 
             # 코멘트 추출
@@ -184,7 +184,7 @@ for file_name in os.listdir(folder_path):
                 # 테이블에 뉴스정보를 업데이트 한다.
                 sql = "UPDATE watchlist_sophia SET comment = %s WHERE sector = %s AND theme = %s AND category = %s AND code = %s"
                 val = (comment, sector, theme, category, code)
-                print(f"Executing: {sql % (comment, sector, theme, category, code)}")
+                # print(f"Executing: {sql % (comment, sector, theme, category, code)}")
                 cursor.execute(sql, val)
 
             # 뉴스 내용 추출
@@ -194,7 +194,7 @@ for file_name in os.listdir(folder_path):
                 # 테이블에 뉴스정보를 업데이트 한다.
                 sql = "UPDATE watchlist_sophia SET news_content = %s WHERE sector = %s AND theme = %s AND category = %s AND code = %s"
                 val = (news_content, sector, theme, category, code)
-                print(f"Executing: {sql % (news_content, sector, theme, category, code)}")
+                # print(f"Executing: {sql % (news_content, sector, theme, category, code)}")
                 cursor.execute(sql, val)
 
 # ☆ 붙은 섹터는 실시간 데이터 불러오도록 설정 (키움API)
@@ -218,7 +218,7 @@ INSERT INTO watchlist_history (
     sort_theme,
     sort_stock,
     talent_fg,
-    stock_keyword,
+    stock_comment,
     news_title,
     news_link,
     news_content,
@@ -235,7 +235,7 @@ SELECT
     sort_theme,
     sort_stock,
     talent_fg,
-    stock_keyword,
+    stock_comment,
     news_title,
     news_link,
     news_content,
@@ -249,7 +249,7 @@ WHERE
 """
 
 val = (today, datetime.now())
-print(f"Executing: {sql % (today, datetime.now())}")
+# print(f"Executing: {sql % (today, datetime.now())}")
 cursor.execute(sql, val)
 
 # 데이터베이스에 변경사항을 저장합니다.

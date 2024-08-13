@@ -4,6 +4,16 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 
 $signal_page = (isset($_POST['stock'])) ? $_POST['stock'] : '';
 $signal_page = (isset($_POST['stock_nm'])) ? $_POST['stock_nm'] : '';
+
+// 공통코드 불러오기
+$status_query = "SELECT cd, nm FROM comm_cd WHERE l_cd = 'HC000' ORDER BY ord_no";
+$status_result = $mysqli->query($status_query);
+$status_options = "<option value=''>차트 상태</option>";
+$comm_codes = [];
+while ($status_row = $status_result->fetch_assoc()) {
+    $status_options .= "<option value='". $status_row['cd']."'>".$status_row['nm']."</option>";
+    $comm_codes[$status_row['cd']] = $status_row['nm']; // 공통코드 배열에 저장
+}
 ?>
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -26,10 +36,10 @@ $signal_page = (isset($_POST['stock_nm'])) ? $_POST['stock_nm'] : '';
           display: flex;
         }
         .left {
-          flex: 3; /* 비율 2 */
+          flex: 4; /* 비율 2 */
         }
         .right {
-          flex: 2; /* 비율 2 */
+          flex: 1; /* 비율 2 */
         }
     </style>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"
@@ -53,11 +63,11 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
 
 <?php
 
-$query = " SELECT date
-             FROM calendar
-            WHERE date <= (select DATE_FORMAT(now(), '%Y%m%d'))
-            AND   date >= '20240201'
-            ORDER BY date DESC";
+$query = "SELECT date
+          FROM calendar
+          WHERE date <= (SELECT DATE_FORMAT(now(), '%Y%m%d'))
+          AND date >= '20240201'
+          ORDER BY date DESC";
 
 $result = $mysqli->query($query);
 
@@ -67,23 +77,23 @@ $result = $mysqli->query($query);
         &nbsp;
 		<select id="search_date" class="select">
         <?php
-            $query = " SELECT date
-                            , CASE WHEN B.watchlist_date is null THEN '' ELSE '(Y)' END regi_watchlist
-                        FROM calendar A
-                        LEFT OUTER JOIN (SELECT watchlist_date FROM daily_watchlist GROUP BY watchlist_date) B
-                        ON B.watchlist_date = A.date
-                        WHERE date <= (select DATE_FORMAT(now(), '%Y%m%d'))
-                        AND   date >= '20230101'
-                        ORDER BY date DESC
-                        LIMIT 350";
+            $query = "SELECT date, 
+                             CASE WHEN B.watchlist_date IS NULL THEN '' ELSE '(Y)' END regi_watchlist
+                      FROM calendar A
+                      LEFT OUTER JOIN (SELECT watchlist_date FROM daily_watchlist GROUP BY watchlist_date) B
+                      ON B.watchlist_date = A.date
+                      WHERE date <= (SELECT DATE_FORMAT(now(), '%Y%m%d'))
+                      AND date >= '20230101'
+                      ORDER BY date DESC
+                      LIMIT 350";
 
             $result = $mysqli->query($query);
 
             $option = "";
-            $i=0;
+            $i = 0;
             while($row = $result->fetch_array(MYSQLI_BOTH)) {
                 // 관종등록일자가 없는 경우는 제일 1행 선택되도록..
-                if($watchlist_date == $row['date']) {
+                if ($watchlist_date == $row['date']) {
                     $option .= "<option value='". $row['date']."' selected>".$row['date'].$row['regi_watchlist']."</option>";
                 } else {
                     $option .= "<option value='". $row['date']."'>".$row['date'].$row['regi_watchlist']."</option>";
@@ -103,7 +113,16 @@ $result = $mysqli->query($query);
         <button type="button" class="btn btn-danger btn-sm" onclick="xrayTick('xraytick')">조회일자</button> &nbsp; 
         <input type=text id=buy_cnt style='width:30px' value=6>건/<input type=text id=buy_period style='width:30px' value=10>일내
         <input type=checkbox id='0dayview' checked> 0일차포함 &nbsp;
-        <button type="button" class="btn btn-danger btn-sm" onclick="xrayTick('buy_streak')">연속매수</button> 
+        <button type="button" class="btn btn-danger btn-sm" onclick="xrayTick('buy_streak')">연속매수</button> &nbsp;
+
+        <select id="status_cd" class="select" onchange="xrayTick('chart_status')">
+            <?php echo $status_options; ?>
+        </select>">연속매수</button> 
+
+        <select id="frequency" class="select" onchange="xrayTick('frequency')">
+            <?php echo $status_options; ?>
+        </select>
+
     </div>
     <div class="right">
     <button type="button" class="btn btn-info btn-sm" onclick="comment_save()">코멘트 저장</button> 
@@ -206,6 +225,12 @@ function xrayTick(pgmId, key1='', key2='') {
         buy_period = document.getElementById('buy_period').value;
         zeroday_view = document.getElementById('0dayview').checked;
         parm = "&buy_cnt=" + buy_cnt + "&buy_period=" + buy_period + "&zeroday_view=" + zeroday_view;
+    } else if(pgmId == 'chart_status'){
+        status_cd  = document.getElementById('status_cd').options[document.getElementById("status_cd").selectedIndex].value;
+        parm = "&chart_status=" + status_cd;
+    } else if(pgmId == 'frequency'){
+        frequency  = document.getElementById('frequency').options[document.getElementById("frequency").selectedIndex].value;
+        parm = "&frequency=" + frequency;
     }
 
     if(highchartview == 'Y')

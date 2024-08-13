@@ -97,7 +97,7 @@ if(isset($_POST['proc_fg'])) {
         } else {
             $response = ['success' => false, 'message' => 'Error deleting price zone: ' . $mysqli->error];
         }
-    }else if ($_POST['proc_fg'] == 'AVG_AMT') {
+    } else if ($_POST['proc_fg'] == 'AVG_AMT') {
         $code = $_POST['code'];
         $start_date = $_POST['start_date'];
         $end_date = $_POST['end_date'];
@@ -132,6 +132,32 @@ if(isset($_POST['proc_fg'])) {
             echo json_encode(['success' => false, 'message' => 'No data found']);
         }
         exit;
+    } elseif ($_POST['proc_fg'] == 'SS') { // 상태 저장 로직
+        $code = $_POST['code'];
+        $name = $_POST['name'];
+        $status_cd = $_POST['status_cd'];
+        $frequency = $_POST['frequency'];
+        $status_date = date('Ymd');
+    
+        // 키가 같으면 업데이트
+        $qry = "INSERT INTO chart_status (code, name, status_cd, frequency, status_date) 
+        VALUES ('$code', '$name', '$status_cd', '$frequency', '$status_date')
+        ON DUPLICATE KEY UPDATE status_cd = VALUES(status_cd), frequency = VALUES(frequency)";
+        if ($mysqli->query($qry)) {
+            $response = ['success' => true, 'message' => 'Status saved successfully'];
+        } else {
+            $response = ['success' => false, 'message' => 'Error saving status: ' . $mysqli->error];
+        }
+    } elseif ($_POST['proc_fg'] == 'DS') { // 상태 삭제 로직
+        $code = $_POST['code'];
+        $status_date = $_POST['status_date'];
+    
+        $qry = "DELETE FROM chart_status WHERE code = '$code' AND status_date = '$status_date'";
+        if ($mysqli->query($qry)) {
+            $response = ['success' => true, 'message' => 'Status deleted successfully'];
+        } else {
+            $response = ['success' => false, 'message' => 'Error deleting status: ' . $mysqli->error];
+        }
     }
 }
 $mysqli->close();
