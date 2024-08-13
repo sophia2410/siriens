@@ -290,10 +290,38 @@ $result = $stmt->get_result();
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
     <link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
-
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             let stockIndex = 0; // 초기 인덱스 설정
+
+            function loadIssueDetails(issueId) {
+                $.ajax({
+                    url: 'fetch_issue_details.php',
+                    type: 'GET',
+                    data: { issue_id: issueId },
+                    success: function(response) {
+                        const data = JSON.parse(response);
+                        if (data.issueDetails) {
+                            // 이슈 상세 정보를 폼에 셋팅
+                            $('#report_date').val(data.issueDetails.date);
+                            $('#keyword').val(data.issueDetails.keyword);
+                            $('#issue').val(data.issueDetails.issue);
+                            $('#theme').val(data.issueDetails.theme);
+                            $('#sector').val(data.issueDetails.sector);
+                            // 기타 필드 셋팅
+                        }
+
+                        if (data.stocks && data.stocks.length > 0) {
+                            // 관련 종목 정보 셋팅
+                            const container = $('#stocks-container');
+                            container.empty(); // 기존 종목 정보를 초기화
+                            data.stocks.forEach(stock => {
+                                addStock(stock.code, stock.name, stock.comment); // 추가된 addStock 함수를 이용하여 종목 정보 추가
+                            });
+                        }
+                    }
+                });
+            }
 
             function addStock() {
                 const container = document.getElementById('stocks-container');
@@ -306,7 +334,7 @@ $result = $stmt->get_result();
                         <button type="button" onclick="removeStock(this)" style="margin-left: 10px;">삭제</button>
                     </div>
                     <div class="stock-comment">
-                        <input type="text" name="stocks[${stockIndex}][comment]" placeholder="코멘트" style="width: 100%; margin-top: 10px;" autocomplete="off">
+                        <input type="text" name="stocks[${stockIndex}][comment]" placeholder="코멘트" style="width: 100%; margin-top: 10px;" autocomplete="off" onfocus="fetchCommentSuggestions(this)">
                     </div>
                 `;
                 container.appendChild(newStock);
@@ -326,23 +354,21 @@ $result = $stmt->get_result();
             document.getElementById('add-stock-button').addEventListener('click', addStock);
 
             // 키워드 자동완성
-            $(document).ready(function() {
-                $("#keyword").on('input', function() {
-                    let query = $(this).val();
-                    if (query.length > 0) {
-                        $.ajax({
-                            url: 'fetch_data.php',
-                            type: 'GET',
-                            data: { type: 'keywords', q: query },
-                            success: function(data) {
-                                let keywordGroups = JSON.parse(data);
-                                $("#keyword").autocomplete({
-                                    source: keywordGroups
-                                });
-                            }
-                        });
-                    }
-                });
+            $("#keyword").on('input', function() {
+                let query = $(this).val();
+                if (query.length > 0) {
+                    $.ajax({
+                        url: 'fetch_data.php',
+                        type: 'GET',
+                        data: { type: 'keywords', q: query },
+                        success: function(data) {
+                            let keywordGroups = JSON.parse(data);
+                            $("#keyword").autocomplete({
+                                source: keywordGroups
+                            });
+                        }
+                    });
+                }
             });
 
             // 테마 및 섹터 자동완성
@@ -383,6 +409,27 @@ $result = $stmt->get_result();
                     }
                 });
             });
+
+            // Fetch comments for a stock
+            window.fetchCommentSuggestions = function(input) {
+                const stockRow = input.closest('.stock-item').querySelector('input[name^="stocks"][name$="[code]"]');
+                const stockCode = stockRow.value;
+
+                if (stockCode) {
+                    $.ajax({
+                        url: 'fetch_data.php',
+                        type: 'GET',
+                        data: { type: 'stock_comments', code: stockCode },
+                        success: function(data) {
+                            const comments = JSON.parse(data);
+                            $(input).autocomplete({
+                                source: comments,
+                                minLength: 0 // Ensure that suggestions show even for empty input
+                            }).autocomplete("search", ""); // Trigger autocomplete
+                        }
+                    });
+                }
+            };
 
             var toggleButton = document.getElementById('toggle-all');
             var allContents = document.querySelectorAll('.accordion-content');

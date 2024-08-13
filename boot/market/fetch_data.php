@@ -43,6 +43,27 @@ if ($type === 'keywords') {
         }
         $stmt->close();
     }
+} elseif ($type === 'stock_comments') {
+    // Fetch stock comments for autocomplete
+    $code = $_GET['code'] ?? '';
+    if ($code !== '') {
+        $stmt = $mysqli->prepare("
+            SELECT stock_comment FROM (
+                SELECT comment AS stock_comment FROM stock_comment WHERE code = ?
+                UNION
+                SELECT stock_comment FROM watchlist_sophia WHERE code = ? AND stock_comment != ''
+                UNION
+                SELECT stock_comment FROM market_issue_stocks WHERE code = ? AND stock_comment != ''
+            ) AS combined_comments
+        ");
+        $stmt->bind_param('sss', $code, $code, $code);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        while ($row = $result->fetch_assoc()) {
+            $results[] = $row['stock_comment'];
+        }
+        $stmt->close();
+    }
 }
 
 echo json_encode($results);
