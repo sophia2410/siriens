@@ -6,7 +6,7 @@ $results = [];
 
 if ($q !== '') {
     // LIKE 쿼리를 사용하여 부분 문자열 검색 수행
-    $stmt = $mysqli->prepare("SELECT code, name FROM stock WHERE name LIKE CONCAT('%', ?, '%') OR code LIKE CONCAT('%', ?, '%')");
+    $stmt = $mysqli->prepare("SELECT code, name FROM stock WHERE name LIKE CONCAT(?, '%') OR code LIKE CONCAT('%', ?, '%')");
     $searchQuery = "%$q%";
     $stmt->bind_param('ss', $searchQuery, $searchQuery);
     $stmt->execute();

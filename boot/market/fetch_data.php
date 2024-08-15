@@ -16,17 +16,6 @@ if ($type === 'keywords') {
         }
         $stmt->close();
     }
-} elseif ($type === 'stocks') {
-    // Fetch stocks
-    if ($stmt = $mysqli->prepare("SELECT code, name FROM stock WHERE name LIKE CONCAT('%', ?, '%') OR code LIKE CONCAT('%', ?, '%')")) {
-        $stmt->bind_param('ss', $query, $query);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        while ($row = $result->fetch_assoc()) {
-            $results[] = $row;
-        }
-        $stmt->close();
-    }
 } elseif ($type === 'theme_sector') {
     // Fetch theme and sector based on the exact keyword group
     if ($stmt = $mysqli->prepare("

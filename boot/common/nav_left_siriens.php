@@ -52,9 +52,16 @@ if($_SERVER["HTTP_HOST"] == 'localhost') {
 
             <!-- Nav Item -->
             <li class="nav-item">
-                <a class="nav-link" href="<?=$PATH?>signalDeep/marketReport.php">
+                <a class="nav-link" href="<?=$PATH?>market/market_report.php">
                     <i class="fas fa-fw fa-flag"></i>
                     <span>Market Report</span></a>
+            </li>
+
+            <!-- Nav Item -->
+            <li class="nav-item">
+                <a class="nav-link" href="<?=$PATH?>market/market_issue.php">
+                    <i class="fas fa-fw fa-flag"></i>
+                    <span>Market Issue</span></a>
             </li>
 
             <!-- Divider -->
