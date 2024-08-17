@@ -28,19 +28,62 @@ while ($stock = $stocksResult->fetch_assoc()) {
 }
 
 // 상승률 높은 종목 불러오기
-$query = "SELECT vdp.code, vdp.name, vdp.close_rate, vdp.amount AS trade_amount,
-          CASE WHEN mis.code IS NOT NULL THEN 1 ELSE 0 END AS registered
-          FROM v_daily_price vdp
-          LEFT JOIN market_issue_stocks mis ON vdp.code = mis.code AND vdp.date = mis.date
-          WHERE vdp.date = ? AND
-          ((vdp.close_rate > 10 AND vdp.amount > 50) OR
-           (vdp.close_rate > 29.5 AND vdp.amount > 30))
-          ORDER BY vdp.close_rate DESC";
+$query = "SELECT 
+              vdp.code, 
+              vdp.name, 
+              vdp.close_rate, 
+              vdp.amount AS trade_amount,
+              CASE WHEN mis.code IS NOT NULL THEN 1 ELSE 0 END AS registered,
+              (
+                  SELECT 
+                      kgm.group_name 
+                  FROM 
+                      keyword_groups_master kgm
+                  INNER JOIN 
+                      market_issues mi ON mi.keyword_group_id = kgm.group_id
+                  INNER JOIN 
+                      market_issue_stocks mis_sub ON mis_sub.issue_id = mi.issue_id
+                  WHERE 
+                      mis_sub.code = vdp.code
+                  AND mis.date != ?
+                  ORDER BY 
+                      mi.date DESC
+                  LIMIT 1
+              ) AS recent_keyword_group
+          FROM 
+              v_daily_price vdp
+          LEFT JOIN 
+              market_issue_stocks mis ON vdp.code = mis.code AND vdp.date = mis.date
+          WHERE 
+              vdp.date = ? 
+              AND 
+              ((vdp.close_rate > 10 AND vdp.amount > 50) OR
+              (vdp.close_rate > 29.5 AND vdp.amount > 30))
+          ORDER BY 
+              vdp.close_rate DESC";
 // error_log(print_r($binded_query, true));
 $stmt = $mysqli->prepare($query);
-$stmt->bind_param('s', $formattedDate);
+$stmt->bind_param('ss', $formattedDate, $formattedDate);
 $stmt->execute();
 $result = $stmt->get_result();
+
+// 거래금액에 따른 색상 표시
+function getAmountStyle($amountInBillion) {
+    if ($amountInBillion >= 2000) {
+        return'color:#ff0000; font-weight: bold;'; // 2000억 이상
+    } elseif ($amountInBillion >= 1000) {
+        return'color:#ff7f00; font-weight: bold;'; // 1000억 이상
+    } elseif ($amountInBillion >= 500) {
+        return'color:#ffa500; font-weight: bold;'; // 500억 이상
+    } elseif ($amountInBillion >= 150) {
+        return'color:#fcb9b2;'; // 150억 이상
+    } elseif ($amountInBillion >= 100) {
+        return'color:#ffccd5;'; // 100 이상
+    } else {
+        return''; // 10억 미만
+    }
+}
+
 ?>
 
 <!DOCTYPE html>
@@ -65,15 +108,26 @@ $result = $stmt->get_result();
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            font-size: 14px; /* Reduced from default to make everything smaller */
         }
         #left-panel, #middle-panel, #right-panel {
             overflow-y: auto;
-            padding: 20px;
+            padding: 15px; /* Reduced padding from 20px to 15px */
         }
         #left-panel {
             flex: 3;
             background-color: #fff;
             border-right: 1px solid #ddd;
+        }
+        #history-panel {
+            flex: 2;
+            background-color: #f5f5f5;
+            border-right: 1px solid #ddd;
+            padding: 15px; /* Reduced padding */
+            overflow-y: auto;
+        }
+        #history-content {
+            margin-top: 15px; /* Reduced margin from 20px to 15px */
         }
         #middle-panel {
             flex: 2;
@@ -81,33 +135,35 @@ $result = $stmt->get_result();
             border-right: 1px solid #ddd;
         }
         #right-panel {
-            flex: 7;
+            flex: 6;
             background-color: #f8f8f8;
         }
         label {
             font-weight: bold;
-            margin-top: 10px;
+            margin-top: 8px; /* Reduced margin from 10px to 8px */
             display: block;
+            font-size: 13px; /* Reduced font size for labels */
         }
         input[type="text"], input[type="date"], textarea {
             width: 100%;
-            padding: 8px;
-            margin-top: 5px;
+            padding: 6px; /* Reduced padding from 8px to 6px */
+            margin-top: 4px; /* Reduced margin */
             box-sizing: border-box;
             border: 1px solid #ccc;
             border-radius: 4px;
+            font-size: 13px; /* Reduced font size */
         }
         input[type="checkbox"] {
             margin-right: 5px;
         }
         button {
-            margin-top: 20px;
-            padding: 10px 15px;
+            margin-top: 15px; /* Reduced margin from 20px to 15px */
+            padding: 8px 12px; /* Reduced padding */
             background-color: #007bff;
             color: white;
             border: none;
             cursor: pointer;
-            font-size: 16px;
+            font-size: 14px; /* Reduced font size */
             border-radius: 4px;
         }
         button:hover {
@@ -115,43 +171,45 @@ $result = $stmt->get_result();
         }
         .custom-button {
             margin: 0;
-            padding: 5px 10px; /* 버튼의 안쪽 여백을 줄여서 크기를 작게 */
-            font-size: 14px; /* 글자 크기 조정 */
-            line-height: 1; /* 버튼의 높이를 줄이기 위해 라인 높이 조정 */
+            padding: 4px 8px; /* Further reduced padding */
+            font-size: 12px; /* Reduced font size */
+            line-height: 1; /* Maintain reduced height */
         }
-
         .custom-button:hover {
-            background-color: #0056b3; /* 버튼에 마우스를 올렸을 때의 색상 */
+            background-color: #0056b3;
         }
         .stock-item {
-            margin-bottom: 15px;
+            margin-bottom: 10px; /* Reduced margin */
         }
         .stock-row {
             display: flex;
             align-items: center;
         }
         .stock-row input[type="text"] {
-            margin-right: 10px;
+            margin-right: 8px; /* Reduced margin */
         }
         table {
             width: 100% !important;
             border-collapse: collapse !important;
             margin-top: 3px !important;
+            font-size: 13px; /* Reduced font size for table content */
         }
         th, td {
             border: 1px solid #ddd !important;
-            padding: 8px !important;
+            padding: 6px !important; /* Reduced padding from 8px to 6px */
         }
         th {
             background-color: #f2f2f2 !important;
+            font-size: 13px; /* Reduced font size */
         }
         #theme-table {
-            margin-top: 40px;
+            margin-top: 30px; /* Reduced margin */
         }
         .accordion-content {
             display: ''; /* Initially hidden */
         }
     </style>
+
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
     <link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
@@ -196,6 +254,30 @@ $result = $stmt->get_result();
             // 날짜 변경 시 페이지 이동
             document.getElementById('report_date').addEventListener('change', function() {
                 window.location.href = 'market_issue.php?date=' + this.value;
+            });
+
+            // 키워드 포커스 아웃 시 과거 이력 가져오기document.getElementById('keyword').addEventListener('blur', function() {
+            document.getElementById('keyword').addEventListener('blur', function() {
+                const keywordInput = this.value.trim();
+                const reportDate = document.getElementById('report_date').value; // Get the value of the report date input
+
+                if (keywordInput.startsWith('#')) { // Check if input starts with #
+                    $.ajax({
+                        url: 'fetch_history.php',
+                        type: 'GET',
+                        data: {
+                            keywords: keywordInput,
+                            exclude_date: reportDate // Pass the report date as the exclude_date parameter
+                        },
+                        success: function(response) {
+                            // Inject the fetched history into the history panel
+                            $('#history-content').html(response);
+                        },
+                        error: function() {
+                            $('#history-content').html('<p>과거 이력을 가져오지 못했습니다.</p>');
+                        }
+                    });
+                }
             });
         });
 
@@ -431,7 +513,7 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
 ?>
     <!-- 등록 화면 -->
     <div id="left-panel">
-        <h1>이슈 및 테마 등록</h1>
+        <h2>이슈 및 테마 등록</h2>
         <form method="post" action="process_issue.php">
             <input type="hidden" name="action" value="register" id="action">
             <input type="hidden" name="issue_id" id="issue_id">
@@ -472,19 +554,36 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
                 <tr>
                     <th>종목</th>
                     <th>등락률</th>
-                    <th>거래대금(억)</th>
+                    <th>거래대금</th>
+                    <th>최근 키워드</th>
                 </tr>
             </thead>
             <tbody>
                 <?php while ($row = $result->fetch_assoc()): ?>
+
+                <?php 
+                    $amountInBillion = $row['trade_amount'];
+                    $closeRate = $row['close_rate'];
+                    $amountStyle  = getAmountStyle($amountInBillion);
+                    $nameStyle  = ($closeRate >= 29.5) ? 'color:red;' : '';
+                ?>
                 <tr style="<?= $row['registered'] ? 'text-decoration: line-through;' : '' ?>">
-                    <td><?= htmlspecialchars($row['name']) ?></td>
-                    <td align=right><?= htmlspecialchars($row['close_rate']) ?>%</td>
-                    <td align=right><?= number_format($row['trade_amount'],2) ?>억</td>
+                    <td style="<?= $nameStyle ?>"><?= htmlspecialchars($row['name']) ?></td>
+                    <td align=right style="<?= $nameStyle ?>"><?= htmlspecialchars($row['close_rate']) ?>%</td>
+                    <td align=right style="<?= $amountStyle ?>"><?= number_format($row['trade_amount']) ?>억</td>
+                    <td style="<?= $nameStyle ?>"><?= htmlspecialchars($row['recent_keyword_group']) ?></td>
                 </tr>
                 <?php endwhile; ?>
             </tbody>
         </table>
+    </div>
+
+    <!-- 과거 이력 조회 화면 -->
+    <div id="history-panel">
+        <h2>Keyword History</h2>
+        <div id="history-content">
+            <!-- This is where the historical data will be injected via AJAX -->
+        </div>
     </div>
 
     <!-- 마켓이슈 조회 화면 -->
@@ -540,11 +639,18 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
                                 <tbody>
                                     <?php if (isset($stocksData[$issue['issue_id']])): ?>
                                         <?php foreach ($stocksData[$issue['issue_id']] as $stock): ?>
+
+                                            <?php 
+                                                $amountInBillion = $stock['trade_amount'];
+                                                $closeRate = $stock['close_rate'];
+                                                $amountStyle  = getAmountStyle($amountInBillion);
+                                                $nameStyle  = ($closeRate >= 29.5) ? 'color:red;' : '';
+                                            ?>
                                             <tr>
-                                                <td style="display: table-cell;"><?= htmlspecialchars($stock['name']) ?></td>
-                                                <td style="display: table-cell;"><?= htmlspecialchars($stock['code']) ?></td>
-                                                <td style="display: table-cell;"><?= number_format($stock['close_rate'],2) ?> %</td>
-                                                <td style="display: table-cell;"><?= number_format($stock['trade_amount'],2) ?> 억</td>
+                                                <td style="width:15%; display: table-cell; <?= $nameStyle ?>"><?= htmlspecialchars($stock['name']) ?></td>
+                                                <td style="width:5%; display: table-cell;"><?= htmlspecialchars($stock['code']) ?></td>
+                                                <td align=right style="width:8%; display: table-cell; <?= $nameStyle ?>"><?= number_format($stock['close_rate'],2) ?> %</td>
+                                                <td align=right style="width:9%; display: table-cell; <?= $amountStyle ?>"><?= number_format($stock['trade_amount']) ?> 억</td>
                                                 <td style="display: table-cell;"><?= htmlspecialchars($stock['stock_comment']) ?></td>
                                             </tr>
                                         <?php endforeach; ?>
