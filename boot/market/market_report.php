@@ -25,7 +25,7 @@ $market_comment = isset($comment_row) ? $comment_row['comment'] : '';
 
 // Fetch sector data
 $sector_query = "
-    SELECT vmi.sector, vmi.theme, vmi.issue, vmi.hot_theme, vmi.code, vmi.stock_name, vmi.stock_comment, dp.close_rate AS stock_change
+    SELECT vmi.sector, vmi.theme, vmi.issue, vmi.hot_theme, vmi.code, vmi.name, vmi.stock_comment, dp.close_rate AS stock_change
     FROM v_market_issue vmi
 	LEFT OUTER JOIN daily_price dp ON dp.date = vmi.date AND dp.code = vmi.code
     WHERE vmi.date = '$report_date'";
@@ -38,11 +38,11 @@ while ($row = $sector_result->fetch_assoc()) {
 
 // Fetch recent 5 days themes and stocks
 $recent_themes_query = "
-    SELECT mi.theme, mis.code, mis.stock_name
+    SELECT mi.theme, mis.code, mis.name
     FROM market_issues mi
     JOIN market_issue_stocks mis ON mis.issue_id = mi.issue_id
     WHERE mi.date BETWEEN DATE_ADD('$report_date', INTERVAL -5 DAY) AND '$report_date'
-    GROUP BY mi.theme, mis.code, mis.stock_name";
+    GROUP BY mi.theme, mis.code, mis.name";
 $recent_themes_result = $mysqli->query($recent_themes_query);
 $recent_themes = [];
 while($row = $recent_themes_result->fetch_assoc()) {
@@ -51,7 +51,7 @@ while($row = $recent_themes_result->fetch_assoc()) {
 
 // Fetch stocks with more than 20% change
 $stocks_20_query = "
-    SELECT stock_name, dp.close_rate stock_change
+    SELECT name, dp.close_rate stock_change
     FROM v_market_issue vmi
 	JOIN daily_price dp ON dp.date = vmi.date AND dp.code = vmi.code AND dp.close_rate > 20
     WHERE vmi.date BETWEEN DATE_ADD('$report_date', INTERVAL -5 DAY) AND '$report_date'
@@ -242,7 +242,7 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
                         </tr>
                         <?php foreach ($stocks as $stock): ?>
                             <tr class="stock-item">
-                                <td><?= htmlspecialchars($stock['stock_name']) ?> (<?= htmlspecialchars($stock['code']) ?>)</td>
+                                <td><?= htmlspecialchars($stock['name']) ?> (<?= htmlspecialchars($stock['code']) ?>)</td>
                                 <td><?= htmlspecialchars($stock['stock_comment']) ?></td>
                                 <td><?= htmlspecialchars($stock['stock_change']) ?>%</td>
                             </tr>
@@ -270,7 +270,7 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
                 <?php foreach($recent_themes as $theme): ?>
                     <tr>
                         <td><?= htmlspecialchars($theme['theme']) ?></td>
-                        <td><?= htmlspecialchars($theme['stock_name']) ?> (<?= htmlspecialchars($theme['code']) ?>)</td>
+                        <td><?= htmlspecialchars($theme['name']) ?> (<?= htmlspecialchars($theme['code']) ?>)</td>
                     </tr>
                 <?php endforeach; ?>
             </tbody>
@@ -289,7 +289,7 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
             <tbody>
                 <?php foreach($stocks_20 as $stock): ?>
                     <tr>
-                        <td><?= htmlspecialchars($stock['stock_name']) ?></td>
+                        <td><?= htmlspecialchars($stock['name']) ?></td>
                         <td><?= htmlspecialchars($stock['stock_change']) ?>%</td>
                     </tr>
                 <?php endforeach; ?>

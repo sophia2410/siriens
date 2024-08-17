@@ -22,11 +22,11 @@ class DBUpdater:
 
 	# pykrxMarket --------------------------------------------------------------------------------------------------------------------------------------------------
 	def get_ticker(self):
-		# kospi_tickers = stock.get_market_ticker_list(None)
-		# kosdaq_tickers = stock.get_market_ticker_list(None, "KOSDAQ")
-		# tickers = kospi_tickers + kosdaq_tickers
+		kospi_tickers = stock.get_market_ticker_list(None)
+		kosdaq_tickers = stock.get_market_ticker_list(None, "KOSDAQ")
+		tickers = kospi_tickers + kosdaq_tickers
 
-		tickers = ["336370"]
+		# tickers = ["336370"]
 		# tickers = stock.get_market_ticker_list(None, "KOSDAQ")
 
 		return tickers
@@ -106,6 +106,7 @@ class DBUpdater:
 
 	def pykrxMarket_execute(self, from_date, to_date, adjusted=False):
 		"""시장에서 데이터를 가져와서 업데이트"""
+		# print(from_date)
 		codes = self.get_ticker()
 		# print(codes)
 		print(len(codes))
@@ -319,9 +320,16 @@ def split_date_range(from_date, to_date):
 if __name__ == '__main__':
 	dbu = DBUpdater()
 	# dbu.execute_daily()
-	intervals = split_date_range('20191018', '20240719')
-	for from_date, to_date in intervals:
-		dbu.pykrxMarket_execute(from_date, to_date, adjusted=True)
+
+	# 특정일은 intervals 가 안돌아서... 일단 막기.. //24.08.16
+	# intervals = split_date_range('20240813', '20240813')
+	# for from_date, to_date in intervals:
+	# 	dbu.pykrxMarket_execute(from_date, to_date, adjusted=True)
+
+	# 특정일은 intervals 가 안돌아서... 위 일단 막고 아래 코드로.. //24.08.16
+	from_date = '20240813'
+	to_date = '20240813'
+	dbu.pykrxMarket_execute(from_date, to_date, adjusted=True)
 
 # 2024.07.07 
 	# C:\Users\elf96\AppData\Local\Programs\Python\Python39\Lib\site-packages\pykrx\website\comm

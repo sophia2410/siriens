@@ -92,12 +92,7 @@ $result = $mysqli->query($query);
             $option = "";
             $i = 0;
             while($row = $result->fetch_array(MYSQLI_BOTH)) {
-                // 관종등록일자가 없는 경우는 제일 1행 선택되도록..
-                if ($watchlist_date == $row['date']) {
-                    $option .= "<option value='". $row['date']."' selected>".$row['date'].$row['regi_watchlist']."</option>";
-                } else {
-                    $option .= "<option value='". $row['date']."'>".$row['date'].$row['regi_watchlist']."</option>";
-                }
+                $option .= "<option value='". $row['date']."'>".$row['date'].$row['regi_watchlist']."</option>";
                 $i++;
             }
             echo $option;

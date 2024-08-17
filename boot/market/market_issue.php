@@ -113,6 +113,16 @@ $result = $stmt->get_result();
         button:hover {
             background-color: #0056b3;
         }
+        .custom-button {
+            margin: 0;
+            padding: 5px 10px; /* 버튼의 안쪽 여백을 줄여서 크기를 작게 */
+            font-size: 14px; /* 글자 크기 조정 */
+            line-height: 1; /* 버튼의 높이를 줄이기 위해 라인 높이 조정 */
+        }
+
+        .custom-button:hover {
+            background-color: #0056b3; /* 버튼에 마우스를 올렸을 때의 색상 */
+        }
         .stock-item {
             margin-bottom: 15px;
         }
@@ -126,7 +136,7 @@ $result = $stmt->get_result();
         table {
             width: 100% !important;
             border-collapse: collapse !important;
-            margin-top: 20px !important;
+            margin-top: 3px !important;
         }
         th, td {
             border: 1px solid #ddd !important;
@@ -146,6 +156,82 @@ $result = $stmt->get_result();
     <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
     <link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
     <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            let stockIndex = 0; // 초기 인덱스 설정
+
+            // 초기 종목을 1개 추가
+            addStock(stockIndex);
+
+            // 종목 추가 버튼 클릭 시 호출
+            document.getElementById('add-stock-button').addEventListener('click', () => {
+                addStock(stockIndex++);
+                reindexStockFields(); // 인덱스 재정렬
+            });
+
+            // 키워드 자동완성
+            $("#keyword").on('input', function() {
+                let query = $(this).val();
+                if (query.length > 0) {
+                    $.ajax({
+                        url: 'fetch_data.php',
+                        type: 'GET',
+                        data: { type: 'keywords', q: query },
+                        success: function(data) {
+                            let keywordGroups = JSON.parse(data);
+                            $("#keyword").autocomplete({
+                                source: keywordGroups
+                            });
+                        }
+                    });
+                }
+            });
+
+            // 테마 및 섹터 자동완성
+            setupAutocomplete('#theme', 'theme_sector', 'theme');
+            setupAutocomplete('#sector', 'theme_sector', 'sector');
+
+            // 종목 펼치기/접기 버튼 설정
+            setupAccordionToggle();
+
+            // 날짜 변경 시 페이지 이동
+            document.getElementById('report_date').addEventListener('change', function() {
+                window.location.href = 'market_issue.php?date=' + this.value;
+            });
+        });
+
+        function setupAutocomplete(selector, type, key) {
+            $(selector).focus(function() {
+                const keywordGroup = $("#keyword").val().trim();
+                $.ajax({
+                    url: 'fetch_data.php',
+                    type: 'GET',
+                    data: { type: type, q: keywordGroup },
+                    success: function(data) {
+                        const suggestions = JSON.parse(data);
+                        const items = suggestions.map(item => item[key]).filter(Boolean);
+                        $(selector).autocomplete({
+                            source: items,
+                            minLength: 0  // Ensure that suggestions show even for empty input
+                        }).autocomplete("search", ""); // Trigger autocomplete
+                    }
+                });
+            });
+        }
+
+        function setupAccordionToggle() {
+            const toggleButton = document.getElementById('toggle-all');
+            const allContents = document.querySelectorAll('.accordion-content');
+            let isExpanded = false; // 초기 상태는 접혀있는 상태
+
+            toggleButton.addEventListener('click', function() {
+                isExpanded = !isExpanded; // 토글 상태 업데이트
+                allContents.forEach(function(content) {
+                    content.style.display = isExpanded ? 'table-row' : 'none';
+                });
+                toggleButton.textContent = isExpanded ? '모든 종목 접기' : '모든 종목 펼치기'; // 버튼 텍스트 업데이트
+            });
+        }
+
         function loadIssueDetails(issueId) {
             $.ajax({
                 url: 'fetch_issue_details.php',
@@ -173,6 +259,7 @@ $result = $stmt->get_result();
                         data.stocks.forEach((stock, index) => {
                             addStock(index, stock.code, stock.name, stock.stock_comment); // Pass stock data
                         });
+                        reindexStockFields(); // 인덱스 재정렬
                     }
                 }
             });
@@ -195,131 +282,47 @@ $result = $stmt->get_result();
             container.appendChild(newStock);
         }
 
-        // 종목 삭제 기능
         function removeStock(button) {
-            const stockItem = button.parentNode.parentNode; // stock-item div
-            stockItem.parentNode.removeChild(stockItem);
+            const stockItem = button.closest('.stock-item'); // stock-item div
+            stockItem.remove(); // 종목 삭제
+            reindexStockFields(); // 인덱스 재정렬
         }
 
-        document.addEventListener('DOMContentLoaded', function() {
-            let stockIndex = 0; // 초기 인덱스 설정
-
-            // 초기 종목을 1개 추가
-            addStock(stockIndex);
-
-            // 종목 추가 버튼 클릭 시 호출
-            document.getElementById('add-stock-button').addEventListener('click', () => addStock(stockIndex++));
-
-            // 키워드 자동완성
-            $("#keyword").on('input', function() {
-                let query = $(this).val();
-                if (query.length > 0) {
-                    $.ajax({
-                        url: 'fetch_data.php',
-                        type: 'GET',
-                        data: { type: 'keywords', q: query },
-                        success: function(data) {
-                            let keywordGroups = JSON.parse(data);
-                            $("#keyword").autocomplete({
-                                source: keywordGroups
-                            });
-                        }
-                    });
-                }
+        function reindexStockFields() {
+            const stockItems = document.querySelectorAll('.stock-item');
+            stockItems.forEach((item, index) => {
+                item.querySelector('input[name^="stocks"][name$="[name]"]').name = `stocks[${index}][name]`;
+                item.querySelector('input[name^="stocks"][name$="[code]"]').name = `stocks[${index}][code]`;
+                item.querySelector('input[name^="stocks"][name$="[comment]"]').name = `stocks[${index}][comment]`;
             });
+        }
 
-            // 테마 및 섹터 자동완성
-            $("#theme").focus(function() {
-                const keywordGroup = $("#keyword").val().trim();
-                $.ajax({
-                    url: 'fetch_data.php',
-                    type: 'GET',
-                    data: { type: 'theme_sector', q: keywordGroup },
-                    success: function(data) {
-                        const suggestions = JSON.parse(data);
-                        const themes = suggestions.map(item => item.theme).filter(Boolean);
-
-                        // Initialize autocomplete with the fetched themes
-                        $("#theme").autocomplete({
-                            source: themes,
-                            minLength: 0  // Ensure that suggestions show even for empty input
-                        }).autocomplete("search", ""); // Trigger autocomplete
-                    }
-                });
-            });
-
-            $("#sector").focus(function() {
-                const keywordGroup = $("#keyword").val().trim();
-                $.ajax({
-                    url: 'fetch_data.php',
-                    type: 'GET',
-                    data: { type: 'theme_sector', q: keywordGroup },
-                    success: function(data) {
-                        const suggestions = JSON.parse(data);
-                        const sectors = suggestions.map(item => item.sector).filter(Boolean);
-
-                        // Initialize autocomplete with the fetched sectors
-                        $("#sector").autocomplete({
-                            source: sectors,
-                            minLength: 0 // Ensure that suggestions show even for empty input
-                        }).autocomplete("search", ""); // Trigger autocomplete
-                    }
-                });
-            });
-
-            // Fetch comments for a stock
-            window.fetchCommentSuggestions = function(input) {
-                const stockRow = input.closest('.stock-item').querySelector('input[name^="stocks"][name$="[code]"]');
-                const stockCode = stockRow.value;
-
-                if (stockCode) {
-                    $.ajax({
-                        url: 'fetch_data.php',
-                        type: 'GET',
-                        data: { type: 'stock_comments', code: stockCode },
-                        success: function(data) {
-                            const comments = JSON.parse(data);
-                            $(input).autocomplete({
-                                source: comments,
-                                minLength: 0 // Ensure that suggestions show even for empty input
-                            }).autocomplete("search", ""); // Trigger autocomplete
-                        }
-                    });
-                }
-            };
-
-            // 종목 펼치기/접기
-            var toggleButton = document.getElementById('toggle-all');
-            var allContents = document.querySelectorAll('.accordion-content');
-            var isExpanded = false; // 초기 상태는 접혀있는 상태
-
-            toggleButton.addEventListener('click', function() {
-                isExpanded = !isExpanded; // 토글 상태 업데이트
-                allContents.forEach(function(content) {
-                    if (isExpanded) {
-                        content.style.display = 'table-row'; // 모든 아코디언 항목 표시
+        async function searchStock(event, input) {
+            if (event.key === 'Enter') { // 엔터 키가 눌렸을 때만 처리
+                event.preventDefault(); // 폼 제출 방지
+                const query = input.value.trim();
+                const codeInput = input.nextElementSibling; // 코드 입력 필드
+                if (query.length > 0) { // 검색어가 비어있지 않은 경우에만 검색 수행
+                    const stocks = await fetchStocks(query);
+                    if (stocks.length === 1) {
+                        input.value = stocks[0].name; // 입력 칸에 종목명 설정
+                        codeInput.value = stocks[0].code; // 코드 설정
+                    } else if (stocks.length > 1) {
+                        showStockPopup(stocks, input, codeInput);
                     } else {
-                        content.style.display = 'none'; // 모든 아코디언 항목 숨김
+                        alert("해당 종목명을 찾을 수 없습니다.");
                     }
-                });
-                toggleButton.textContent = isExpanded ? '모든 종목 접기' : '모든 종목 펼치기'; // 버튼 텍스트 업데이트
-            });
+                }
+            }
+        }
 
-            document.getElementById('report_date').addEventListener('change', function() {
-                window.location.href = 'market_issue.php?date=' + this.value;
-            });
-        });
-        
-        //종목 검색
         async function fetchStocks(query) {
             try {
                 const response = await fetch(`fetch_stocks.php?q=${encodeURIComponent(query)}`);
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
-                const data = await response.json();
-                console.log("Data received from fetch_stocks.php:", data);
-                return data;
+                return await response.json();
             } catch (error) {
                 console.error("Error fetching stocks:", error);
                 return [];
@@ -327,7 +330,6 @@ $result = $stmt->get_result();
         }
 
         function showStockPopup(stocks, nameInput, codeInput) {
-            console.log("Showing stock selection popup.");
             const popup = document.createElement('div');
             popup.style.position = 'fixed';
             popup.style.top = '50%';
@@ -347,7 +349,6 @@ $result = $stmt->get_result();
                 btn.style.width = '100%';
                 btn.style.margin = '5px 0';
                 btn.onclick = () => {
-                    console.log(`Stock selected: ${stock.name} (${stock.code})`);
                     nameInput.value = stock.name;
                     codeInput.value = stock.code;
                     document.body.removeChild(popup); // 선택 시 팝업 닫기
@@ -360,42 +361,32 @@ $result = $stmt->get_result();
             closeBtn.style.display = 'block';
             closeBtn.style.width = '100%';
             closeBtn.style.margin = '5px 0';
-            closeBtn.onclick = () => {
-                console.log("Closing popup.");
-                document.body.removeChild(popup);
-            };
-            popup.appendChild(closeBtn);
+            closeBtn.onclick = () => document.body.removeChild(popup);
 
+            popup.appendChild(closeBtn);
             document.body.appendChild(popup);
         }
 
-        async function searchStock(event, input) {
-            if (event.key === 'Enter') { // 엔터 키가 눌렸을 때만 처리
-                event.preventDefault(); // 폼 제출 방지
-                console.log("Enter key pressed, initiating search...");
-                const query = input.value.trim();
-                console.log(`Searching for stocks with query: ${query}`);
-                const codeInput = input.nextElementSibling; // 코드 입력 필드
-                if (query.length > 0) { // 검색어가 비어있지 않은 경우에만 검색 수행
-                    const stocks = await fetchStocks(query);
-                    console.log("Stocks fetched:", stocks);
-                    if (stocks.length === 1) {
-                        input.value = stocks[0].name; // 입력 칸에 종목명 설정
-                        codeInput.value = stocks[0].code; // 코드 설정
-                    } else if (stocks.length > 1) {
-                        console.log("Multiple stocks found, showing popup.");
-                        showStockPopup(stocks, input, codeInput);
-                    } else {
-                        console.log("No stocks found for the query.");
-                        alert("해당 종목명을 찾을 수 없습니다.");
+        window.fetchCommentSuggestions = function(input) {
+            const stockRow = input.closest('.stock-item').querySelector('input[name^="stocks"][name$="[code]"]');
+            const stockCode = stockRow.value;
+
+            if (stockCode) {
+                $.ajax({
+                    url: 'fetch_data.php',
+                    type: 'GET',
+                    data: { type: 'stock_comments', code: stockCode },
+                    success: function(data) {
+                        const comments = JSON.parse(data);
+                        $(input).autocomplete({
+                            source: comments,
+                            minLength: 0 // Ensure that suggestions show even for empty input
+                        }).autocomplete("search", ""); // Trigger autocomplete
                     }
-                } else {
-                    console.log("Search query is empty.");
-                }
+                });
             }
         }
 
-        // 뉴스 스크랩 기능
         async function scrapNews(theme) {
             const url = document.getElementById('news_url_' + theme).value;
             try {
@@ -403,23 +394,22 @@ $result = $stmt->get_result();
                 const data = await response.json();
                 if (data.success) {
                     alert(`제목: ${data.title} | URL: ${data.url}`);
-                    // 데이터베이스 저장 처리
                     const formData = new FormData();
                     formData.append('title', data.title);
                     formData.append('url', data.url);
                     formData.append('theme', theme);
 
-                    fetch('save_news.php', {
+                    const result = await fetch('save_news.php', {
                         method: 'POST',
                         body: formData
-                    }).then(response => response.json()).then(result => {
-                        if (result.success) {
-                            alert('뉴스가 저장되었습니다.');
-                            location.reload(); // 새로고침
-                        } else {
-                            alert('뉴스 저장에 실패했습니다.');
-                        }
-                    });
+                    }).then(response => response.json());
+
+                    if (result.success) {
+                        alert('뉴스가 저장되었습니다.');
+                        location.reload(); // 새로고침
+                    } else {
+                        alert('뉴스 저장에 실패했습니다.');
+                    }
                 } else {
                     alert('제목을 가져오지 못했습니다.');
                 }
@@ -428,6 +418,7 @@ $result = $stmt->get_result();
                 alert('뉴스 스크랩 중 오류가 발생했습니다.');
             }
         }
+
     </script>
 
 </head>
@@ -513,7 +504,7 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
             </thead>
             <tbody>
                 <?php foreach ($issuesResult as $issue): ?>
-                    <tr>
+                    <tr style='background-color: #e8e8e8';>
                         <td><a href="#" onclick="loadIssueDetails(<?= $issue['issue_id'] ?>); return false;"><?= htmlspecialchars($issue['group_name']) ?></a></td>
                         <td><?= htmlspecialchars($issue['theme']) ?></td>
                         <td><?= htmlspecialchars($issue['hot_theme']) ?></td>
@@ -527,20 +518,22 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
                                 <input type="hidden" name="action" value="copy">
                                 <input type="hidden" name="issue_id" value="<?= $issue['issue_id'] ?>">
                                 <input type="hidden" name="report_date" value="<?= $dateParam ?>">
-                                <button type="submit">복사</button>
+                                <button type="submit" class='custom-button'>복사</button>
                             </form>
                             |
                             <form method="post" action="process_issue.php" style="display:inline;">
                                 <input type="hidden" name="action" value="delete">
                                 <input type="hidden" name="issue_id" value="<?= $issue['issue_id'] ?>">
                                 <input type="hidden" name="report_date" value="<?= $dateParam ?>">
-                                <button type="submit">삭제</button>
+                                <button type="submit" class="custom-button">삭제</button>
                             </form>
                         </td>
                     </tr>
-                    <tr>
-                        <td colspan=5><?= htmlspecialchars($issue['issue']).htmlspecialchars($issue['first_occurrence']) ?></td>
-                    </tr>
+                    <?php if($issue['issue'] !== ''):?>
+                        <tr>
+                            <td colspan=5><?= htmlspecialchars($issue['issue'])?> ( <?=htmlspecialchars($issue['first_occurrence']) ?> )</td>
+                        </tr>
+                    <?php endif; ?>
                     <tr class="accordion-content">
                         <td colspan="5">
                             <table>

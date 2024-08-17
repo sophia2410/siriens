@@ -329,13 +329,14 @@ if($pgmId == '') {
 	}
 	
 	echo "</table>";
+?>
+	<input type="hidden" name='proc_fg'>
+	<input type="hidden" name='today' value='<?=$today?>'>
+	<input type="hidden" name='tot_cnt' value='<?=$d?>'>
+</form>
+<?php
 }
 ?>
-<input type="hidden" name='proc_fg'>
-<input type="hidden" name='today' value='<?=$today?>'>
-<input type="hidden" name='tot_cnt' value='<?=$d?>'>
-</form>
-
 <iframe name="saveFrame" src="xrayTick_script.php" style='border:0px;' width=0 height=0>
 </iframe>
 
