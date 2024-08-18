@@ -53,6 +53,21 @@ if ($type === 'keywords') {
         }
         $stmt->close();
     }
+} elseif ($type === 'stocks') {
+    // Fetch stock codes and names
+    if ($query !== '') {
+        $stmt = $mysqli->prepare("SELECT code, name FROM stock WHERE name LIKE CONCAT(?, '%') OR code LIKE CONCAT('%', ?, '%')");
+        $searchQuery = "%$query%";
+        $stmt->bind_param('ss', $searchQuery, $searchQuery);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        while ($row = $result->fetch_assoc()) {
+            $results[] = $row;
+        }
+
+        $stmt->close();
+    }
 }
 
 echo json_encode($results);

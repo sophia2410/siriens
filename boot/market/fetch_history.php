@@ -48,14 +48,29 @@ $groupparams = array_merge($groupIds, [$excludeDate]);
 
 // Query to fetch market issues and stocks related to these groups
 $query = "
-    SELECT kgm.group_name, mis.code, MAX(mis.name) name, max(mis.date) date
-    FROM market_issues mi
-    LEFT JOIN keyword_groups_master kgm ON mi.keyword_group_id = kgm.group_id
-    LEFT JOIN market_issue_stocks mis ON mis.issue_id = mi.issue_id
-    WHERE kgm.group_id IN ($groupPlaceholders)
-	AND mis.date != ? 
-	GROUP BY kgm.group_name, mis.code
-	ORDER BY kgm.group_name, date DESC 
+    SELECT 
+        kgm.group_name, 
+        mis.code, 
+        mis.name, 
+        mis.date, 
+        mis.stock_comment
+    FROM 
+        keyword_groups_master kgm
+    INNER JOIN 
+        market_issues mi ON kgm.group_id = mi.keyword_group_id
+    INNER JOIN 
+        market_issue_stocks mis ON mis.issue_id = mi.issue_id
+    WHERE 
+        kgm.group_id IN ($groupPlaceholders)
+        AND mis.date = (
+            SELECT MAX(mis_sub.date)
+            FROM market_issue_stocks mis_sub
+            INNER JOIN market_issues mi_sub ON mis_sub.issue_id = mi_sub.issue_id
+            WHERE mi_sub.keyword_group_id = kgm.group_id
+            AND mi_sub.date != ?
+        )
+    ORDER BY 
+        kgm.group_name, mis.date DESC
 ";
 
 // Log the query and parameters
@@ -81,8 +96,11 @@ while ($row = $result->fetch_assoc()) {
         $currentIssue = $row['group_name'];
     }  // Closing brace added here
 
+    $comment = htmlspecialchars($row['stock_comment']);
+    $nameWithTooltip = '<span title="' . $comment . '">' . htmlspecialchars($row['name']) . '</span>';
+
     $output .= '<tr>';
-    $output .= '<td>' . htmlspecialchars($row['name']) . '</td>';
+    $output .= '<td>' . $nameWithTooltip . '</td>';
     $output .= '<td>' . htmlspecialchars($row['code']) . '</td>';
     $output .= '<td>' . htmlspecialchars($row['date']) . '</td>';
     $output .= '</tr>';

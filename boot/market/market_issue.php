@@ -7,17 +7,17 @@ $dateParam = $_GET['date'] ?? date('Y-m-d');
 $formattedDate = str_replace('-', '', $dateParam);
 
 // 마켓이슈 불러오기
-$issuesQuery = $mysqli->prepare("SELECT mi.*, kgm.group_name FROM market_issues mi LEFT JOIN keyword_groups_master kgm ON mi.keyword_group_id = kgm.group_id WHERE mi.date = ? ORDER BY mi.date DESC");
+$issuesQuery = $mysqli->prepare("SELECT mi.*, kgm.group_name FROM market_issues mi LEFT JOIN keyword_groups_master kgm ON mi.keyword_group_id = kgm.group_id WHERE mi.date = ? ORDER BY mi.hot_theme DESC, kgm.group_name ASC");
 $issuesQuery->bind_param('s', $formattedDate);
 $issuesQuery->execute();
 $issuesResult = $issuesQuery->get_result();
 
 $stocksQuery = $mysqli->prepare("
-    SELECT mis.*, vdp.close_rate, vdp.amount AS trade_amount 
+    SELECT mis.*, vdp.close_rate, vdp.amount AS trade_amount
     FROM market_issue_stocks mis 
     JOIN v_daily_price vdp ON vdp.code = mis.code AND vdp.date = mis.date 
     WHERE mis.date = ? 
-    ORDER BY vdp.close_rate DESC");
+    ORDER BY mis.is_leader DESC, vdp.close_rate DESC");
 $stocksQuery->bind_param('s', $formattedDate); 
 $stocksQuery->execute();
 $stocksResult = $stocksQuery->get_result();
@@ -45,7 +45,7 @@ $query = "SELECT
                       market_issue_stocks mis_sub ON mis_sub.issue_id = mi.issue_id
                   WHERE 
                       mis_sub.code = vdp.code
-                  AND mis.date != ?
+                  AND mi.date != vdp.date
                   ORDER BY 
                       mi.date DESC
                   LIMIT 1
@@ -61,9 +61,10 @@ $query = "SELECT
               (vdp.close_rate > 29.5 AND vdp.amount > 30))
           ORDER BY 
               vdp.close_rate DESC";
+
 // error_log(print_r($binded_query, true));
 $stmt = $mysqli->prepare($query);
-$stmt->bind_param('ss', $formattedDate, $formattedDate);
+$stmt->bind_param('s', $formattedDate);
 $stmt->execute();
 $result = $stmt->get_result();
 
@@ -188,6 +189,10 @@ function getAmountStyle($amountInBillion) {
         .stock-row input[type="text"] {
             margin-right: 8px; /* Reduced margin */
         }
+        .stock-row label {
+            display: flex;
+            align-items: center;
+        }
         table {
             width: 100% !important;
             border-collapse: collapse !important;
@@ -220,6 +225,13 @@ function getAmountStyle($amountInBillion) {
             // 초기 종목을 1개 추가
             addStock(stockIndex);
 
+            // 초기화 버튼 클릭 시 호출
+            document.getElementById('reset-button').addEventListener('click', function() {
+                // 선택된 일자에 맞춰 화면 리로드
+                const selectedDate = document.getElementById('report_date').value;
+                window.location.href = 'market_issue.php?date=' + selectedDate;
+            });
+
             // 종목 추가 버튼 클릭 시 호출
             document.getElementById('add-stock-button').addEventListener('click', () => {
                 addStock(stockIndex++);
@@ -231,7 +243,7 @@ function getAmountStyle($amountInBillion) {
                 let query = $(this).val();
                 if (query.length > 0) {
                     $.ajax({
-                        url: 'fetch_data.php',
+                        url: 'fetch_autocomplete.php',
                         type: 'GET',
                         data: { type: 'keywords', q: query },
                         success: function(data) {
@@ -285,7 +297,7 @@ function getAmountStyle($amountInBillion) {
             $(selector).focus(function() {
                 const keywordGroup = $("#keyword").val().trim();
                 $.ajax({
-                    url: 'fetch_data.php',
+                    url: 'fetch_autocomplete.php',
                     type: 'GET',
                     data: { type: type, q: keywordGroup },
                     success: function(data) {
@@ -303,7 +315,7 @@ function getAmountStyle($amountInBillion) {
         function setupAccordionToggle() {
             const toggleButton = document.getElementById('toggle-all');
             const allContents = document.querySelectorAll('.accordion-content');
-            let isExpanded = false; // 초기 상태는 접혀있는 상태
+            let isExpanded = true; // 초기 상태는 펼쳐진 상태
 
             toggleButton.addEventListener('click', function() {
                 isExpanded = !isExpanded; // 토글 상태 업데이트
@@ -314,11 +326,14 @@ function getAmountStyle($amountInBillion) {
             });
         }
 
-        function loadIssueDetails(issueId) {
+        function loadIssueDetails(issueId, formattedDate) {
             $.ajax({
                 url: 'fetch_issue_details.php',
                 type: 'GET',
-                data: { issue_id: issueId },
+                data: { 
+                    issue_id: issueId,
+                    date: formattedDate // Pass the date parameter
+                },
                 success: function(response) {
                     const data = JSON.parse(response);
                     if (data.issueDetails) {
@@ -332,6 +347,19 @@ function getAmountStyle($amountInBillion) {
                         $('#new_issue').prop('checked', data.issueDetails.first_occurrence === 'Y');
                         $('#action').val('update');
                         $('#issue_id').val(data.issueDetails.issue_id);
+
+                        // Check status and update keyword box style
+                        if (data.issueDetails.status === 'copied') {
+                            $('#keyword').css({
+                                'background-color': '#ffe0e0', // Light coral or any other color
+                                'font-weight': 'bold'          // Make it stand out
+                            });
+                        } else {
+                            $('#keyword').css({
+                                'background-color': '',
+                                'font-weight': ''
+                            });
+                        }
                     }
 
                     if (data.stocks && data.stocks.length > 0) {
@@ -339,7 +367,8 @@ function getAmountStyle($amountInBillion) {
                         const container = $('#stocks-container');
                         container.empty(); // 기존 종목 정보를 초기화
                         data.stocks.forEach((stock, index) => {
-                            addStock(index, stock.code, stock.name, stock.stock_comment); // Pass stock data
+                            const isLeader = stock['is_leader'] === '1' ? true : false;
+                            addStock(index, stock.code, stock.name, stock.stock_comment, isLeader); // Pass stock data
                         });
                         reindexStockFields(); // 인덱스 재정렬
                     }
@@ -347,7 +376,7 @@ function getAmountStyle($amountInBillion) {
             });
         }
 
-        function addStock(stockIndex, code = '', name = '', comment = '') {
+        function addStock(stockIndex, code = '', name = '', comment = '', isLeader = '') {
             const container = document.getElementById('stocks-container');
             const newStock = document.createElement('div');
             newStock.className = 'stock-item';
@@ -355,6 +384,9 @@ function getAmountStyle($amountInBillion) {
                 <div class="stock-row">
                     <input type="text" name="stocks[${stockIndex}][name]" value="${name}" onkeydown="searchStock(event, this)" placeholder="종목명/코드" required style="flex: 2; margin-right: 10px;">
                     <input type="text" name="stocks[${stockIndex}][code]" value="${code}" readonly placeholder="코드" style="flex: 1; margin-right: 10px;">
+                    <label style="margin-left: 10px;">
+                        <input type="checkbox" name="stocks[${stockIndex}][is_leader]" ${isLeader ? 'checked' : ''}> 주도주
+                    </label>
                     <button type="button" onclick="removeStock(this)" style="margin-left: 10px;">삭제</button>
                 </div>
                 <div class="stock-comment">
@@ -376,6 +408,7 @@ function getAmountStyle($amountInBillion) {
                 item.querySelector('input[name^="stocks"][name$="[name]"]').name = `stocks[${index}][name]`;
                 item.querySelector('input[name^="stocks"][name$="[code]"]').name = `stocks[${index}][code]`;
                 item.querySelector('input[name^="stocks"][name$="[comment]"]').name = `stocks[${index}][comment]`;
+                item.querySelector('input[name^="stocks"][name$="[is_leader]"]').name = `stocks[${index}][is_leader]`;
             });
         }
 
@@ -400,7 +433,7 @@ function getAmountStyle($amountInBillion) {
 
         async function fetchStocks(query) {
             try {
-                const response = await fetch(`fetch_stocks.php?q=${encodeURIComponent(query)}`);
+                const response = await fetch(`fetch_autocomplete.php?type=stocks&q=${encodeURIComponent(query)}`);
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
@@ -455,7 +488,7 @@ function getAmountStyle($amountInBillion) {
 
             if (stockCode) {
                 $.ajax({
-                    url: 'fetch_data.php',
+                    url: 'fetch_autocomplete.php',
                     type: 'GET',
                     data: { type: 'stock_comments', code: stockCode },
                     success: function(data) {
@@ -540,9 +573,17 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
             <h2>연결된 종목</h2>
             <div id="stocks-container">
             </div>
-            <button type="button" id="add-stock-button">종목 추가</button>
-            
-            <button type="submit">등록</button>
+            <div style="display: flex; justify-content: space-between; margin-top: 15px;">
+                <!-- 좌측에 위치할 버튼들 -->
+                <div>
+                    <button type="button" id="add-stock-button">종목 추가</button>
+                    <button type="submit">등록</button>
+                </div>
+                <!-- 우측에 위치할 초기화 버튼 -->
+                <div>
+                    <button type="button" id="reset-button">초기화</button>
+                </div>
+            </div>
         </form>
     </div>
 
@@ -589,30 +630,38 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
     <!-- 마켓이슈 조회 화면 -->
     <div id="right-panel">
         <h2>Issue List for <?= htmlspecialchars($dateParam) ?></h2>
+
+        <!-- 키워드 그룹을 한 줄로 모아서 표시 -->
+        <div style="margin-bottom: 15px; padding: 10px; background-color: #f0f0f0; border-radius: 5px;">
+            <?php foreach ($issuesResult as $issue): ?>
+                <span style="display: inline-block; margin-right: 10px; padding: 5px 10px; background-color: #ddd; border-radius: 5px;">
+                    <?= htmlspecialchars($issue['group_name']) ?>
+                </span>
+            <?php endforeach; ?>
+        </div>
+        
         <button id="toggle-all">종목 펼치기/접기</button>
         <table>
-            <thead>
+            <!-- <thead>
                 <tr>
-                    <th>키워드</th>
-                    <th>테마</th>
-                    <th>핫 테마</th>
-                    <th>섹터</th>
-                    <!-- <th>뉴스 스크랩</th> -->
+                    <th style='width:20%;'>키워드</th>
+                    <th style='width:10%;'>테마</th>
+                    <th style='width:10%;'>섹터</th>
                     <th>복사</th>
+                    <th>뉴스 스크랩</th>
                 </tr>
-            </thead>
+            </thead> -->
             <tbody>
                 <?php foreach ($issuesResult as $issue): ?>
-                    <tr style='background-color: #e8e8e8';>
-                        <td><a href="#" onclick="loadIssueDetails(<?= $issue['issue_id'] ?>); return false;"><?= htmlspecialchars($issue['group_name']) ?></a></td>
-                        <td><?= htmlspecialchars($issue['theme']) ?></td>
-                        <td><?= htmlspecialchars($issue['hot_theme']) ?></td>
-                        <td><?= htmlspecialchars($issue['sector']) ?></td>
-                        <!-- <td>
-                            <input type="text" id="news_url_<?= htmlspecialchars($issue['theme']) ?>" placeholder="뉴스 URL">
-                            <button type="button" onclick="scrapNews('<?= htmlspecialchars($issue['theme']) ?>')">스크랩</button>
-                        </td> -->
-                        <td>
+                    <tr style='background-color: #e8e8e8; font-weight: bold;';>
+                        <?php 
+                            $statusStyle = ($issue['status'] === 'copied') ?'background-color:#ffe0e0;' : '';
+                            $themeStyle  = ($issue['hot_theme'] === 'Y') ? 'color:red;' : '';
+                        ?>
+                        <td style="width:9%; display: table-cell; <?= $themeStyle ?> <?= $statusStyle ?>"><?= htmlspecialchars($issue['theme']) ?></td>
+                        <td style="<?= $statusStyle ?>"><a href="#" onclick="loadIssueDetails(<?= $issue['issue_id'] ?>, <?= $formattedDate ?>); return false;" style=''><?= htmlspecialchars($issue['group_name']) ?></a></td>
+                        <td style="<?= $statusStyle ?>"><?= htmlspecialchars($issue['sector']) ?></td>
+                        <td style="<?= $statusStyle ?>">
                             <form method="post" action="process_issue.php" style="display:inline;">
                                 <input type="hidden" name="action" value="copy">
                                 <input type="hidden" name="issue_id" value="<?= $issue['issue_id'] ?>">
@@ -627,6 +676,10 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
                                 <button type="submit" class="custom-button">삭제</button>
                             </form>
                         </td>
+                        <td style="<?= $statusStyle ?>">
+                            <input type="text" id="news_url_<?= htmlspecialchars($issue['theme']) ?>" style="width: 200px;" placeholder="뉴스 URL">
+                            <button type="button" class='custom-button' onclick="scrapNews('<?= htmlspecialchars($issue['theme']) ?>')">스크랩</button>
+                        </td>
                     </tr>
                     <?php if($issue['issue'] !== ''):?>
                         <tr>
@@ -639,15 +692,15 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
                                 <tbody>
                                     <?php if (isset($stocksData[$issue['issue_id']])): ?>
                                         <?php foreach ($stocksData[$issue['issue_id']] as $stock): ?>
-
                                             <?php 
                                                 $amountInBillion = $stock['trade_amount'];
                                                 $closeRate = $stock['close_rate'];
                                                 $amountStyle  = getAmountStyle($amountInBillion);
                                                 $nameStyle  = ($closeRate >= 29.5) ? 'color:red;' : '';
+                                                $leaderStyle = ($stock['is_leader'] === '1') ? 'background-color:#fff9c4;' : '';
                                             ?>
                                             <tr>
-                                                <td style="width:15%; display: table-cell; <?= $nameStyle ?>"><?= htmlspecialchars($stock['name']) ?></td>
+                                                <td style="width:15%; display: table-cell; font-weight: bold; <?= $nameStyle ?> <?= $leaderStyle ?>"><?= htmlspecialchars($stock['name']) ?></td>
                                                 <td style="width:5%; display: table-cell;"><?= htmlspecialchars($stock['code']) ?></td>
                                                 <td align=right style="width:8%; display: table-cell; <?= $nameStyle ?>"><?= number_format($stock['close_rate'],2) ?> %</td>
                                                 <td align=right style="width:9%; display: table-cell; <?= $amountStyle ?>"><?= number_format($stock['trade_amount']) ?> 억</td>

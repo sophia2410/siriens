@@ -30,6 +30,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
             handleStocks($mysqli, $issue_id, $_POST['stocks'] ?? [], $date);
             $mysqli->commit();
+
+            // 미사용 키워드 삭제
+            try {
+                // 저장 프로시저 호출
+                $mysqli->query("CALL p_cleanup_unused_keywords();");
+            
+                // 커밋
+                if (!$mysqli->commit()) {
+                    throw new Exception("Commit failed: " . $mysqli->error);
+                }
+            } catch (Exception $e) {
+                $mysqli->rollback();
+                echo "Error: " . $e->getMessage();
+            }
+
         } elseif ($action === 'copy') {
             // 복사 로직
             $issue_id = $_POST['issue_id'];
@@ -40,6 +55,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $issue_id = $_POST['issue_id'];
             deleteIssue($mysqli, $issue_id);
             $mysqli->commit();
+
+            // 미사용 키워드 삭제
+            try {
+                // 저장 프로시저 호출
+                $mysqli->query("CALL p_cleanup_unused_keywords();");
+            
+                // 커밋
+                if (!$mysqli->commit()) {
+                    throw new Exception("Commit failed: " . $mysqli->error);
+                }
+            } catch (Exception $e) {
+                $mysqli->rollback();
+                echo "Error: " . $e->getMessage();
+            }
         }
 
         header("Location: market_issue.php?date=$selected_date");
@@ -118,7 +147,7 @@ function insertOrUpdateIssue($mysqli, $date, $issue, $first_occurrence, $link, $
     if ($row = $result->fetch_assoc()) {
         return $row['issue_id'];
     } else {
-        $stmt = $mysqli->prepare("INSERT INTO market_issues (date, issue, first_occurrence, link, sector, theme, hot_theme, create_dtime, keyword_group_id) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?)");
+        $stmt = $mysqli->prepare("INSERT INTO market_issues (date, issue, first_occurrence, link, sector, theme, hot_theme, keyword_group_id, status, create_dtime) VALUES (?, ?, ?, ?, ?, ?, ?, ?,'registered',NOW())");
         $stmt->bind_param('sssssssi', $date, $issue, $first_occurrence, $link, $sector, $theme, $hot_theme, $group_id);
         if (!$stmt->execute()) {
             throw new Exception("market_issues 삽입 실패: " . $stmt->error);
@@ -128,7 +157,7 @@ function insertOrUpdateIssue($mysqli, $date, $issue, $first_occurrence, $link, $
 }
 
 function updateIssue($mysqli, $issue_id, $date, $issue, $first_occurrence, $link, $sector, $theme, $hot_theme, $group_id) {
-    $stmt = $mysqli->prepare("UPDATE market_issues SET date = ?, issue = ?, first_occurrence = ?, link = ?, sector = ?, theme = ?, hot_theme = ?, keyword_group_id = ? WHERE issue_id = ?");
+    $stmt = $mysqli->prepare("UPDATE market_issues SET date = ?, issue = ?, first_occurrence = ?, link = ?, sector = ?, theme = ?, hot_theme = ?, keyword_group_id = ?, status = 'registered' WHERE issue_id = ?");
     $stmt->bind_param('sssssssii', $date, $issue, $first_occurrence, $link, $sector, $theme, $hot_theme, $group_id, $issue_id);
     if (!$stmt->execute()) {
         throw new Exception("market_issues 업데이트 실패: " . $stmt->error);
@@ -140,16 +169,24 @@ function handleStocks($mysqli, $issue_id, $stocks, $date) {
         $code = $stock['code'] ?? '';
         $name = $stock['name'] ?? '';
         $stock_comment = $stock['comment'] ?? '';
+        $isLeader = isset($stock['is_leader']) ? '1' : '0'; // Adjusted to string
 
         if ($code !== '' && $name !== '') {
-            $stmt = $mysqli->prepare("INSERT INTO market_issue_stocks (issue_id, code, name, stock_comment, date, create_dtime) VALUES (?, ?, ?, ?, ?, NOW())");
-            $stmt->bind_param('issss', $issue_id, $code, $name, $stock_comment, $date);
+            // Log the SQL query and parameters for debugging
+            // error_log("Attempting to insert: issue_id={$issue_id}, code={$code}, name={$name}, stock_comment={$stock_comment}, is_leader={$isLeader}, date={$date}");
+
+            $stmt = $mysqli->prepare("INSERT INTO market_issue_stocks (issue_id, code, name, stock_comment, is_leader, date, create_dtime) VALUES (?, ?, ?, ?, ?, ?, NOW())");
+            $stmt->bind_param('isssss', $issue_id, $code, $name, $stock_comment, $isLeader, $date);
+
             if (!$stmt->execute()) {
                 throw new Exception("market_issue_stocks 삽입 실패: " . $stmt->error);
             }
+        } else {
+            error_log("Skipped insertion due to missing code or name: code={$code}, name={$name}");
         }
     }
 }
+
 
 function deleteStocks($mysqli, $issue_id) {
     $stmt = $mysqli->prepare("DELETE FROM market_issue_stocks WHERE issue_id = ?");
@@ -170,7 +207,7 @@ function copyIssue($mysqli, $issue_id) {
         throw new Exception("이슈를 찾을 수 없습니다.");
     }
 
-    $stmt = $mysqli->prepare("INSERT INTO market_issues (date, issue, first_occurrence, link, sector, theme, hot_theme, create_dtime, keyword_group_id) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?)");
+    $stmt = $mysqli->prepare("INSERT INTO market_issues (date, issue, first_occurrence, link, sector, theme, hot_theme, status, create_dtime, keyword_group_id) VALUES (?, ?, ?, ?, ?, ?, ?,'copied', NOW(), ?)");
     $stmt->bind_param(
         'sssssssi',
         $issueData['date'],

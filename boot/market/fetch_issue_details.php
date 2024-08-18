@@ -3,6 +3,7 @@
 require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 
 $issue_id = $_GET['issue_id'] ?? '';
+$date = $_GET['date'] ?? '';
 
 if ($issue_id) {
     $response = ['issueDetails' => [], 'stocks' => []];
@@ -27,8 +28,13 @@ if ($issue_id) {
     $issueQuery->close();
 
     // 관련 종목 정보 조회
-    $stocksQuery = $mysqli->prepare("SELECT * FROM market_issue_stocks WHERE issue_id = ?");
-    $stocksQuery->bind_param('i', $issue_id);
+    $stocksQuery = $mysqli->prepare("
+        SELECT mis.*, vdp.close_rate
+        FROM market_issue_stocks mis 
+        JOIN v_daily_price vdp ON vdp.code = mis.code AND vdp.date = ? 
+        WHERE mis.issue_id = ? 
+        ORDER BY mis.is_leader DESC, vdp.close_rate DESC");
+    $stocksQuery->bind_param('si', $date, $issue_id); // Bind date and issue_id
     $stocksQuery->execute();
     $result = $stocksQuery->get_result();
     while ($stock = $result->fetch_assoc()) {
