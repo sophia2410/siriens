@@ -103,7 +103,8 @@ $result = $mysqli->query($query);
         <button type="button" class="btn btn-danger btn-sm" onclick="xrayTick('0dayStocks','20','2000')">20% || 2000억↑</button>
         <button type="button" class="btn btn-danger btn-sm" onclick="xrayTick('0dayStocks','0','0')">0일차모음</button>
         <button type="button" class="btn btn-danger btn-sm" onclick="xrayTick('mochaten')">모차십</button>
-        <button type="button" class="btn btn-danger btn-sm" id="themeButton">최근테마(관.종)</button>
+        <button type="button" class="btn btn-danger btn-sm" id="watchlistThemeButton">최근테마(관.종)</button>
+        <button type="button" class="btn btn-danger btn-sm" id="marketIssuesThemeButton">최근테마(마켓이슈)</button>
         <button type="button" class="btn btn-danger btn-sm" onclick="xrayTick('sophiaWatchlist','2 최근0일차☆','')">최근0일차(관.종)</button>
         <button type="button" class="btn btn-danger btn-sm" onclick="xrayTick('xraytick')">조회일자</button> &nbsp; 
         <input type=text id=buy_cnt style='width:30px' value=6>건/<input type=text id=buy_period style='width:30px' value=10>일내
@@ -155,46 +156,98 @@ $("#excel_down").click(function() {
     });
 });
 
-$("#themeButton").click(function() {
-    var container = $('#sectorContainer');
-    if (container.is(':visible')) {
-        container.hide(); // 컨테이너가 보이면 숨깁니다.
-    } else {
-        container.show(); // 컨테이너가 숨겨져 있으면 보이게 합니다.
-        fetchSectors();
-    }
+$(document).ready(function() {
+    // Event listener for the "최근테마(관.종)" button
+    $("#watchlistThemeButton").click(function() {
+        toggleThemeContainer();
+        fetchThemes('watchlist_sophia');
+    });
+
+    // Event listener for the "최근테마(마켓이슈)" button
+    $("#marketIssuesThemeButton").click(function() {
+        toggleThemeContainer();
+        fetchThemes('market_issues');
+    });
 });
 
-function fetchSectors() {
-    console.log('Fetching sectors...');
+// Function to toggle the visibility of the theme container
+function toggleThemeContainer() {
+    var container = $('#sectorContainer');
+    if (container.is(':visible')) {
+        container.hide();
+    } else {
+        container.show();
+    }
+}
+
+// Function to fetch themes from the specified source
+function fetchThemes(source) {
     $.ajax({
-        url: '/boot/common/ajax/ajaxGetThemes.php', // 섹터 데이터를 가져오는 PHP 파일
+        url: '/boot/common/ajax/ajaxGetThemes.php',
         method: 'GET',
+        data: { source: source },
         success: function(response) {
-            console.log('Sectors fetched successfully:', response);
-            displaySectors(response);
+            displayThemes(response, source); // Pass the source to the display function
         },
         error: function(jqXHR, textStatus, errorThrown) {
-            console.error('Error fetching sectors:', textStatus, errorThrown);
+            console.error('Error fetching themes:', textStatus, errorThrown);
         }
     });
 }
 
-function displaySectors(sectors) {
-    console.log('Displaying sectors:', sectors);
+// Function to display themes as buttons
+function displayThemes(themes, source) {
     var container = $('#sectorContainer');
-    container.empty(); // 기존 섹터 목록을 지웁니다.
+    container.empty(); // Clear existing content
 
-    sectors.forEach(function(sector) {
-        var sectorButton = $('<button>')
-            .addClass('btn btn-secondary btn-sm sector-item')
-            .text(sector.name)
+    // Determine the correct parameters for xrayTick based on the source
+    var tickType = source === 'market_issues' ? 'market_issue' : 'sophiaWatchlist';
+
+    themes.forEach(function(theme) {
+        var sector = source === 'market_issues' ? theme.type : '1 최근테마☆';
+
+        var themeButton = $('<button>')
+            .addClass('btn btn-sm sector-item')
+            .text(theme.name)
             .attr('type', 'button')
-            .attr('onclick', `xrayTick('sophiaWatchlist', '1 최근테마☆', '${sector.name}')`);
+            .attr('onclick', `xrayTick('${tickType}', '${sector}', '${theme.name}')`);
 
-        container.append(sectorButton);
+        // Apply different styles based on whether the theme is hot or not
+        if (source === 'market_issues' && theme.type === 'theme') {
+            if (theme.hot_theme === 'Y') {
+                themeButton.addClass('btn-danger'); // Red button for hot themes
+            } else {
+                themeButton.addClass('btn-primary'); // Blue button for regular themes
+            }
+        } else if (source === 'market_issues' && theme.type === 'keyword') {
+            themeButton.addClass('btn-secondary'); // Grey button for keywords
+        } else if (source === 'watchlist_sophia') {
+            themeButton.addClass('btn-primary'); // Blue button for themes in watchlist_sophia
+        }
+
+        container.append(themeButton);
     });
 }
+
+// // Function to display themes as buttons
+// function displayThemes(themes, source) {
+//     var container = $('#sectorContainer');
+//     container.empty();
+
+//     // Determine the correct parameters for xrayTick based on the source
+//     var tickType = source === 'market_issues' ? 'market_issue' : 'sophiaWatchlist';
+//     var sector = source === 'market_issues' ? '' : '1 최근테마☆';
+
+//     themes.forEach(function(theme) {
+//         var themeButton = $('<button>')
+//             .addClass('btn btn-secondary btn-sm sector-item')
+//             .text(theme.name)
+//             .attr('type', 'button')
+//             .attr('onclick', `xrayTick('${tickType}', '${sector}', '${theme.name}')`);
+
+//         container.append(themeButton);
+//     });
+// }
 
 function selectSector(id, name) {
     console.log('Selected Sector ID: ' + id + ', Name: ' + name);
@@ -211,7 +264,7 @@ function xrayTick(pgmId, key1='', key2='') {
         parm = "&increase_rate=" + key1 + "&trade_amt=" + key2;
     } else if(pgmId == 'mochaten') {
         parm = "";
-    } else if(pgmId == 'sophiaWatchlist') {
+    } else if(pgmId == 'sophiaWatchlist' || pgmId == 'market_issue') {
         parm = "&sector=" + key1 + "&theme=" + key2;
     } else if(pgmId == 'xraytick') {
         parm = "";

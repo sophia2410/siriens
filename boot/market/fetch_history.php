@@ -2,7 +2,10 @@
 require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 
 $keywords = $_GET['keywords'] ?? '';
-$excludeDate = $_GET['exclude_date'] ?? null; // Get the exclude_date parameter
+$excludeDate = $_GET['exclude_date'] ? str_replace('-', '', $_GET['exclude_date']) :  null; // Get the exclude_date parameter
+
+// Ensure no output other than JSON when needed
+header('Content-Type: application/json');
 
 // Split the keywords and remove the # symbol
 $keywordsArray = array_map(function($keyword) {
@@ -21,9 +24,6 @@ $query = "
     WHERE km.keyword IN ($placeholders)
 ";
 
-// Log the query and parameters
-logQuery($query, $keywordsArray);
-
 $stmt = $mysqli->prepare($query);
 $stmt->bind_param($types, ...$keywordsArray);
 $stmt->execute();
@@ -34,11 +34,13 @@ while ($row = $groupResult->fetch_assoc()) {
     $groupIds[] = $row['group_id'];
 }
 
-// If no group IDs are found, exit
+// If no group IDs are found, return an empty JSON array
 if (empty($groupIds)) {
-    echo '<p>No history found for the provided keywords.</p>';
+    echo json_encode(['html' => '<p>No history found for the provided keywords.</p>', 'data' => []]);
     exit;
 }
+
+
 
 // Prepare placeholders and types for the next query
 $groupPlaceholders = implode(',', array_fill(0, count($groupIds), '?'));
@@ -74,18 +76,21 @@ $query = "
 ";
 
 // Log the query and parameters
-logQuery($query, $groupPlaceholders);
+// logQuery($query, $groupparams);
 
 $stmt = $mysqli->prepare($query);
 $stmt->bind_param($groupTypes, ...$groupparams);
 $stmt->execute();
 $result = $stmt->get_result();
 
-// Generate HTML output
-$output = '';
 
+// Initialize variables
+$output = '';
 $currentIssue = null;
+
+// Process each row in the result
 while ($row = $result->fetch_assoc()) {
+    // Generate HTML for each group and its stocks
     if ($currentIssue !== $row['group_name']) {
         if ($currentIssue !== null) {
             $output .= '</tbody></table>';
@@ -94,7 +99,7 @@ while ($row = $result->fetch_assoc()) {
         $output .= '<h5>' . htmlspecialchars($row['group_name']) . '</h5>';
         $output .= '<table><thead><tr><th>종목명</th><th>코드</th><th>일자</th></tr></thead><tbody>';
         $currentIssue = $row['group_name'];
-    }  // Closing brace added here
+    }
 
     $comment = htmlspecialchars($row['stock_comment']);
     $nameWithTooltip = '<span title="' . $comment . '">' . htmlspecialchars($row['name']) . '</span>';
@@ -110,7 +115,34 @@ if ($currentIssue !== null) {
     $output .= '</tbody></table>';
 }
 
-echo $output ?: '<p>해당 키워드의 과거 이력이 없습니다.</p>';
+
+// Query to fetch the most recent theme and sector for the identified exact group ID
+$themeSectorQuery = "
+    SELECT mi.theme, mi.sector
+    FROM market_issues mi
+    JOIN keyword_groups_master kgm
+    ON mi.keyword_group_id = kgm.group_id
+    WHERE kgm.group_name = ?
+    ORDER BY mi.date DESC
+    LIMIT 1
+";
+
+$themeSectorStmt = $mysqli->prepare($themeSectorQuery);
+$themeSectorStmt->bind_param('s', $keywords);
+$themeSectorStmt->execute();
+$themeSectorResult = $themeSectorStmt->get_result();
+
+$data = [];
+
+if ($themeSectorRow = $themeSectorResult->fetch_assoc()) {
+    $data = [
+        'theme' => $themeSectorRow['theme'],
+        'sector' => $themeSectorRow['sector']
+    ];
+}
+
+// Return both HTML and data for JSON response
+echo json_encode(['html' => $output, 'data' => $data]);
 
 $stmt->close();
 $mysqli->close();

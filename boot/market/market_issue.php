@@ -225,6 +225,13 @@ function getAmountStyle($amountInBillion) {
             // 초기 종목을 1개 추가
             addStock(stockIndex);
 
+            // 키워드 입력 필드에서 Enter 키를 눌렀을 때 폼이 제출되지 않도록 처리
+            document.getElementById('keyword').addEventListener('keydown', function(event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault(); // Enter key 눌렀을 때 폼 제출 방지
+                }
+            });
+
             // 초기화 버튼 클릭 시 호출
             document.getElementById('reset-button').addEventListener('click', function() {
                 // 선택된 일자에 맞춰 화면 리로드
@@ -268,7 +275,7 @@ function getAmountStyle($amountInBillion) {
                 window.location.href = 'market_issue.php?date=' + this.value;
             });
 
-            // 키워드 포커스 아웃 시 과거 이력 가져오기document.getElementById('keyword').addEventListener('blur', function() {
+            // 키워드 포커스 아웃 시 과거 이력 가져오기
             document.getElementById('keyword').addEventListener('blur', function() {
                 const keywordInput = this.value.trim();
                 const reportDate = document.getElementById('report_date').value; // Get the value of the report date input
@@ -282,15 +289,58 @@ function getAmountStyle($amountInBillion) {
                             exclude_date: reportDate // Pass the report date as the exclude_date parameter
                         },
                         success: function(response) {
-                            // Inject the fetched history into the history panel
-                            $('#history-content').html(response);
+                            console.log(response);
+                            if (typeof response === "string") {
+                                // Parse JSON only if it's a string
+                                try {
+                                    response = JSON.parse(response);
+                                } catch (error) {
+                                    console.error('Error parsing JSON:', error);
+                                    $('#history-content').html('<p>Failed to parse response as JSON.</p>');
+                                    return;
+                                }
+                            }
+
+                            const data = response.data;
+
+                            if (data.theme && data.sector) {
+                                $('#theme').val(data.theme);
+                                $('#sector').val(data.sector);
+                            }
+
+                            // Inject the fetched history into the history panel regardless
+                            $('#history-content').html(response.html);
                         },
                         error: function() {
-                            $('#history-content').html('<p>과거 이력을 가져오지 못했습니다.</p>');
+                            $('#history-content').html('<p>Failed to fetch the history.</p>');
                         }
                     });
                 }
             });
+
+
+            // document.getElementById('keyword').addEventListener('blur', function() {
+            //     const keywordInput = this.value.trim();
+            //     const reportDate = document.getElementById('report_date').value; // Get the value of the report date input
+
+            //     if (keywordInput.startsWith('#')) { // Check if input starts with #
+            //         $.ajax({
+            //             url: 'fetch_history.php',
+            //             type: 'GET',
+            //             data: {
+            //                 keywords: keywordInput,
+            //                 exclude_date: reportDate // Pass the report date as the exclude_date parameter
+            //             },
+            //             success: function(response) {
+            //                 // Inject the fetched history into the history panel
+            //                 $('#history-content').html(response);
+            //             },
+            //             error: function() {
+            //                 $('#history-content').html('<p>과거 이력을 가져오지 못했습니다.</p>');
+            //             }
+            //         });
+            //     }
+            // });
         });
 
         function setupAutocomplete(selector, type, key) {
@@ -324,6 +374,17 @@ function getAmountStyle($amountInBillion) {
                 });
                 toggleButton.textContent = isExpanded ? '모든 종목 접기' : '모든 종목 펼치기'; // 버튼 텍스트 업데이트
             });
+        }
+        
+        function scrollToKeyword(groupName, issueId) {
+            // 먼저 해당 키워드 그룹을 스크롤해서 보여줍니다.
+            const targetRow = document.querySelector(`tr[data-issue-id='${issueId}']`);
+            if (targetRow) {
+                targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+
+            // 키워드 그룹을 클릭했을 때 기존의 로직을 적용하여 왼쪽 등록 화면에 셋팅합니다.
+            loadIssueDetails(issueId, '<?= $formattedDate ?>');
         }
 
         function loadIssueDetails(issueId, formattedDate) {
@@ -553,24 +614,22 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
             <label for="report_date">날짜:</label>
             <input type="date" id="report_date" name="report_date" value="<?= $dateParam ?>" required>
 
-			<label for="keyword">키워드 (# 으로 구분):</label>
-			<input type="text" id="keyword" name="keyword" placeholder="#키워드1 #키워드2" required autocomplete="off">
-
-            <label for="issue">이슈:</label>
-            <textarea id="issue" name="issue" rows="2" placeholder="이슈"></textarea>
             <label>
                 <input type="checkbox" name="new_issue" id="new_issue"> 신규 이슈
             </label>
+            <textarea id="issue" name="issue" rows="2" placeholder="이슈"></textarea>
+            
+			<label for="keyword">키워드 (# 으로 구분):</label>
+			<input type="text" id="keyword" name="keyword" placeholder="#키워드1 #키워드2" required autocomplete="off">
             <label for="theme">테마:</label>
             <input type="text" id="theme" name="theme" placeholder="테마 입력" autocomplete="off">
-
             <label>
                 <input type="checkbox" name="hot_theme" id="hot_theme"> 핫 테마로 설정
             </label>
             <label for="sector">섹터:</label>
-            <input type="text" id="sector" name="sector" placeholder="IT, 금융 등" autocomplete="off">
-
-            <h2>연결된 종목</h2>
+            <input type="text" id="sector" name="sector" placeholder="섹터 입력" autocomplete="off">
+            <br><br>
+            <h2>- 종목 - </h2>
             <div id="stocks-container">
             </div>
             <div style="display: flex; justify-content: space-between; margin-top: 15px;">
@@ -634,13 +693,16 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
         <!-- 키워드 그룹을 한 줄로 모아서 표시 -->
         <div style="margin-bottom: 15px; padding: 10px; background-color: #f0f0f0; border-radius: 5px;">
             <?php foreach ($issuesResult as $issue): ?>
-                <span style="display: inline-block; margin-right: 10px; padding: 5px 10px; background-color: #ddd; border-radius: 5px;">
+                <span 
+                    style="display: inline-block; margin-right: 10px; padding: 5px 10px; background-color: #ddd; border-radius: 5px; cursor: pointer;" 
+                    onclick="scrollToKeyword('<?= htmlspecialchars($issue['group_name']) ?>', <?= $issue['issue_id'] ?>);"
+                >
                     <?= htmlspecialchars($issue['group_name']) ?>
                 </span>
             <?php endforeach; ?>
         </div>
         
-        <button id="toggle-all">종목 펼치기/접기</button>
+        <button id="toggle-all" style="margin-top: 5px;">종목 펼치기/접기</button>
         <table>
             <!-- <thead>
                 <tr>
@@ -653,7 +715,7 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
             </thead> -->
             <tbody>
                 <?php foreach ($issuesResult as $issue): ?>
-                    <tr style='background-color: #e8e8e8; font-weight: bold;';>
+                    <tr data-issue-id="<?= $issue['issue_id'] ?>" style='background-color: #e8e8e8; font-weight: bold;';>
                         <?php 
                             $statusStyle = ($issue['status'] === 'copied') ?'background-color:#ffe0e0;' : '';
                             $themeStyle  = ($issue['hot_theme'] === 'Y') ? 'color:red;' : '';

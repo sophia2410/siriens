@@ -21,7 +21,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $group_id = handleKeywords($mysqli, $_POST['keyword'] ?? '');
 
             if ($action === 'register') {
-                $issue_id = insertOrUpdateIssue($mysqli, $date, $issue, $first_occurrence, $link, $sector, $theme, $hot_theme, $group_id);
+                // 오늘의 market_issues 테이블에 이미 해당 키워드 그룹이 등록되어 있는지 확인
+                $stmt = $mysqli->prepare("SELECT issue_id FROM market_issues WHERE date = ? AND keyword_group_id = ?");
+                $stmt->bind_param('si', $date, $group_id);
+                $stmt->execute();
+                $result = $stmt->get_result();
+        
+                if ($row = $result->fetch_assoc()) {
+                    // 이미 등록된 키워드 그룹이 있으면 해당 issue_id 사용
+                    $issue_id = $row['issue_id'];
+                } else {
+                    // 등록된 키워드 그룹이 없으면 새로 market_issues에 등록
+                    $issue_id = insertOrUpdateIssue($mysqli, $date, $issue, $first_occurrence, $link, $sector, $theme, $hot_theme, $group_id);
+                }
             } elseif ($action === 'update') {
                 $issue_id = $_POST['issue_id'];
                 updateIssue($mysqli, $issue_id, $date, $issue, $first_occurrence, $link, $sector, $theme, $hot_theme, $group_id);

@@ -78,6 +78,38 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $th
 					WHERE A.sector = '$sector'
 					AND A.theme LIKE CASE WHEN '$theme' != '' THEN '%".$theme."%' ELSE '%' END
 					ORDER BY A.sector, A.sort_theme, A.sort_stock";
+	} else if($pgmId == 'market_issue') { // market_issue.php
+		$filename = $pgmId."_".$theme."_".$sector;
+		$file_orderby = "ORDER BY V.keyword_group_name, V.is_leader DESC";
+
+		$query = "SELECT RTRIM(CONCAT(A.theme)) AS group_key
+						, RTRIM(CONCAT(' [ ' , A.theme,' ] ')) AS group_key_str
+						, A.date 0day_date
+						, A.code 
+						, A.name
+						, '' talent_fg
+						, A.theme, A.keyword_group_name, A.is_leader
+						, CASE WHEN A.theme is null OR  A.theme = '' THEN A.keyword_group_name ELSE A.theme END uprsn
+						, CASE WHEN B.close_rate >= 0 THEN CONCAT('<font color=red> ▲',B.close_rate,'% </font>') ELSE  CONCAT('<font color=blue> ▼',ABS(B.close_rate),'% </font>') END close_rate_str
+						, CASE WHEN B.tot_trade_amt >= 1000 THEN CONCAT('<font color=red><b>',FORMAT(B.tot_trade_amt,0),'억</b></font>') ELSE  CONCAT(B.tot_trade_amt,'억') END tot_trade_amt_str
+						, B.tot_trade_amt
+						$trade_qry
+						, M.mochaten_cnt
+					FROM v_market_issue A
+					LEFT OUTER JOIN (SELECT * FROM daily_watchlist WHERE (watchlist_date, code) IN (SELECT MAX(watchlist_date), code FROM daily_watchlist  GROUP BY code)) B
+					ON A.code = B.code
+					LEFT OUTER JOIN $trade_table Z
+					ON Z.code = A.code
+					AND Z.date = '$base_date'
+					LEFT OUTER JOIN (SELECT code, count(*) mochaten_cnt FROM mochaten WHERE cha_fg = 'MC000' GROUP BY code) M
+					ON M.code = A.code
+					WHERE 
+						CASE 
+							WHEN '$sector' = 'theme' THEN A.theme = '$theme'
+							WHEN '$sector' = 'keyword' THEN A.keyword_group_name LIKE '%#$theme%' 
+							ELSE 1=1
+						END
+					ORDER BY A.keyword_group_name, A.is_leader DESC";
 	} else if($pgmId == 'astarWatchlist') { // astarWatchlist.php
 		$filename = $pgmId."_".$sector."_".$theme;
 		$file_orderby = "ORDER BY V.sort_theme, V.stock_idx";
