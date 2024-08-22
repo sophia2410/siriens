@@ -8,17 +8,18 @@ $startDate = date('Ymd', strtotime('-14 days', time()));
 // Fetch themes with occurrence count and sorted by the latest date and occurrence count
 $theme_query = "
     SELECT 
-        mi.theme, 
+        CASE WHEN mi.theme = '' THEN mi.sector ELSE mi.theme END AS theme, 
+        CASE WHEN mi.theme = '' THEN 'sector' ELSE 'theme' END AS group_type, 
         mi.date AS theme_date,  
         kgm.group_name AS keyword_group_name,
         mis.name AS stock_name, 
         mis.code AS stock_code, 
         mis.close_rate, 
         mis.trade_amount,
-        mis.is_leader,
-        COUNT(mi.date) OVER (PARTITION BY mi.theme) AS occurrence_count,
-        MIN(mi.date) OVER (PARTITION BY mi.theme, kgm.group_name) AS keyword_occurrence_date,
-        COUNT(mi.date) OVER (PARTITION BY mi.theme, kgm.group_name, mis.code) AS keyword_occurrence_count
+		mis.is_leader,
+        COUNT(mi.date) OVER (PARTITION BY mi.theme, mi.sector) AS occurrence_count,  -- 테마별 발생 건수 계산
+        MIN(mi.date) OVER (PARTITION BY mi.theme, kgm.group_name) AS keyword_occurrence_date,  -- 키워드그룹별 최초 발생 일
+        COUNT(mi.date) OVER (PARTITION BY mi.theme, kgm.group_name) AS keyword_occurrence_count  -- 키워드그룹별 종목 건수
     FROM 
         market_issues mi
     JOIN 
@@ -28,13 +29,18 @@ $theme_query = "
     WHERE 
         mi.date BETWEEN '$startDate' AND '$endDate'
     AND 
-        (mis.trade_amount > 500 or mis.close_rate > 10)
+        (mis.trade_amount > 300 or mis.close_rate > 10)
     ORDER BY 
-        CASE WHEN mi.theme != '' THEN MAX(mi.date) OVER (PARTITION BY mi.theme) ELSE 0 END DESC,
-        occurrence_count DESC,
-        MIN(mi.date) OVER (PARTITION BY mi.theme, kgm.group_name),
-        COUNT(mi.date) OVER (PARTITION BY mi.theme, kgm.group_name, mis.code)";
+	    CASE WHEN mi.theme = '' THEN 'sector' ELSE 'theme' END DESC, -- 테마가 없는경우에는 섹터 기준, 테마 우선 정렬
+        CASE WHEN mi.theme != '' THEN MAX(mi.date) OVER (PARTITION BY mi.theme) ELSE 0 END DESC,  -- 테마의 최신 날짜 순으로 정렬
+        occurrence_count DESC,  -- 발생 건수 순으로 정렬
+		MIN(mi.date) OVER (PARTITION BY mi.theme, kgm.group_name), -- 키워드그룹 발생 날짜 순으로 정렬
+		COUNT(mi.date) OVER (PARTITION BY mi.theme, kgm.group_name) DESC, -- 키워드그룹별 종목 건수로 정렬
+		kgm.group_name,
+		mi.date,
+		mis.close_rate";
 
+logQuery($theme_query, [$startDate, $endDate]);
 $theme_result = $mysqli->query($theme_query);
 
 $themes = [];
@@ -60,7 +66,7 @@ while ($row = $theme_result->fetch_assoc()) {
         $themes[$theme][$keyword_group_name][$stock_code] = [
             'stock_name' => $row['stock_name'],
             'max_close_rate' => 0,
-            'max_trade_amount' => 0, // 거래대금을 위한 새로운 필드 추가
+            'max_trade_amount' => 0,
             'symbols' => [],
         ];
     }
@@ -79,9 +85,9 @@ while ($row = $theme_result->fetch_assoc()) {
         }
     }
 
-    // Store the highest close rate and the maximum trade amount
+    // Store the highest close rate
     $themes[$theme][$keyword_group_name][$stock_code]['max_close_rate'] = max($themes[$theme][$keyword_group_name][$stock_code]['max_close_rate'], $row['close_rate']);
-    $themes[$theme][$keyword_group_name][$stock_code]['max_trade_amount'] = max($themes[$theme][$keyword_group_name][$stock_code]['max_trade_amount'], $row['trade_amount']); // 거래대금도 업데이트
+    $themes[$theme][$keyword_group_name][$stock_code]['max_trade_amount'] = max($themes[$theme][$keyword_group_name][$stock_code]['max_trade_amount'], $row['trade_amount']);
 }
 
 // Sort dates in descending order (latest dates first)

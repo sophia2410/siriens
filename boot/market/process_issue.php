@@ -82,8 +82,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 echo "Error: " . $e->getMessage();
             }
         }
-
-        header("Location: market_issue.php?date=$selected_date");
+        $issue = urlencode($_POST['issue'] ?? '');
+        $new_issue = isset($_POST['new_issue']) ? '1' : '0';
+        
+        header("Location: market_issue.php?date=$selected_date&issue=$issue&new_issue=$new_issue");
         exit;
     } catch (Exception $e) {
         $mysqli->rollback();
@@ -184,11 +186,46 @@ function handleStocks($mysqli, $issue_id, $stocks, $date) {
         $isLeader = isset($stock['is_leader']) ? '1' : '0'; // Adjusted to string
 
         if ($code !== '' && $name !== '') {
-            // Log the SQL query and parameters for debugging
-            // error_log("Attempting to insert: issue_id={$issue_id}, code={$code}, name={$name}, stock_comment={$stock_comment}, is_leader={$isLeader}, date={$date}");
+            // Retrieve close_rate, volume, and amount from v_daily_price
+            $priceQuery = "
+                SELECT close_rate, volume, amount 
+                FROM v_daily_price 
+                WHERE code = ? AND date = ?
+            ";
+            $priceStmt = $mysqli->prepare($priceQuery);
+            $priceStmt->bind_param('ss', $code, $date);
+            $priceStmt->execute();
+            $priceResult = $priceStmt->get_result();
 
-            $stmt = $mysqli->prepare("INSERT INTO market_issue_stocks (issue_id, code, name, stock_comment, is_leader, date, create_dtime) VALUES (?, ?, ?, ?, ?, ?, NOW())");
-            $stmt->bind_param('isssss', $issue_id, $code, $name, $stock_comment, $isLeader, $date);
+            if ($priceRow = $priceResult->fetch_assoc()) {
+                $close_rate = $priceRow['close_rate'] ?? null;
+                $volume = $priceRow['volume'] ?? null;
+                $trade_amount = $priceRow['amount'] ?? null;
+            } else {
+                // Set defaults if no data is found
+                $close_rate = null;
+                $volume = null;
+                $trade_amount = null;
+            }
+
+            // Insert the data into market_issue_stocks
+            $stmt = $mysqli->prepare("
+                INSERT INTO market_issue_stocks 
+                (issue_id, code, name, close_rate, volume, trade_amount, stock_comment, is_leader, date, create_dtime) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+            ");
+            $stmt->bind_param(
+                'isssddsss', 
+                $issue_id, 
+                $code, 
+                $name, 
+                $close_rate, 
+                $volume, 
+                $trade_amount, 
+                $stock_comment, 
+                $isLeader, 
+                $date
+            );
 
             if (!$stmt->execute()) {
                 throw new Exception("market_issue_stocks 삽입 실패: " . $stmt->error);
@@ -198,7 +235,6 @@ function handleStocks($mysqli, $issue_id, $stocks, $date) {
         }
     }
 }
-
 
 function deleteStocks($mysqli, $issue_id) {
     $stmt = $mysqli->prepare("DELETE FROM market_issue_stocks WHERE issue_id = ?");
@@ -244,12 +280,15 @@ function copyIssue($mysqli, $issue_id) {
     $stocksResult = $stmt->get_result();
 
     while ($stock = $stocksResult->fetch_assoc()) {
-        $stmt = $mysqli->prepare("INSERT INTO market_issue_stocks (issue_id, code, name, stock_comment, date, create_dtime) VALUES (?, ?, ?, ?, ?, NOW())");
+        $stmt = $mysqli->prepare("INSERT INTO market_issue_stocks (issue_id, code, name, close_rate, volume, trade_amount, stock_comment, date, create_dtime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())");
         $stmt->bind_param(
-            'issss',
+            'issiiiss',
             $new_issue_id,
             $stock['code'],
             $stock['name'],
+            $stock['close_rate'],
+            $stock['volume'],
+            $stock['trade_amount'],
             $stock['stock_comment'],
             $stock['date']
         );

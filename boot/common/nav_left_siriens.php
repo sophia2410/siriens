@@ -40,7 +40,7 @@ if($_SERVER["HTTP_HOST"] == 'localhost') {
 
             <!-- Heading -->
             <div class="sidebar-heading">
-                Summary
+                Market
             </div>
 
             <!-- Nav Item -->
@@ -59,9 +59,16 @@ if($_SERVER["HTTP_HOST"] == 'localhost') {
 
             <!-- Nav Item -->
             <li class="nav-item">
+                <a class="nav-link" href="<?=$PATH?>market/market_theme_report.php">
+                    <i class="fas fa-fw fa-flag"></i>
+                    <span>Theme Report</span></a>
+            </li>
+
+            <!-- Nav Item -->
+            <li class="nav-item">
                 <a class="nav-link" href="<?=$PATH?>market/market_issue.php">
                     <i class="fas fa-fw fa-flag"></i>
-                    <span>Market Issue</span></a>
+                    <span>Regi. Issue</span></a>
             </li>
 
             <!-- Divider -->

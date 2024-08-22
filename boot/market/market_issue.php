@@ -1,7 +1,7 @@
 <?php
 require($_SERVER['DOCUMENT_ROOT']."/boot/common/top.php");
 require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
-
+require($_SERVER['DOCUMENT_ROOT']."/boot/market/common/functions.php");
 // Fetching issues and stocks data
 $dateParam = $_GET['date'] ?? date('Y-m-d');
 $formattedDate = str_replace('-', '', $dateParam);
@@ -13,11 +13,10 @@ $issuesQuery->execute();
 $issuesResult = $issuesQuery->get_result();
 
 $stocksQuery = $mysqli->prepare("
-    SELECT mis.*, vdp.close_rate, vdp.amount AS trade_amount
-    FROM market_issue_stocks mis 
-    JOIN v_daily_price vdp ON vdp.code = mis.code AND vdp.date = mis.date 
-    WHERE mis.date = ? 
-    ORDER BY mis.is_leader DESC, vdp.close_rate DESC");
+    SELECT *
+    FROM market_issue_stocks
+    WHERE date = ? 
+    ORDER BY is_leader DESC, close_rate DESC");
 $stocksQuery->bind_param('s', $formattedDate); 
 $stocksQuery->execute();
 $stocksResult = $stocksQuery->get_result();
@@ -60,31 +59,13 @@ $query = "SELECT
               ((vdp.close_rate > 10 AND vdp.amount > 50) OR
               (vdp.close_rate > 29.5 AND vdp.amount > 30))
           ORDER BY 
-              vdp.close_rate DESC";
+              recent_keyword_group DESC, vdp.close_rate DESC";
 
 // error_log(print_r($binded_query, true));
 $stmt = $mysqli->prepare($query);
 $stmt->bind_param('s', $formattedDate);
 $stmt->execute();
 $result = $stmt->get_result();
-
-// 거래금액에 따른 색상 표시
-function getAmountStyle($amountInBillion) {
-    if ($amountInBillion >= 2000) {
-        return'color:#ff0000; font-weight: bold;'; // 2000억 이상
-    } elseif ($amountInBillion >= 1000) {
-        return'color:#ff7f00; font-weight: bold;'; // 1000억 이상
-    } elseif ($amountInBillion >= 500) {
-        return'color:#ffa500; font-weight: bold;'; // 500억 이상
-    } elseif ($amountInBillion >= 150) {
-        return'color:#fcb9b2;'; // 150억 이상
-    } elseif ($amountInBillion >= 100) {
-        return'color:#ffccd5;'; // 100 이상
-    } else {
-        return''; // 10억 미만
-    }
-}
-
 ?>
 
 <!DOCTYPE html>
@@ -615,17 +596,18 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
             <input type="date" id="report_date" name="report_date" value="<?= $dateParam ?>" required>
 
             <label>
-                <input type="checkbox" name="new_issue" id="new_issue"> 신규 이슈
+            <input type="checkbox" name="new_issue" id="new_issue" <?= (isset($_GET['new_issue']) && $_GET['new_issue'] == 1) ? 'checked' : '' ?>> 신규 이슈
             </label>
-            <textarea id="issue" name="issue" rows="2" placeholder="이슈"></textarea>
-            
-			<label for="keyword">키워드 (# 으로 구분):</label>
-			<input type="text" id="keyword" name="keyword" placeholder="#키워드1 #키워드2" required autocomplete="off">
+            <textarea id="issue" name="issue" rows="2" placeholder="이슈"><?= isset($_GET['issue']) ? htmlspecialchars($_GET['issue'], ENT_QUOTES) : '' ?></textarea>
+
+            <label for="keyword">키워드 (# 으로 구분):</label>
+            <input type="text" id="keyword" name="keyword" placeholder="#키워드1 #키워드2" required autocomplete="off">
             <label for="theme">테마:</label>
-            <input type="text" id="theme" name="theme" placeholder="테마 입력" autocomplete="off">
-            <label>
-                <input type="checkbox" name="hot_theme" id="hot_theme"> 핫 테마로 설정
-            </label>
+            <div style="display: flex; align-items: center;">
+                <input type="text" id="theme" name="theme" placeholder="테마 입력" autocomplete="off" style="flex: 3.3; margin-right: 10px;">
+                <label for="hot_theme" style="display: flex; align-items: center; margin: 0; flex: 1;">
+                    <input type="checkbox" name="hot_theme" id="hot_theme" style="margin-right: 5px;"> 핫 테마
+            </div>
             <label for="sector">섹터:</label>
             <input type="text" id="sector" name="sector" placeholder="섹터 입력" autocomplete="off">
             <br><br>
