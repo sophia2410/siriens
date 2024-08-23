@@ -66,7 +66,7 @@ if($_SERVER["HTTP_HOST"] == 'localhost') {
 
             <!-- Nav Item -->
             <li class="nav-item">
-                <a class="nav-link" href="<?=$PATH?>market/market_issue.php">
+                <a class="nav-link" href="<?=$PATH?>market/issue_register.php">
                     <i class="fas fa-fw fa-flag"></i>
                     <span>Regi. Issue</span></a>
             </li>

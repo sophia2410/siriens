@@ -3,7 +3,7 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 
 // Fetch keyword groups
 function fetch_keyword_groups($mysqli) {
-    $query = "SELECT group_id, group_name FROM keyword_groups_master ORDER BY group_name ASC";
+    $query = "SELECT group_id, group_name FROM keyword_groups ORDER BY group_name ASC";
     $result = $mysqli->query($query);
 
     $keywordGroups = [];

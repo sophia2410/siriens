@@ -23,14 +23,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
         // 각 키워드에 대한 ID 조회 또는 등록
         foreach ($keywords as $keyword) {
-            $stmt = $mysqli->prepare("SELECT keyword_id FROM keyword_master WHERE keyword = ?");
+            $stmt = $mysqli->prepare("SELECT keyword_id FROM keyword WHERE keyword = ?");
             $stmt->bind_param('s', $keyword);
             $stmt->execute();
             $result = $stmt->get_result();
             if ($row = $result->fetch_assoc()) {
                 $keyword_ids[] = $row['keyword_id'];
             } else {
-                $stmt = $mysqli->prepare("INSERT INTO keyword_master (keyword) VALUES (?)");
+                $stmt = $mysqli->prepare("INSERT INTO keyword (keyword) VALUES (?)");
                 $stmt->bind_param('s', $keyword);
                 $stmt->execute();
                 $keyword_id = $mysqli->insert_id;
@@ -47,7 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             SELECT group_id 
             FROM (
                 SELECT group_id, GROUP_CONCAT(keyword_id ORDER BY keyword_id ASC) as ids
-                FROM keyword_groups
+                FROM keyword_group_mappings
                 GROUP BY group_id
             ) AS sub
             WHERE ids = ?
@@ -60,20 +60,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             // 동일한 키워드 조합의 그룹이 있는 경우, 그룹명을 업데이트
             $group_id = $row['group_id'];
             $group_name = implode(' ', array_map(fn($kw) => "#{$kw}", $keywords));
-            $stmt = $mysqli->prepare("UPDATE keyword_groups_master SET group_name = ? WHERE group_id = ?");
+            $stmt = $mysqli->prepare("UPDATE keyword_groups SET group_name = ? WHERE group_id = ?");
             $stmt->bind_param('si', $group_name, $group_id);
             $stmt->execute();
         } else {
             // 동일한 조합이 없는 경우 새 그룹 생성
             $group_name = implode(' ', array_map(fn($kw) => "#{$kw}", $keywords));
-            $stmt = $mysqli->prepare("INSERT INTO keyword_groups_master (group_name) VALUES (?)");
+            $stmt = $mysqli->prepare("INSERT INTO keyword_groups (group_name) VALUES (?)");
             $stmt->bind_param('s', $group_name);
             $stmt->execute();
             $group_id = $mysqli->insert_id;
 
             // 키워드와 그룹 연결
             foreach ($keyword_ids as $keyword_id) {
-                $stmt = $mysqli->prepare("INSERT INTO keyword_groups (group_id, keyword_id, create_dtime) VALUES (?, ?, NOW())");
+                $stmt = $mysqli->prepare("INSERT INTO keyword_group_mappings (group_id, keyword_id, create_dtime) VALUES (?, ?, NOW())");
                 $stmt->bind_param('ii', $group_id, $keyword_id);
                 $stmt->execute();
             }
@@ -173,7 +173,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 }
 
 // 마켓이슈 불러오기
-$issuesQuery = $mysqli->prepare("SELECT mi.*, kgm.group_name FROM market_issues mi LEFT JOIN keyword_groups_master kgm ON mi.keyword_group_id = kgm.group_id WHERE mi.date = ? ORDER BY mi.date DESC");
+$issuesQuery = $mysqli->prepare("SELECT mi.*, kg.group_name FROM market_issues mi LEFT JOIN keyword_groups kg ON mi.keyword_group_id = kg.group_id WHERE mi.date = ? ORDER BY mi.date DESC");
 $issuesQuery->bind_param('s', $formattedDate);
 $issuesQuery->execute();
 $issuesResult = $issuesQuery->get_result();

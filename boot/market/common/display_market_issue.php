@@ -72,8 +72,8 @@
 </script>
 
 <?php
-// 해당 파일이 market_issue.php에서 호출되었는지 확인
-$isMarketIssuePage = basename($_SERVER['PHP_SELF']) === 'market_issue.php';
+// 해당 파일이 issue_register.php에서 호출되었는지 확인
+$isMarketIssuePage = basename($_SERVER['PHP_SELF']) === 'issue_register.php';
 ?>
 
 <div id="right-panel">
@@ -108,14 +108,14 @@ $isMarketIssuePage = basename($_SERVER['PHP_SELF']) === 'market_issue.php';
                     </td>
                     <td style="<?= $statusStyle ?>"><?= htmlspecialchars($issue['sector']) ?></td>
                     <td style="<?= $statusStyle ?>">
-                        <form method="post" action="../process_issue.php" style="display:inline;">
+                        <form method="post" action="../issue_process.php" style="display:inline;">
                             <input type="hidden" name="action" value="copy">
                             <input type="hidden" name="issue_id" value="<?= $issue['issue_id'] ?>">
                             <input type="hidden" name="report_date" value="<?= $dateParam ?>">
                             <button type="submit" class='custom-button'>복사</button>
                         </form>
                         |
-                        <form method="post" action="../process_issue.php" style="display:inline;">
+                        <form method="post" action="../issue_process.php" style="display:inline;">
                             <input type="hidden" name="action" value="delete">
                             <input type="hidden" name="issue_id" value="<?= $issue['issue_id'] ?>">
                             <input type="hidden" name="report_date" value="<?= $dateParam ?>">

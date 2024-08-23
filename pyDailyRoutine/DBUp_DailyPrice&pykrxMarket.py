@@ -200,7 +200,7 @@ class DBUpdater:
 			# StringIO를 사용하여 HTML을 pandas에 전달
 			df = pd.concat([df, pd.read_html(StringIO(html_content))[0]])
 
-			# 1page만 읽어오면 되기 때문에 복잡한 로직 생략... 2024.04.24
+			# 매일 실행. 그래서 첫 페이지만 읽어오면 되기 때문에 복잡한 로직 생략... 2024.04.24
    
 						# html = BeautifulSoup(requests.get(url,
 						# 	headers={'referer':'https://finance.naver.com/','User-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36'}).text, "lxml")

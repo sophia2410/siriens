@@ -16,7 +16,7 @@ if ($source === 'watchlist_sophia') {
     $query = "SELECT DISTINCT 
                 CASE 
                     WHEN mi.theme IS NOT NULL AND mi.theme != '' THEN mi.theme
-                    ELSE REPLACE(SUBSTRING_INDEX(kgm.group_name, ' ', 1), '#', '')
+                    ELSE REPLACE(SUBSTRING_INDEX(kg.group_name, ' ', 1), '#', '')
                 END AS name,
                 MAX(mi.date) AS max_date,
                 MAX(mi.hot_theme) AS hot_theme,
@@ -27,9 +27,9 @@ if ($source === 'watchlist_sophia') {
             FROM 
                 market_issues mi
             LEFT JOIN 
-                keyword_groups_master kgm ON mi.keyword_group_id = kgm.group_id
+                keyword_groups kg ON mi.keyword_group_id = kg.group_id
             WHERE 
-                (mi.theme IS NOT NULL AND mi.theme != '') OR (kgm.group_name IS NOT NULL AND kgm.group_name != '')
+                (mi.theme IS NOT NULL AND mi.theme != '') OR (kg.group_name IS NOT NULL AND kg.group_name != '')
             GROUP BY 
                 name, type
             ORDER BY 

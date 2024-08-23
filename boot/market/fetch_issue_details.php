@@ -10,9 +10,9 @@ if ($issue_id) {
 
     // 이슈 상세 정보 조회
     $issueQuery = $mysqli->prepare("
-        SELECT mi.*, kgm.group_name AS keyword_group_name 
+        SELECT mi.*, kg.group_name AS keyword_group_name 
         FROM market_issues mi 
-        LEFT JOIN keyword_groups_master kgm ON mi.keyword_group_id = kgm.group_id 
+        LEFT JOIN keyword_groups kg ON mi.keyword_group_id = kg.group_id 
         WHERE mi.issue_id = ?
     ");
     $issueQuery->bind_param('i', $issue_id);

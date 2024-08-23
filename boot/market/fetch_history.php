@@ -17,11 +17,11 @@ $types = str_repeat('s', count($keywordsArray));
 
 // Prepare the query to find group IDs for the given keywords
 $query = "
-    SELECT DISTINCT kgm.group_id, kgm.group_name
-    FROM keyword_master km
-    INNER JOIN keyword_groups kg ON km.keyword_id = kg.keyword_id
-    INNER JOIN keyword_groups_master kgm ON kg.group_id = kgm.group_id
-    WHERE km.keyword IN ($placeholders)
+    SELECT DISTINCT kg.group_id, kg.group_name
+    FROM keyword k
+    INNER JOIN keyword_group_mappings kgm ON k.keyword_id = kgm.keyword_id
+    INNER JOIN keyword_groups kg ON kgm.group_id = kg.group_id
+    WHERE k.keyword IN ($placeholders)
 ";
 
 $stmt = $mysqli->prepare($query);
@@ -51,28 +51,28 @@ $groupparams = array_merge($groupIds, [$excludeDate]);
 // Query to fetch market issues and stocks related to these groups
 $query = "
     SELECT 
-        kgm.group_name, 
+        kg.group_name, 
         mis.code, 
         mis.name, 
         mis.date, 
         mis.stock_comment
     FROM 
-        keyword_groups_master kgm
+        keyword_groups kg
     INNER JOIN 
-        market_issues mi ON kgm.group_id = mi.keyword_group_id
+        market_issues mi ON kg.group_id = mi.keyword_group_id
     INNER JOIN 
         market_issue_stocks mis ON mis.issue_id = mi.issue_id
     WHERE 
-        kgm.group_id IN ($groupPlaceholders)
+        kg.group_id IN ($groupPlaceholders)
         AND mis.date = (
             SELECT MAX(mis_sub.date)
             FROM market_issue_stocks mis_sub
             INNER JOIN market_issues mi_sub ON mis_sub.issue_id = mi_sub.issue_id
-            WHERE mi_sub.keyword_group_id = kgm.group_id
+            WHERE mi_sub.keyword_group_id = kg.group_id
             AND mi_sub.date != ?
         )
     ORDER BY 
-        kgm.group_name, mis.date DESC
+        kg.group_name, mis.date DESC
 ";
 
 // Log the query and parameters
@@ -120,9 +120,9 @@ if ($currentIssue !== null) {
 $themeSectorQuery = "
     SELECT mi.theme, mi.sector
     FROM market_issues mi
-    JOIN keyword_groups_master kgm
-    ON mi.keyword_group_id = kgm.group_id
-    WHERE kgm.group_name = ?
+    JOIN keyword_groups kg
+    ON mi.keyword_group_id = kg.group_id
+    WHERE kg.group_name = ?
     ORDER BY mi.date DESC
     LIMIT 1
 ";

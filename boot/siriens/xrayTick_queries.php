@@ -78,7 +78,7 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $th
 					WHERE A.sector = '$sector'
 					AND A.theme LIKE CASE WHEN '$theme' != '' THEN '%".$theme."%' ELSE '%' END
 					ORDER BY A.sector, A.sort_theme, A.sort_stock";
-	} else if($pgmId == 'market_issue') { // market_issue.php
+	} else if($pgmId == 'market_issue') { // issue_register.php
 		$filename = $pgmId."_".$theme."_".$sector;
 		$file_orderby = "ORDER BY V.keyword_group_name, V.is_leader DESC";
 

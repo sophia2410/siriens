@@ -7,7 +7,7 @@ $dateParam = $_GET['date'] ?? date('Y-m-d');
 $formattedDate = str_replace('-', '', $dateParam);
 
 // 마켓이슈 불러오기
-$issuesQuery = $mysqli->prepare("SELECT mi.*, kgm.group_name FROM market_issues mi LEFT JOIN keyword_groups_master kgm ON mi.keyword_group_id = kgm.group_id WHERE mi.date = ? ORDER BY mi.hot_theme DESC, kgm.group_name ASC");
+$issuesQuery = $mysqli->prepare("SELECT mi.*, kg.group_name FROM market_issues mi LEFT JOIN keyword_groups kg ON mi.keyword_group_id = kg.group_id WHERE mi.date = ? ORDER BY mi.hot_theme DESC, kg.group_name ASC");
 $issuesQuery->bind_param('s', $formattedDate);
 $issuesQuery->execute();
 $issuesResult = $issuesQuery->get_result();
@@ -35,11 +35,11 @@ $query = "SELECT
               CASE WHEN mis.code IS NOT NULL THEN 1 ELSE 0 END AS registered,
               (
                   SELECT 
-                      kgm.group_name 
+                      kg.group_name 
                   FROM 
-                      keyword_groups_master kgm
+                      keyword_groups kg
                   INNER JOIN 
-                      market_issues mi ON mi.keyword_group_id = kgm.group_id
+                      market_issues mi ON mi.keyword_group_id = kg.group_id
                   INNER JOIN 
                       market_issue_stocks mis_sub ON mis_sub.issue_id = mi.issue_id
                   WHERE 
@@ -217,7 +217,7 @@ $result = $stmt->get_result();
             document.getElementById('reset-button').addEventListener('click', function() {
                 // 선택된 일자에 맞춰 화면 리로드
                 const selectedDate = document.getElementById('report_date').value;
-                window.location.href = 'market_issue.php?date=' + selectedDate;
+                window.location.href = 'issue_register.php?date=' + selectedDate;
             });
 
             // 종목 추가 버튼 클릭 시 호출
@@ -253,7 +253,7 @@ $result = $stmt->get_result();
 
             // 날짜 변경 시 페이지 이동
             document.getElementById('report_date').addEventListener('change', function() {
-                window.location.href = 'market_issue.php?date=' + this.value;
+                window.location.href = 'issue_register.php?date=' + this.value;
             });
 
             // 키워드 포커스 아웃 시 과거 이력 가져오기
@@ -384,7 +384,6 @@ $result = $stmt->get_result();
                         $('#keyword').val(data.issueDetails.keyword_group_name); // 그룹명으로 설정
                         $('#issue').val(data.issueDetails.issue);
                         $('#theme').val(data.issueDetails.theme);
-                        $('#sector').val(data.issueDetails.sector);
                         $('#hot_theme').prop('checked', data.issueDetails.hot_theme === 'Y');
                         $('#new_issue').prop('checked', data.issueDetails.first_occurrence === 'Y');
                         $('#action').val('update');
@@ -410,7 +409,7 @@ $result = $stmt->get_result();
                         container.empty(); // 기존 종목 정보를 초기화
                         data.stocks.forEach((stock, index) => {
                             const isLeader = stock['is_leader'] === '1' ? true : false;
-                            addStock(index, stock.code, stock.name, stock.stock_comment, isLeader); // Pass stock data
+                            addStock(index, stock.code, stock.name, stock.stock_comment, isLeader, stock.sector); // Pass stock data
                         });
                         reindexStockFields(); // 인덱스 재정렬
                     }
@@ -418,14 +417,15 @@ $result = $stmt->get_result();
             });
         }
 
-        function addStock(stockIndex, code = '', name = '', comment = '', isLeader = '') {
+        function addStock(stockIndex, code = '', name = '', comment = '', isLeader = '', sector = '') {
             const container = document.getElementById('stocks-container');
             const newStock = document.createElement('div');
             newStock.className = 'stock-item';
             newStock.innerHTML = `
                 <div class="stock-row">
-                    <input type="text" name="stocks[${stockIndex}][name]" value="${name}" onkeydown="searchStock(event, this)" placeholder="종목명/코드" required style="flex: 2; margin-right: 10px;">
+                    <input type="text" name="stocks[${stockIndex}][name]" value="${name}" onkeydown="searchStock(event, this)" placeholder="종목명/코드" required style="flex: 2; margin-right: 10px;" autocomplete="off">
                     <input type="text" name="stocks[${stockIndex}][code]" value="${code}" readonly placeholder="코드" style="flex: 1; margin-right: 10px;">
+                    <input type="text" name="stocks[${stockIndex}][sector]" value="${sector}" placeholder="섹터" style="flex: 1; margin-right: 10px;" autocomplete="off">
                     <label style="margin-left: 10px;">
                         <input type="checkbox" name="stocks[${stockIndex}][is_leader]" ${isLeader ? 'checked' : ''}> 주도주
                     </label>
@@ -459,13 +459,15 @@ $result = $stmt->get_result();
                 event.preventDefault(); // 폼 제출 방지
                 const query = input.value.trim();
                 const codeInput = input.nextElementSibling; // 코드 입력 필드
+                const sectorInput = codeInput.nextElementSibling; // 섹터 입력 필드
                 if (query.length > 0) { // 검색어가 비어있지 않은 경우에만 검색 수행
                     const stocks = await fetchStocks(query);
                     if (stocks.length === 1) {
                         input.value = stocks[0].name; // 입력 칸에 종목명 설정
                         codeInput.value = stocks[0].code; // 코드 설정
+                        sectorInput.value = stocks[0].sector; // 섹터 설정
                     } else if (stocks.length > 1) {
-                        showStockPopup(stocks, input, codeInput);
+                        showStockPopup(stocks, input, codeInput, sectorInput);
                     } else {
                         alert("해당 종목명을 찾을 수 없습니다.");
                     }
@@ -486,11 +488,11 @@ $result = $stmt->get_result();
             }
         }
 
-        function showStockPopup(stocks, nameInput, codeInput) {
+        function showStockPopup(stocks, nameInput, codeInput, sectorInput) {
             const popup = document.createElement('div');
             popup.style.position = 'fixed';
             popup.style.top = '50%';
-            popup.style.left = '50%';
+            popup.style.left = '30%';
             popup.style.transform = 'translate(-50%, -50%)';
             popup.style.backgroundColor = '#fff';
             popup.style.padding = '20px';
@@ -508,6 +510,7 @@ $result = $stmt->get_result();
                 btn.onclick = () => {
                     nameInput.value = stock.name;
                     codeInput.value = stock.code;
+                    sectorInput.value = stock.sector;
                     document.body.removeChild(popup); // 선택 시 팝업 닫기
                 };
                 popup.appendChild(btn);
@@ -589,7 +592,7 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
     <!-- 등록 화면 -->
     <div id="left-panel">
         <h2>이슈 및 테마 등록</h2>
-        <form method="post" action="process_issue.php">
+        <form method="post" action="issue_process.php">
             <input type="hidden" name="action" value="register" id="action">
             <input type="hidden" name="issue_id" id="issue_id">
             <label for="report_date">날짜:</label>
@@ -608,8 +611,6 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
                 <label for="hot_theme" style="display: flex; align-items: center; margin: 0; flex: 1;">
                     <input type="checkbox" name="hot_theme" id="hot_theme" style="margin-right: 5px;"> 핫 테마
             </div>
-            <label for="sector">섹터:</label>
-            <input type="text" id="sector" name="sector" placeholder="섹터 입력" autocomplete="off">
             <br><br>
             <h2>- 종목 - </h2>
             <div id="stocks-container">
@@ -706,14 +707,14 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
                         <td style="<?= $statusStyle ?>"><a href="#" onclick="loadIssueDetails(<?= $issue['issue_id'] ?>, <?= $formattedDate ?>); return false;" style=''><?= htmlspecialchars($issue['group_name']) ?></a></td>
                         <td style="<?= $statusStyle ?>"><?= htmlspecialchars($issue['sector']) ?></td>
                         <td style="<?= $statusStyle ?>">
-                            <form method="post" action="process_issue.php" style="display:inline;">
+                            <form method="post" action="issue_process.php" style="display:inline;">
                                 <input type="hidden" name="action" value="copy">
                                 <input type="hidden" name="issue_id" value="<?= $issue['issue_id'] ?>">
                                 <input type="hidden" name="report_date" value="<?= $dateParam ?>">
                                 <button type="submit" class='custom-button'>복사</button>
                             </form>
                             |
-                            <form method="post" action="process_issue.php" style="display:inline;">
+                            <form method="post" action="issue_process.php" style="display:inline;">
                                 <input type="hidden" name="action" value="delete">
                                 <input type="hidden" name="issue_id" value="<?= $issue['issue_id'] ?>">
                                 <input type="hidden" name="report_date" value="<?= $dateParam ?>">

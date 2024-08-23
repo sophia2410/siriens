@@ -5,9 +5,34 @@ $type = $_GET['type'] ?? '';
 $query = $_GET['q'] ?? '';
 $results = [];
 
-if ($type === 'keywords') {
+if ($type === 'stocks') {
+    // Fetch stock codes and names
+    if ($query !== '') {
+        $stmt = $mysqli->prepare("
+            SELECT s.code, s.name, 
+                (SELECT sector FROM market_issue_stocks 
+                 WHERE code = s.code 
+                 GROUP BY sector 
+                 ORDER BY COUNT(*) DESC 
+                 LIMIT 1) AS sector
+            FROM stock s
+            WHERE s.name LIKE CONCAT(?, '%') OR s.code LIKE CONCAT('%', ?, '%')
+        ");
+        logQuery($stmt, [$searchQuery, $searchQuery]);
+        $searchQuery = "%$query%";
+        $stmt->bind_param('ss', $searchQuery, $searchQuery);
+        $stmt->execute();
+        $result = $stmt->get_result();
+    
+        while ($row = $result->fetch_assoc()) {
+            $results[] = $row;
+        }
+    
+        $stmt->close();
+    }
+} elseif ($type === 'keywords') {
     // Fetch keyword groups
-    if ($stmt = $mysqli->prepare("SELECT group_name FROM keyword_groups_master WHERE group_name LIKE CONCAT('%', ?, '%')")) {
+    if ($stmt = $mysqli->prepare("SELECT group_name FROM keyword_groups WHERE group_name LIKE CONCAT('%', ?, '%')")) {
         $stmt->bind_param('s', $query);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -21,8 +46,8 @@ if ($type === 'keywords') {
     if ($stmt = $mysqli->prepare("
         SELECT DISTINCT theme, sector 
         FROM market_issues mi
-        JOIN keyword_groups_master kgm ON mi.keyword_group_id = kgm.group_id
-        WHERE kgm.group_name = ?
+        JOIN keyword_groups kg ON mi.keyword_group_id = kg.group_id
+        WHERE kg.group_name = ?
     ")) {
         $stmt->bind_param('s', $query);
         $stmt->execute();
@@ -51,21 +76,6 @@ if ($type === 'keywords') {
         while ($row = $result->fetch_assoc()) {
             $results[] = $row['stock_comment'];
         }
-        $stmt->close();
-    }
-} elseif ($type === 'stocks') {
-    // Fetch stock codes and names
-    if ($query !== '') {
-        $stmt = $mysqli->prepare("SELECT code, name FROM stock WHERE name LIKE CONCAT(?, '%') OR code LIKE CONCAT('%', ?, '%')");
-        $searchQuery = "%$query%";
-        $stmt->bind_param('ss', $searchQuery, $searchQuery);
-        $stmt->execute();
-        $result = $stmt->get_result();
-
-        while ($row = $result->fetch_assoc()) {
-            $results[] = $row;
-        }
-
         $stmt->close();
     }
 }

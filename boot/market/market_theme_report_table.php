@@ -12,7 +12,7 @@ $theme_query = "
     SELECT 
         mi.theme, 
         mi.date AS theme_date,  
-        kgm.group_name AS keyword_group_name,
+        kg.group_name AS keyword_group_name,
         mis.name AS stock_name, 
         mis.code AS stock_code, 
         mis.close_rate, 
@@ -23,7 +23,7 @@ $theme_query = "
     JOIN 
         market_issue_stocks mis ON mis.issue_id = mi.issue_id
     LEFT JOIN 
-        keyword_groups_master kgm ON mi.keyword_group_id = kgm.group_id
+        keyword_groups kg ON mi.keyword_group_id = kg.group_id
     WHERE 
         mi.date BETWEEN '$startDate' AND '$endDate'
     AND 

@@ -2,7 +2,7 @@
 require($_SERVER['DOCUMENT_ROOT']."/boot/common/top.php");
 require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 require($_SERVER['DOCUMENT_ROOT']."/boot/market/common/functions.php");
-require($_SERVER['DOCUMENT_ROOT']."/boot/market/common/fetch_market_issue.php");
+require($_SERVER['DOCUMENT_ROOT']."/boot/market/common/fetch_issue_register.php");
 
 
 // 특정 종목의 내역 조회
@@ -12,10 +12,10 @@ $formattedDate = str_replace('-', '', $selectedDate);
 
 // 종목 내역 조회 (부분 일치 검색)
 $stockHistoryQuery = $mysqli->prepare("
-    SELECT mis.*, mi.issue, mi.theme, mi.sector, kgm.group_name 
+    SELECT mis.*, mi.issue, mi.theme, mi.sector, kg.group_name 
     FROM market_issue_stocks mis 
     JOIN market_issues mi ON mis.issue_id = mi.issue_id 
-    LEFT JOIN keyword_groups_master kgm ON mi.keyword_group_id = kgm.group_id
+    LEFT JOIN keyword_groups kg ON mi.keyword_group_id = kg.group_id
     WHERE mis.name LIKE ? 
     ORDER BY mis.date DESC
 ");
@@ -26,10 +26,10 @@ $stockHistoryResult = $stockHistoryQuery->get_result();
 
 // 특정 일자의 market_issue_stock 조회
 $dateQuery = $mysqli->prepare("
-    SELECT mis.*, mi.issue, mi.theme, mi.sector, kgm.group_name 
+    SELECT mis.*, mi.issue, mi.theme, mi.sector, kg.group_name 
     FROM market_issue_stocks mis 
     JOIN market_issues mi ON mis.issue_id = mi.issue_id 
-    LEFT JOIN keyword_groups_master kgm ON mi.keyword_group_id = kgm.group_id
+    LEFT JOIN keyword_groups kg ON mi.keyword_group_id = kg.group_id
     WHERE mis.date = ? 
     ORDER BY mis.issue_id DESC
 ");
@@ -187,7 +187,7 @@ $dateResult = $dateQuery->get_result();
         <?php if ($dateResult->num_rows > 0): ?>
 			<div id="container">
 				<!-- 종목 내역 조회 화면 관련 코드 -->
-				<?php include($_SERVER['DOCUMENT_ROOT']."/boot/market/common/display_market_issue.php"); ?>
+				<?php include($_SERVER['DOCUMENT_ROOT']."/boot/market/common/display_issue_register.php"); ?>
 			</div>
         <?php else: ?>
             <p>선택한 날짜에 대한 내역이 없습니다.</p>

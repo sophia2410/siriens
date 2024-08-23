@@ -11,21 +11,21 @@ $theme_query = "
         CASE WHEN mi.theme = '' THEN mi.sector ELSE mi.theme END AS theme, 
         CASE WHEN mi.theme = '' THEN 'sector' ELSE 'theme' END AS group_type, 
         mi.date AS theme_date,  
-        kgm.group_name AS keyword_group_name,
+        kg.group_name AS keyword_group_name,
         mis.name AS stock_name, 
         mis.code AS stock_code, 
         mis.close_rate, 
         mis.trade_amount,
 		mis.is_leader,
         COUNT(mi.date) OVER (PARTITION BY mi.theme, mi.sector) AS occurrence_count,  -- 테마별 발생 건수 계산
-        MIN(mi.date) OVER (PARTITION BY mi.theme, kgm.group_name) AS keyword_occurrence_date,  -- 키워드그룹별 최초 발생 일
-        COUNT(mi.date) OVER (PARTITION BY mi.theme, kgm.group_name) AS keyword_occurrence_count  -- 키워드그룹별 종목 건수
+        MIN(mi.date) OVER (PARTITION BY mi.theme, kg.group_name) AS keyword_occurrence_date,  -- 키워드그룹별 최초 발생 일
+        COUNT(mi.date) OVER (PARTITION BY mi.theme, kg.group_name) AS keyword_occurrence_count  -- 키워드그룹별 종목 건수
     FROM 
         market_issues mi
     JOIN 
         market_issue_stocks mis ON mis.issue_id = mi.issue_id
     LEFT JOIN 
-        keyword_groups_master kgm ON mi.keyword_group_id = kgm.group_id
+        keyword_groups kg ON mi.keyword_group_id = kg.group_id
     WHERE 
         mi.date BETWEEN '$startDate' AND '$endDate'
     AND 
@@ -34,13 +34,13 @@ $theme_query = "
 	    CASE WHEN mi.theme = '' THEN 'sector' ELSE 'theme' END DESC, -- 테마가 없는경우에는 섹터 기준, 테마 우선 정렬
         CASE WHEN mi.theme != '' THEN MAX(mi.date) OVER (PARTITION BY mi.theme) ELSE 0 END DESC,  -- 테마의 최신 날짜 순으로 정렬
         occurrence_count DESC,  -- 발생 건수 순으로 정렬
-		MIN(mi.date) OVER (PARTITION BY mi.theme, kgm.group_name), -- 키워드그룹 발생 날짜 순으로 정렬
-		COUNT(mi.date) OVER (PARTITION BY mi.theme, kgm.group_name) DESC, -- 키워드그룹별 종목 건수로 정렬
-		kgm.group_name,
+		MIN(mi.date) OVER (PARTITION BY mi.theme, kg.group_name), -- 키워드그룹 발생 날짜 순으로 정렬
+		COUNT(mi.date) OVER (PARTITION BY mi.theme, kg.group_name) DESC, -- 키워드그룹별 종목 건수로 정렬
+		kg.group_name,
 		mi.date,
 		mis.close_rate";
 
-logQuery($theme_query, [$startDate, $endDate]);
+// logQuery($theme_query, [$startDate, $endDate]);
 $theme_result = $mysqli->query($theme_query);
 
 $themes = [];
@@ -98,10 +98,10 @@ unset($data); // Clear reference
 
 // Sort stocks by symbol count and individual symbol priority within each keyword group
 foreach ($themes as &$theme_data) {
-    foreach ($theme_data as $key => &$keyword_groups) {
+    foreach ($theme_data as $key => &$keyword_group_mappings) {
         if ($key === 'dates') continue;  // Skip the date entry
 
-        uasort($keyword_groups, function($a, $b) {
+        uasort($keyword_group_mappings, function($a, $b) {
             // Ensure symbols is an array
             $a_symbols = isset($a['symbols']) && is_array($a['symbols']) ? $a['symbols'] : [];
             $b_symbols = isset($b['symbols']) && is_array($b['symbols']) ? $b['symbols'] : [];
@@ -132,7 +132,7 @@ foreach ($themes as &$theme_data) {
     }
 }
 unset($theme_data); // Clean up reference
-unset($keyword_groups);
+unset($keyword_group_mappings);
 unset($stocks);
 ?>
 <!DOCTYPE html>
@@ -229,14 +229,14 @@ unset($stocks);
 <body>
 
 <div id="wrapper">
-    <?php foreach ($themes as $theme => $keyword_groups): ?>
+    <?php foreach ($themes as $theme => $keyword_group_mappings): ?>
         <div class="theme-box">
             <div class="theme-header">
                 <?= htmlspecialchars($theme) ?>
-                (<?= implode(', ', $keyword_groups['dates']) ?>)
+                (<?= implode(', ', $keyword_group_mappings['dates']) ?>)
             </div>
-            <?php unset($keyword_groups['dates']); // Remove the dates key to prevent displaying it in stocks ?>
-            <?php foreach ($keyword_groups as $keyword_group_name => $stocks): ?>
+            <?php unset($keyword_group_mappings['dates']); // Remove the dates key to prevent displaying it in stocks ?>
+            <?php foreach ($keyword_group_mappings as $keyword_group_name => $stocks): ?>
                 <div class="keyword-group-header"><?= htmlspecialchars($keyword_group_name) ?></div>
                 <ul class="stock-list">
                     <?php foreach ($stocks as $stock_code => $stock): ?>
