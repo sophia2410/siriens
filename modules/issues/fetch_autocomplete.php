@@ -1,5 +1,5 @@
 <?php
-require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
+require($_SERVER['DOCUMENT_ROOT']."/modules/common/database.php");
 
 $type = $_GET['type'] ?? '';
 $query = $_GET['q'] ?? '';
@@ -10,7 +10,7 @@ if ($type === 'stocks') {
     if ($query !== '') {
         $stmt = $mysqli->prepare("
             SELECT s.code, s.name, 
-                (SELECT sector FROM market_issue_stocks 
+                (SELECT sector FROM market_issue_stocks
                  WHERE code = s.code 
                  GROUP BY sector 
                  ORDER BY COUNT(*) DESC 
@@ -18,6 +18,7 @@ if ($type === 'stocks') {
             FROM stock s
             WHERE s.name LIKE CONCAT(?, '%') OR s.code LIKE CONCAT('%', ?, '%')
         ");
+        // logQuery($stmt, [$searchQuery, $searchQuery]);
         $searchQuery = "%$query%";
         $stmt->bind_param('ss', $searchQuery, $searchQuery);
         $stmt->execute();
