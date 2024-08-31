@@ -13,7 +13,7 @@ $search_date = (isset($_GET['search_date'])) ? $_GET['search_date'] : '';
 ?>
 
 <body>
-<form name="form1" method='POST' action='siriensEvening_script.php' onsubmit="return false">
+<form name="form1" method='POST' action='../siriens/siriensEvening_script.php' onsubmit="return false">
 
 <?php
 if($search_date == '') {

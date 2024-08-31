@@ -1,6 +1,6 @@
 <?php
-require($_SERVER['DOCUMENT_ROOT']."/modules/common/database.php"); // 공통 유틸리티 함수
-require($_SERVER['DOCUMENT_ROOT']."/modules/common/utility.php"); // 공통 유틸리티 함수
+require($_SERVER['DOCUMENT_ROOT']."/modules/common/database.php"); // 공통 DB 함수
+require($_SERVER['DOCUMENT_ROOT']."/modules/common/utility.php");  // 공통 유틸리티 함수
 ?>
 
 <!DOCTYPE html>

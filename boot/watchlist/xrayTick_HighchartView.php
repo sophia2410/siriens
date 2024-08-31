@@ -21,6 +21,7 @@ $trade_amt     = (isset($_GET['trade_amt'])    ) ? $_GET['trade_amt'] : 0;
 
 $sector   = (isset($_GET['sector'])) ? $_GET['sector'] : '';
 $theme 	  = (isset($_GET['theme']))  ? $_GET['theme']  : '';
+$category = '';
 
 $buy_cnt 	= (isset($_GET['buy_cnt']))     ? $_GET['buy_cnt']    : '';
 $buy_period = (isset($_GET['buy_period']))  ? $_GET['buy_period'] : '';
@@ -29,48 +30,15 @@ $zeroday_view = (isset($_GET['zeroday_view']))  ? $_GET['zeroday_view'] : '';
 $chart_status = (isset($_GET['chart_status']))  ? $_GET['chart_status'] : '';
 $frequency = (isset($_GET['frequency']))  ? $_GET['frequency'] : '';
 
-
-// 기준일자를 구하는 쿼리.
-$query = "
-	SELECT MAX(date) AS base_date
-	FROM calendar 
-	WHERE date <= (
-		SELECT DATE_FORMAT(
-			DATE_ADD(
-				STR_TO_DATE($search_date, '%Y%m%d'), 
-				INTERVAL IF(CURTIME() < '09:00:00', -1, 0) DAY
-			), 
-			'%Y%m%d'
-		)
-	)";
-$result = $mysqli->query($query);
-$row = $result->fetch_array(MYSQLI_BOTH);
+// 시세 정보 불러오기 위한 처리 (실시간 시세를 구해올 수 없어 장중엔 naver 크롤링 데이터 보기)
+$query_basedate = getBaseDateQuery($search_date);
+$result_basedate = $mysqli->query($query_basedate);
+$row = $result_basedate->fetch_array(MYSQLI_BOTH);
 $base_date = $row['base_date'];
 
-// $pgmId sophiaWatchlist 만 실행되도록 함. + 테마정보가 있는 경우만 실행되도록 추가 수정. 24.01.24
-date_default_timezone_set('Asia/Seoul');
-$today = date('Ymd');  // 현재 일자를 구함
-$now = date('H:i:s');  // 현재 시간을 구함
-
-if ($today == $base_date && $now >= '09:00:0' && $now <= '18:30:00') {
-	// 당일 시세 정보 등록전에는 실시간 등록 정보에서 받아오기..
-	$trade_qry = "
-		, CONCAT('*',  DATE_FORMAT(crawl_time, '%H:%i')) trade_date
-		, Z.current_price trade_price
-		, CASE WHEN Z.change_rate >= 0 THEN CONCAT('<font color=red> +',Z.change_rate,'% </font>') ELSE  CONCAT('<font color=blue> -',ABS(Z.change_rate),'% </font>') END trade_rate_str
-		, FLOOR((Z.volume*Z.current_price)/100000000) acc_trade_amount
-		, round(Z.market_cap/1000,2) AS market_cap";
-	$trade_table = "naver_finance_stock";
-} else {
-	// 당일 시세 정보 가져오기
-	$trade_qry = "
-	, DATE_FORMAT(Z.date, '%m/%d') trade_date
-	, Z.close trade_price
-	, CASE WHEN Z.close_rate >= 0 THEN CONCAT('<font color=red> +',Z.close_rate,'% </font>') ELSE  CONCAT('<font color=blue> -',ABS(Z.close_rate),'% </font>') END trade_rate_str
-	, FLOOR(Z.amount/100000000) acc_trade_amount
-	, (SELECT round(market_cap/1000,2) FROM naver_finance_stock NF WHERE NF.date = Z.date AND NF.code = Z.code) AS market_cap";
-	$trade_table = "daily_price";
-}
+$result_trade = getTradeQuery($base_date);
+$trade_qry = $result_trade['query'];
+$trade_table = $result_trade['table'];
 ?>
 
 <style>
@@ -115,7 +83,7 @@ if($pgmId == '') {
 	echo "<h3>원하는 검색 버튼 선택</h3>";
 	$ready = 'N';
 } else {
-	$result = getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $theme, $buy_cnt, $buy_period, $zeroday_view, $chart_status, $frequency, $trade_qry, $trade_table, $base_date);
+	$result = getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $theme, $category, $buy_cnt, $buy_period, $zeroday_view, $chart_status, $frequency, $trade_qry, $trade_table, $base_date);
 	$query = $result['query'];
 	$filename = $result['filename'];
 	$file_orderby = $result['file_orderby'];
@@ -185,7 +153,7 @@ if($pgmId == '') {
 			echo "<div class='row no-gutters align-items-center'>
 					<div class='col mr-0'>
 						<div class='font-weight-bold text-primary text-uppercase mb-1' style='height:35px; line-height:35px;'>$mochaten_cnt
-							<font class='h4'><span class='draggable' id=stock_nm$d draggable='true'><b><a href='../siriens/stock_B.php?code=".$row['code']."&name=".$stock_name."&brWidth=2500' onclick='window.open(this.href, \'stock\', 'width=2500px,height=850,scrollbars=1,resizable=yes');return false;' target='_blank'>".$stock_name."</a></b></span>".$row['talent_fg']."</font> $xray_tick_detail &nbsp;".$realtime_data."
+							<font class='h4'><span class='draggable' id=stock_nm$d draggable='true'><b><a href='../siriens/stock_B.php?code=".$row['code']."&name=".$stock_name."&brWidth=2500' onclick='window.open(this.href, \'stock\', 'width=2500px,height=850,scrollbars=1,resizable=yes');return false;' target='_blank'>".$stock_name."</a></b></span></font> $xray_tick_detail &nbsp;".$realtime_data."
 						</div>
 						<div class='font-weight-bold mb-1 style='margin: 0;'>
 							$info_0day

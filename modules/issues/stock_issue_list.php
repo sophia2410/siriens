@@ -111,6 +111,7 @@ if ($stockCode) {
                             <th>등락률</th>
                             <th>거래대금</th>
                             <th>주도주</th>
+                            <th>관심종목</th>
                             <th>종목 코멘트</th>
                         </tr>
                     </thead>
@@ -120,17 +121,16 @@ if ($stockCode) {
                                 $themeClass    = ($issue['hot_theme'] === 'Y') ? 'hot-theme' : '';
                                 $newIssueClass = ($issue['first_occurrence'] === 'Y') ? 'first-occurrence' : '';
 
-                                $closeRate = $issue['close_rate'];
-                                $amountInBillion = $issue['trade_amount'];
-                                
-                                
-                                // 조건에 따른 스타일 클래스
-                                $closeRateClass = ($closeRate >= 29.5) ? 'close-rate-high' : 'close-rate-lowest';
+                                // 등락률 따른 스타일 클래스
+                                $closeRateClass = Utility_GetCloseRateClass($issue['close_rate']);
                                 // 금액에 따른 스타일 클래스
-                                $amountClass = Utility_GetAmountClass($amountInBillion);
+                                $amountClass = Utility_GetAmountClass($issue['trade_amount']);
 
                                 $isLeader = ($issue['is_leader'] === '1') ? 'Y' : '';
                                 $leaderClass = ($issue['is_leader'] === '1') ? 'leader' : '';
+
+                                $isWatchlist = ($issue['is_watchlist'] === '1') ? 'Y' : '';
+                                $watchListClass = ($issue['is_watchlist'] === '1') ? 'watchlist' : '';
                             ?>
                             <tr onclick="IssueRegisterForm_LoadDetails(<?= $issue['issue_id'] ?>)" style="cursor: pointer;">
                                 <td><?= Utility_FormatDate($issue['date']) ?></td>
@@ -140,6 +140,7 @@ if ($stockCode) {
                                 <td class="<?= $closeRateClass; ?>"><?= number_format($issue['close_rate'], 2) ?>%</td>
                                 <td class="<?= $amountClass; ?>"><?= number_format($issue['trade_amount']) ?>억</td>
                                 <td class="<?= $leaderClass; ?>"><?= $isLeader ?></td>
+                                <td class="<?= $watchListClass; ?>"><?= $isWatchlist ?></td>
                                 <td><?= htmlspecialchars($issue['stock_comment']) ?></td>
                             </tr>
                         <?php endwhile; ?>
@@ -175,7 +176,10 @@ if ($stockCode) {
                     
                     if (stockCode === '') {
                         // 종목 코드가 없으면 종목 검색 수행
-                        Common_SearchStock(event, this);
+                        Common_SearchStock(event, this, function() {
+                            // 종목 검색 후, 종목 코드가 설정되면 폼 제출
+                            document.getElementById('stock_search_form').submit();
+                        });
                     } else {
                         // 종목 코드가 이미 있으면 바로 조회
                         console.log(stockCode);

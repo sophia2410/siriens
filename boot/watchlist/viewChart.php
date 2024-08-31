@@ -40,7 +40,8 @@ switch ($viewFg) {
 
 <!-- 조회 조건을 변경할 수 있는 버튼을 생성합니다. -->
 <button class="btn btn-info btn-sm" id="excel_down">관종엑셀 다운로드</button>&nbsp;
-<button class="btn btn-info btn-sm" id="mdfile_down">옵시디언 파일생성</button>
+<!-- 사용하지 않아 우선 막아두기.. 기능은 살아있음 -->
+<!-- <button class="btn btn-info btn-sm" id="mdfile_down">옵시디언 파일생성</button> -->
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
 <button class="btn <?=$btn_class1?> btn-sm" onclick="changeCondition('day')">일</button>

@@ -44,7 +44,7 @@ result = cursor.fetchall()
 cursor.close()
 db.close()
 
-md_file = f'D:/Obsidian/Trader Sophia/30 Study/watchlist_0day/{filename}_{watchlist_date}.md'
+md_file = f'D:/Obsidian/Trader Sophia/20 Study/watchlist_0day/{filename}_{watchlist_date}.md'
 
 if  os.path.exists(md_file):
     os.remove(md_file) 

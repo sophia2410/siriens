@@ -446,7 +446,7 @@ if($pgmId == '') {
 					WHERE A.sector = '$sector'
 					AND A.theme LIKE CASE WHEN '$theme' != '' THEN '%".$theme."%' ELSE '%' END
 					ORDER BY A.sector, A.sort_theme, A.sort_stock";
-	} else if($pgmId == 'astarWatchlist') { // astarWatchlist.php
+	} else if($pgmId == 'aStarWatchlist') { // aStarWatchlist.php
 		$filename = $pgmId."_".$sector."_".$theme;
 		$file_orderby = "ORDER BY V.sort_theme, V.stock_idx";
 
@@ -646,7 +646,7 @@ if($pgmId == '') {
 		$stock_name = $row['name'];
 	
 		// xray_tick 조회 화면 연결
-		$xray_tick_detail = "<a href='../siriens/xrayTick_stock.php?stock=" . $row['code'] . "&stock_nm=" . $stock_name . "' onclick='window.open(this.href, \"stock\", '');return false;' target='_blank'>(+)</a>";
+		$xray_tick_detail = "<a href='../watchlist/xrayTick_stock.php?stock=" . $row['code'] . "&stock_nm=" . $stock_name . "' onclick='window.open(this.href, \"stock\", '');return false;' target='_blank'>(+)</a>";
 	
 		echo "<div class='row no-gutters align-items-center'>
 				<div class='col mr-0'>

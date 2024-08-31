@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', function() {
     Common_InitializeCommonFeatures();
 
     // 페이지별 초기화 함수 호출
+
     // issue_register.php
     if (typeof IssueRegister_Initialize === 'function') {
         IssueRegister_Initialize();
@@ -11,7 +12,10 @@ document.addEventListener('DOMContentLoaded', function() {
     if (typeof IssueRegisterForm_Initialize === 'function') {
         IssueRegisterForm_Initialize();
     }
-
+    // issue_register_popup.php
+    if (typeof IssueRegisterPopup_Initialize === 'function') {
+        IssueRegisterPopup_Initialize();
+    }
     // issue_list.php
     if (typeof IssueList_Initialize === 'function') {
         IssueList_Initialize();
@@ -35,7 +39,7 @@ function Common_InitializeCommonFeatures() {
 }
 
 // 종목 검색
-async function Common_SearchStock(event, input) {
+async function Common_SearchStock(event, input, callback = null) {
     if (event.key === 'Enter') { // 엔터 키가 눌렸을 때만 처리
         event.preventDefault(); // 폼 제출 방지
         const query = input.value.trim();
@@ -48,8 +52,9 @@ async function Common_SearchStock(event, input) {
                 input.value = stocks[0].name; // 입력 칸에 종목명 설정
                 if (codeInput) codeInput.value = stocks[0].code; // 코드 설정
                 if (sectorInput) sectorInput.value = stocks[0].sector; // 섹터 설정 (옵션)
+                if (callback) callback(); // 콜백 함수 호출
             } else if (stocks.length > 1) {
-                Common_ShowStockPopup(stocks, input, codeInput, sectorInput);
+                Common_ShowStockPopup(stocks, input, codeInput, sectorInput, callback);
             } else {
                 alert("해당 종목명을 찾을 수 없습니다.");
             }
@@ -70,7 +75,7 @@ async function Common_FetchStocks(query) {
     }
 }
 
-function Common_ShowStockPopup(stocks, nameInput, codeInput = null, sectorInput = null) {
+function Common_ShowStockPopup(stocks, nameInput, codeInput = null, sectorInput = null, callback = null) {
     const popup = document.createElement('div');
     popup.style.position = 'fixed';
     popup.style.top = '50%';
@@ -94,6 +99,7 @@ function Common_ShowStockPopup(stocks, nameInput, codeInput = null, sectorInput 
             if (codeInput) codeInput.value = stock.code;
             if (sectorInput) sectorInput.value = stock.sector;
             document.body.removeChild(popup); // 선택 시 팝업 닫기
+            if (callback) callback(); // 콜백 함수 호출
         };
         popup.appendChild(btn);
     });

@@ -40,127 +40,263 @@ function toggleImage(imgId, code) {
     }
 }
 
-function showGraphPopup(event, code, date, chartId) {
-    var apiUrl = '/boot/common/popup/stock_xray_tick_graph.php?code=' + code + '&date=' + date;
+function toggleGraph(chartId, code, date) {
     var imgElement = document.getElementById(chartId);
 
-    fetch(apiUrl)
-        .then(response => response.json())
-        .then(data => {
-            if (window.popupChart && typeof window.popupChart.destroy === 'function') {
-                window.popupChart.destroy();
-                window.popupChart = null;
-            }
+    if (!imgElement) {
+        console.error('Invalid chart ID:', chartId);
+        return;
+    }
 
-            var canvas = document.createElement('canvas');
-			canvas.className = 'img-fluid chart-image';  // 여기에서 클래스 추가
-            canvas.id = 'dynamicChart';
-            canvas.width = imgElement.width;
-            canvas.height = imgElement.height;
+    var canvas = document.createElement('canvas');
+    canvas.className = 'img-fluid chart-image';
+    canvas.id = imgElement.id;
+    canvas.width = imgElement.width;
+    canvas.height = imgElement.height;
 
-            imgElement.parentNode.replaceChild(canvas, imgElement);
+    if (imgElement.tagName === 'IMG') {
+        fetch('/boot/common/popup/stock_xray_tick_graph.php?code=' + code + '&date=' + date)
+            .then(response => response.json())
+            .then(data => {
+                if (window.popupChart && typeof window.popupChart.destroy === 'function') {
+                    window.popupChart.destroy();
+                    window.popupChart = null;
+                }
 
-            var ctx = canvas.getContext('2d');
-            window.popupChart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: data.times,
-                    datasets: [{
-                        label: '거래대금 (억)',
-                        type: 'bar',
-                        data: data.amounts,
-                        backgroundColor: 'rgba(54, 162, 235, 0.5)',
-                        borderColor: 'rgba(54, 162, 235, 1)',
-                        borderWidth: 1,
-                        yAxisID: 'y1'
-                    }, {
-                        label: '누적 대금 (억)',
-                        type: 'line',
-                        data: data.cum_amts,
-                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
-                        borderColor: 'rgba(255, 99, 132, 1)',
-                        borderWidth: 1,
-                        fill: false,
-                        yAxisID: 'y2'
-                    }, {
-                        label: '등락률 (%)',
-                        type: 'line',
-                        data: data.change_rates,
-                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                        borderColor: 'rgba(75, 192, 192, 1)',
-                        borderWidth: 1,
-                        fill: false,
-                        yAxisID: 'y3'
-                    }]
-                },
-                options: {
-                    scales: {
-                        x: {
-                            type: 'category',
-                            labels: data.times
-                        },
-                        y1: {
-                            type: 'linear',
-                            position: 'left',
-                            beginAtZero: true,
-                            ticks: {
-                                callback: function(value) {
-                                    return value + ' 억';
-                                }
-                            }
-                        },
-                        y2: {
-                            type: 'linear',
-                            position: 'right',
-                            beginAtZero: false,
-                            ticks: {
-                                callback: function(value) {
-                                    return value + ' 억';
+                imgElement.parentNode.replaceChild(canvas, imgElement);
+
+                var ctx = canvas.getContext('2d');
+                window.popupChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: data.times,
+                        datasets: [{
+                            label: '거래대금 (억)',
+                            type: 'bar',
+                            data: data.amounts,
+                            backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 1,
+                            yAxisID: 'y1'
+                        }, {
+                            label: '누적 대금 (억)',
+                            type: 'line',
+                            data: data.cum_amts,
+                            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            borderWidth: 1,
+                            fill: false,
+                            yAxisID: 'y2'
+                        }, {
+                            label: '등락률 (%)',
+                            type: 'line',
+                            data: data.change_rates,
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            borderWidth: 1,
+                            fill: false,
+                            yAxisID: 'y3'
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            x: {
+                                type: 'category',
+                                labels: data.times
+                            },
+                            y1: {
+                                type: 'linear',
+                                position: 'left',
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return value + ' 억';
+                                    }
                                 }
                             },
-                            grid: {
-                                drawOnChartArea: false
-                            }
-                        },
-                        y3: {
-                            type: 'linear',
-                            position: 'right',
-                            beginAtZero: false,
-                            ticks: {
-                                callback: function(value) {
-                                    return value + ' %';
+                            y2: {
+                                type: 'linear',
+                                position: 'right',
+                                beginAtZero: false,
+                                ticks: {
+                                    callback: function(value) {
+                                        return value + ' 억';
+                                    }
+                                },
+                                grid: {
+                                    drawOnChartArea: false
                                 }
                             },
-                            grid: {
-                                drawOnChartArea: false
+                            y3: {
+                                type: 'linear',
+                                position: 'right',
+                                beginAtZero: false,
+                                ticks: {
+                                    callback: function(value) {
+                                        return value + ' %';
+                                    }
+                                },
+                                grid: {
+                                    drawOnChartArea: false
+                                }
                             }
                         }
                     }
-                }
-            });
-        })
-        .catch(error => {
-            console.error('Error fetching data:', error);
-        });
-}
+                });
 
-function hideGraphPopup(chartId, code) {
-    var imgElement = document.getElementById('dynamicChart');
-    if (imgElement) {
+                // 차트를 클릭하면 원래 이미지로 복구
+                canvas.onclick = function() {
+                    var img = document.createElement('img');
+                    img.src = imgElement.getAttribute('data-original-src');
+                    img.className = 'img-fluid';
+                    img.id = canvas.id;
+
+                    canvas.parentNode.replaceChild(img, canvas);
+
+                    if (window.popupChart && typeof window.popupChart.destroy === 'function') {
+                        window.popupChart.destroy();
+                        window.popupChart = null;
+                    }
+                };
+            })
+            .catch(error => {
+                console.error('Error fetching data:', error);
+            });
+    } else if (imgElement.tagName === 'CANVAS') {
         var img = document.createElement('img');
+        img.src = imgElement.getAttribute('data-original-src');
         img.className = 'img-fluid';
-        img.id = chartId;
-        img.src = 'https://ssl.pstatic.net/imgfinance/chart/item/candle/day/' + code + '.png?sidcode=1705826920773';
-        img.setAttribute('onclick', 'toggleImage("' + chartId + '", "' + code + '")');
+        img.id = imgElement.id;
 
         imgElement.parentNode.replaceChild(img, imgElement);
-    }
 
-    if (window.popupChart && typeof window.popupChart.destroy === 'function') {
-        window.popupChart.destroy();
-        window.popupChart = null;
+        if (window.popupChart && typeof window.popupChart.destroy === 'function') {
+            window.popupChart.destroy();
+            window.popupChart = null;
+        }
     }
 }
+
+// function showGraphPopup(event, code, date, chartId) {
+//     var apiUrl = '/boot/common/popup/stock_xray_tick_graph.php?code=' + code + '&date=' + date;
+//     var imgElement = document.getElementById(chartId);
+
+//     fetch(apiUrl)
+//         .then(response => response.json())
+//         .then(data => {
+//             if (window.popupChart && typeof window.popupChart.destroy === 'function') {
+//                 window.popupChart.destroy();
+//                 window.popupChart = null;
+//             }
+
+//             var canvas = document.createElement('canvas');
+//             canvas.className = 'img-fluid chart-image';
+//             canvas.id = 'dynamicChart';
+//             canvas.width = imgElement.width;
+//             canvas.height = imgElement.height;
+
+//             imgElement.parentNode.replaceChild(canvas, imgElement);
+
+//             var ctx = canvas.getContext('2d');
+//             window.popupChart = new Chart(ctx, {
+//                 type: 'bar',
+//                 data: {
+//                     labels: data.times,
+//                     datasets: [{
+//                         label: '거래대금 (억)',
+//                         type: 'bar',
+//                         data: data.amounts,
+//                         backgroundColor: 'rgba(54, 162, 235, 0.5)',
+//                         borderColor: 'rgba(54, 162, 235, 1)',
+//                         borderWidth: 1,
+//                         yAxisID: 'y1'
+//                     }, {
+//                         label: '누적 대금 (억)',
+//                         type: 'line',
+//                         data: data.cum_amts,
+//                         backgroundColor: 'rgba(255, 99, 132, 0.2)',
+//                         borderColor: 'rgba(255, 99, 132, 1)',
+//                         borderWidth: 1,
+//                         fill: false,
+//                         yAxisID: 'y2'
+//                     }, {
+//                         label: '등락률 (%)',
+//                         type: 'line',
+//                         data: data.change_rates,
+//                         backgroundColor: 'rgba(75, 192, 192, 0.2)',
+//                         borderColor: 'rgba(75, 192, 192, 1)',
+//                         borderWidth: 1,
+//                         fill: false,
+//                         yAxisID: 'y3'
+//                     }]
+//                 },
+//                 options: {
+//                     scales: {
+//                         x: {
+//                             type: 'category',
+//                             labels: data.times
+//                         },
+//                         y1: {
+//                             type: 'linear',
+//                             position: 'left',
+//                             beginAtZero: true,
+//                             ticks: {
+//                                 callback: function(value) {
+//                                     return value + ' 억';
+//                                 }
+//                             }
+//                         },
+//                         y2: {
+//                             type: 'linear',
+//                             position: 'right',
+//                             beginAtZero: false,
+//                             ticks: {
+//                                 callback: function(value) {
+//                                     return value + ' 억';
+//                                 }
+//                             },
+//                             grid: {
+//                                 drawOnChartArea: false
+//                             }
+//                         },
+//                         y3: {
+//                             type: 'linear',
+//                             position: 'right',
+//                             beginAtZero: false,
+//                             ticks: {
+//                                 callback: function(value) {
+//                                     return value + ' %';
+//                                 }
+//                             },
+//                             grid: {
+//                                 drawOnChartArea: false
+//                             }
+//                         }
+//                     }
+//                 }
+//             });
+//         })
+//         .catch(error => {
+//             console.error('Error fetching data:', error);
+//         });
+// }
+
+// function hideGraphPopup(chartId, originalSrc) {
+//     var canvas = document.getElementById('dynamicChart');
+//     var imgElement = document.createElement('img');
+//     imgElement.src = originalSrc;
+//     imgElement.className = 'img-fluid';
+//     imgElement.id = chartId;
+
+//     if (canvas && canvas.parentNode) {
+//         canvas.parentNode.replaceChild(imgElement, canvas);
+//     }
+
+//     if (window.popupChart && typeof window.popupChart.destroy === 'function') {
+//         window.popupChart.destroy();
+//         window.popupChart = null;
+//     }
+// }
 </script>
 <style>
 .small-fraction {
@@ -190,6 +326,12 @@ function hideGraphPopup(chartId, code) {
 </head>
 <body>
 <form name="form1" method='POST' action='xrayTick_script.php' onsubmit="return false">
+
+<!-- 차트 팝업을 위한 div 추가 (고정된 하나만 사용) -->
+<div id="chartPopup" style="display:none; position: absolute; z-index: 1000; background: white; border: 1px solid black; padding: 10px;">
+    <canvas id="popupChartCanvas" width="600" height="400"></canvas>
+</div>
+
 <?php
 $pgmId = (isset($_GET['pgmId'])) ? $_GET['pgmId'] : '';
 
@@ -327,7 +469,7 @@ if($pgmId == '') {
 					WHERE A.sector = '$sector'
 					AND A.theme LIKE CASE WHEN '$theme' != '' THEN '%".$theme."%' ELSE '%' END
 					ORDER BY A.sector, A.sort_theme, A.sort_stock";
-	} else if($pgmId == 'astarWatchlist') { // astarWatchlist.php
+	} else if($pgmId == 'aStarWatchlist') { // aStarWatchlist.php
 		$filename = $pgmId."_".$sector."_".$theme;
 		$file_orderby = "ORDER BY V.sort_theme, V.stock_idx";
 
@@ -527,7 +669,7 @@ if($pgmId == '') {
 		$stock_name = $row['name'];
 	
 		// xray_tick 조회 화면 연결
-		$xray_tick_detail = "<a href='../siriens/xrayTick_stock.php?stock=" . $row['code'] . "&stock_nm=" . $stock_name . "' onclick='window.open(this.href, \"stock\", '');return false;' target='_blank'>(+)</a>";
+		$xray_tick_detail = "<a href='../watchlist/xrayTick_stock.php?stock=" . $row['code'] . "&stock_nm=" . $stock_name . "' onclick='window.open(this.href, \"stock\", '');return false;' target='_blank'>(+)</a>";
 	
 		echo "<div class='row no-gutters align-items-center'>
 				<div class='col mr-0'>
@@ -538,11 +680,10 @@ if($pgmId == '') {
 						$info_0day
 					</div>
 					<div style='margin: 0;'>
-						<img class='img-fluid chart-image' id='stockChart_$d' src='https://ssl.pstatic.net/imgfinance/chart/item/candle/day/{$row['code']}.png?sidcode=1705826920773' onclick='toggleImage(\"stockChart_$d\", \"{$row['code']}\")'>
+						<img class='img-fluid chart-image' id='stockChart_$d' data-original-src='https://ssl.pstatic.net/imgfinance/chart/item/candle/day/{$row['code']}.png?sidcode=1705826920773' src='https://ssl.pstatic.net/imgfinance/chart/item/candle/day/{$row['code']}.png?sidcode=1705826920773' onclick='toggleImage(\"stockChart_$d\", \"{$row['code']}\")'>
 					</div>
 				</div>
 			</div>";
-	
 		$pre_group = $row['group_key'];
 		echo "</td>";
 
@@ -594,7 +735,7 @@ if($pgmId == '') {
 		$xray_cnt = "";
 	
 		while ($row = $result2->fetch_array(MYSQLI_BOTH)) {
-			$xray_date .= "<th align=center style='width:80px; height: 30px;'><a href=\"javascript:void(0)\" onmouseover=\"showGraphPopup(event, '{$code}', '" . $row['date'] . "', 'stockChart_$d')\" onmouseout=\"hideGraphPopup('stockChart_$d', '{$code}')\" onclick=\"openPopupXrayTick('{$code}', '".$row['date']."')\">" . $row['date_str'] . "</a></th>";
+			$xray_date .= "<th align=center style='width:80px; height: 30px;'><a href=\"javascript:void(0)\" onmouseover=\"showGraphPopup(event, '{$code}', '" . $row['date'] . "', 'stockChart_$d')\" onmouseout=\"hideGraphPopup('stockChart_$d', 'https://ssl.pstatic.net/imgfinance/chart/item/candle/day/{$code}.png?sidcode=1705826920773')\" onclick=\"openPopupXrayTick('{$code}', '".$row['date']."')\">" . $row['date_str'] . "</a></th>";
 	
 			if ($row['cnt'] > 0) {
 	
@@ -622,7 +763,8 @@ if($pgmId == '') {
 				$xray_close_rate .= "<td align=center style='width:80px; height: 30px;' {$rate_style}>" . $row['close_rate'] . "%</td>";
 				$xray_tot_amount .= "<td align=center style='width:80px; height: 30px;{$tot_amt_style}'>" . number_format($row['tot_trade_amt']) . "억</td>";
 				$xray_cnt .= "<td align=center style='width:80px; height: 30px;'>" . number_format($row['cnt']) . "건</td>";
-				$xray_amount .= "<td align=center style='width:80px; height: 30px;' class='" . "$amt_style" . "'>" . number_format($row['amount']) . "억</td>";
+				// $xray_amount .= "<td align=center style='width:80px; height: 30px;' class='" . "$amt_style" . "'>" . number_format($row['amount']) . "억</td>";
+				$xray_amount .= "<td align=center style='width:80px; height: 30px;' class='" . "$amt_style" . "' onclick=\"toggleGraph('stockChart_$d', '{$code}', '{$row['date']}')\">" . number_format($row['amount']) . "억</td>";
 			} else {
 				$xray_close_rate .= "<td align=center>-</td>";
 				$xray_tot_amount .= "<td align=center>-</td>";
@@ -630,7 +772,6 @@ if($pgmId == '') {
 				$xray_amount .= "<td align=center>-</td>";
 			}
 		}
-	
 		echo "<table class='table table-sm table-bordered small text-dark' style='table-layout: fixed;' >";
 		echo "<tr align=center style='background-color:#fdf9f5;'>" . $xray_date . "</tr>";
 		echo "<tr align=center>" . $xray_close_rate . "</tr>";

@@ -447,7 +447,7 @@ if($pgmId == '') {
 					WHERE A.sector = '$sector'
 					AND A.theme LIKE CASE WHEN '$theme' != '' THEN '%".$theme."%' ELSE '%' END
 					ORDER BY A.sector, A.sort_theme, A.sort_stock";
-	} else if($pgmId == 'astarWatchlist') { // astarWatchlist.php
+	} else if($pgmId == 'aStarWatchlist') { // aStarWatchlist.php
 		$filename = $pgmId."_".$sector."_".$theme;
 		$file_orderby = "ORDER BY V.sort_theme, V.stock_idx";
 

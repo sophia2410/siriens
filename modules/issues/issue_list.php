@@ -13,7 +13,7 @@ function render_issue_list($mysqli, $criteriaType, $criteriaValue) {
                 SELECT *
                 FROM market_issue_stocks
                 WHERE issue_id IN (SELECT issue_id FROM market_issues WHERE date = ?)
-                ORDER BY is_leader DESC, close_rate DESC");
+                ORDER BY is_leader DESC, is_watchlist DESC, close_rate DESC");
             $stocksQuery->bind_param('s', $criteriaValue);
             break;
         
@@ -25,7 +25,7 @@ function render_issue_list($mysqli, $criteriaType, $criteriaValue) {
                 SELECT *
                 FROM market_issue_stocks
                 WHERE issue_id IN (SELECT issue_id FROM market_issues WHERE keyword_group_id IN (SELECT group_id FROM keyword_groups WHERE group_id = ?))
-                ORDER BY is_leader DESC, close_rate DESC");
+                ORDER BY is_leader DESC, is_watchlist DESC, close_rate DESC");
             $stocksQuery->bind_param('i', $criteriaValue);
             break;
 
@@ -44,7 +44,7 @@ function render_issue_list($mysqli, $criteriaType, $criteriaValue) {
                 SELECT *
                 FROM market_issue_stocks
                 WHERE code = ?
-                ORDER BY is_leader DESC, close_rate DESC");
+                ORDER BY is_leader DESC, is_watchlist DESC, close_rate DESC");
             $stocksQuery->bind_param('s', $criteriaValue);
             break;
 
@@ -127,16 +127,15 @@ function render_issue_list($mysqli, $criteriaType, $criteriaValue) {
                                             $amountInBillion = $stock['trade_amount'];
                                             $closeRate = $stock['close_rate'];
                                             
-                                            // 금액에 따른 스타일 클래스
-                                            $amountClass = Utility_GetAmountClass($amountInBillion);
-                                            
                                             // 조건에 따른 스타일 클래스
-                                            $stockNameClass = ($closeRate >= 29.5) ? 'stock-name-high' : 'stock-name-lowest';
-                                            $closeRateClass = ($closeRate >= 29.5) ? 'close-rate-high' : 'close-rate-lowest';
+                                            $closeRateClass = Utility_GetCloseRateClass($closeRate);
+                                            $amountClass = Utility_GetAmountClass($amountInBillion);
+                                            $stockNameClass = Utility_GetStockNameClass($closeRate);
                                             $leaderClass = ($stock['is_leader'] === '1') ? 'leader' : '';
+                                            $watchListClass = ($stock['is_watchlist'] === '1') ? 'watchlist' : '';
                                         ?>
                                         <tr>
-                                            <td class="<?= $stockNameClass; ?> <?= $leaderClass ?>" style="width:15%; display: table-cell;"><?= htmlspecialchars($stock['name']) ?></td>
+                                            <td class="<?= $stockNameClass; ?> <?= $watchListClass ?> <?= $leaderClass ?>" style="width:15%; display: table-cell;"><?= htmlspecialchars($stock['name']) ?></td>
                                             <td style="width:5%; display: table-cell;"><?= htmlspecialchars($stock['code']) ?></td>
                                             <td class="<?= $closeRateClass; ?>" style="width:8%; display: table-cell;"><?= number_format($stock['close_rate'], 2) ?> %</td>
                                             <td class="<?= $amountClass; ?>" style="width:9%; display: table-cell;"><?= number_format($stock['trade_amount']) ?> 억</td>

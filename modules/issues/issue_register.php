@@ -22,7 +22,7 @@ $stocksQuery = $mysqli->prepare("
     SELECT *
     FROM market_issue_stocks
     WHERE date = ? 
-    ORDER BY is_leader DESC, close_rate DESC");
+    ORDER BY is_leader DESC, is_watchlist DESC, close_rate DESC");
 $stocksQuery->bind_param('s', $formattedDate); 
 $stocksQuery->execute();
 $stocksResult = $stocksQuery->get_result();

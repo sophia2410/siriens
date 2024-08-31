@@ -1,9 +1,8 @@
 <?php
-require($_SERVER['DOCUMENT_ROOT']."/boot/common/top.php");
-require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
+require($_SERVER['DOCUMENT_ROOT']."/modules/common/common_header_sub.php");
 
 $endDate = date('Ymd', time());
-$startDate = date('Ymd', strtotime('-14 days', time()));
+$startDate = date('Ymd', strtotime('-20 days', time()));
 
 // Fetch themes with occurrence count and sorted by the latest date and occurrence count
 $theme_query = "
@@ -16,7 +15,8 @@ $theme_query = "
         mis.code AS stock_code, 
         mis.close_rate, 
         mis.trade_amount,
-		mis.is_leader,
+		MAX(mis.is_leader) OVER (PARTITION BY mi.theme, kg.group_name, mis.code) AS is_leader, -- leader 여부
+		MAX(mis.is_watchlist) OVER (PARTITION BY mi.theme, kg.group_name, mis.code) AS is_watchlist, -- 관심종목 여부
         COUNT(mi.date) OVER (PARTITION BY mi.theme, mi.sector) AS occurrence_count,  -- 테마별 발생 건수 계산
         MIN(mi.date) OVER (PARTITION BY mi.theme, kg.group_name) AS keyword_occurrence_date,  -- 키워드그룹별 최초 발생 일
         COUNT(mi.date) OVER (PARTITION BY mi.theme, kg.group_name) AS keyword_occurrence_count  -- 키워드그룹별 종목 건수
@@ -65,24 +65,33 @@ while ($row = $theme_result->fetch_assoc()) {
     if (!isset($themes[$theme][$keyword_group_name][$stock_code])) {
         $themes[$theme][$keyword_group_name][$stock_code] = [
             'stock_name' => $row['stock_name'],
+            'is_leader' => $row['is_leader'],
+            'is_watchlist' => $row['is_watchlist'],
             'max_close_rate' => 0,
             'max_trade_amount' => 0,
             'symbols' => [],
         ];
     }
 
-    // Define symbols based on criteria
+
+    // Define symbols based on close rate
     $symbols = [
-        'star' => $row['close_rate'] >= 30 ? '★' : '',
-        'diamond' => $row['close_rate'] >= 20 ? '◆' : '',
-        'triangle' => $row['close_rate'] >= 10 ? '▲' : ''
+        'star' => '★',
+        'diamond' => '◆',
+        'triangle' => '▲'
     ];
 
-    // Add symbols to the stock entry
-    foreach ($symbols as $symbol) {
-        if ($symbol && !in_array($symbol, $themes[$theme][$keyword_group_name][$stock_code]['symbols'])) {
-            $themes[$theme][$keyword_group_name][$stock_code]['symbols'][] = $symbol;
-        }
+    // 거래대금에 따른 스타일 클래스
+    $amountInBillion = $row['trade_amount'];
+    $tradeAmountClass = Utility_GetAmountClass($amountInBillion);
+
+    // Add symbols to the stock entry with corresponding class based on close rate
+    if ($row['close_rate'] >= 30) {
+        $themes[$theme][$keyword_group_name][$stock_code]['symbols'][] = '<span class="' . $tradeAmountClass . '">' . $symbols['star'] . '</span>';
+    } elseif ($row['close_rate'] >= 20) {
+        $themes[$theme][$keyword_group_name][$stock_code]['symbols'][] = '<span class="' . $tradeAmountClass . '">' . $symbols['diamond'] . '</span>';
+    } elseif ($row['close_rate'] >= 10) {
+        $themes[$theme][$keyword_group_name][$stock_code]['symbols'][] = '<span class="' . $tradeAmountClass . '">' . $symbols['triangle'] . '</span>';
     }
 
     // Store the highest close rate
@@ -126,6 +135,9 @@ foreach ($themes as &$theme_data) {
                     return 1;
                 }
             }
+
+            // If the symbols are identical, sort by max close rate (descending)
+            return $b['max_close_rate'] - $a['max_close_rate'];
             
             return 0;
         });
@@ -242,11 +254,23 @@ unset($stocks);
                     <?php foreach ($stocks as $stock_code => $stock): ?>
                         <li class="stock-item">
                             <span>
-                                <?= htmlspecialchars($stock['stock_name']) ?>
+                                <?php
+                                // 주도주 표시
+                                $leaderClass = ($stock['is_leader'] === '1') ? 'leader' : '';
+                                // 관심종목 표시
+                                $watchListClass = ($stock['is_watchlist'] === '1') ? 'watchlist' : '';
+                                ?>
+                                <span class="<?= $watchListClass ?> <?= $leaderClass ?>"><?= htmlspecialchars($stock['stock_name']) ?></span>
                                 <span class="symbols"><?= implode('', $stock['symbols']) ?></span>
                             </span>
                             <span>
-                                <?= number_format($stock['max_close_rate'], 2) ?>% (<?= number_format($stock['max_trade_amount']) ?>억)
+                                <?php
+                                // 등락률 따른 스타일 클래스
+                                $closeRateClass = Utility_GetCloseRateClass($stock['max_close_rate']);
+                                // 금액에 따른 스타일 클래스
+                                $amountClass = Utility_GetAmountClass($stock['max_trade_amount']);
+                                ?>
+                                <span class="<?= $closeRateClass ?>"><?= number_format($stock['max_close_rate'], 2) ?>%</span> (<span class="<?= $amountClass ?>"><?= number_format($stock['max_trade_amount']) ?>억</span>)
                             </span>
                         </li>
                     <?php endforeach; ?>

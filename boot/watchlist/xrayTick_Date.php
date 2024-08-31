@@ -83,7 +83,7 @@ function search(){
 $("#excel_down").click(function() {
 	$.ajax({
 	method: "POST",
-	url: "../watchlist/viewChart_runPy.php",
+	url: "viewChart_runPy.php",
 	data: {downfile: "excel"}
 	})
 	.done(function(result) {

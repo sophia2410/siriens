@@ -234,30 +234,32 @@ input[type="checkbox"] {
 
 /* 금액에 따른 스타일 */
 .amount-highest {
-    color: #ff0000;
-    font-weight: bold;
+    color: #ff0000 !important;
+    font-weight: bold !important;
     text-align: right !important;
 } /* 2000억 이상 */
 
 .amount-high {
-    color: #ff7f00;
-    font-weight: bold;
+    color: #ff7f00 !important;
+    font-weight: bold !important;
     text-align: right !important;
 } /* 1000억 이상 */
 
 .amount-medium-high {
-    color: #ffa500;
-    font-weight: bold;
+    color: #ffa500 !important;
+    font-weight: bold !important;
     text-align: right !important;
 } /* 500억 이상 */
 
 .amount-medium {
-    color: #fcb9b2;
+    color: #fcb9b2 !important;
+    font-weight: bold !important;
     text-align: right !important;
 } /* 150억 이상 */
 
 .amount-low {
-    color: #ffccd5;
+    color: #ffccd5 !important;
+    font-weight: bold !important;
     text-align: right !important;
 } /* 100억 이상 */
 
@@ -269,7 +271,7 @@ input[type="checkbox"] {
 
 /* 등락률에 따른 스타일 */
 .close-rate-high {
-    color: red;
+    color: red !important;
     text-align: right !important;
 } /* 종목 등락률 29.5% 이상 */
 
@@ -279,7 +281,7 @@ input[type="checkbox"] {
 } /* 종목 등락률 29.5% 이상 */
 
 .stock-name-high {
-    color: red;
+    color: red !important;
 } /* 종목 등락률 29.5% 이상 */
 
 .stock-name-lowest {
@@ -296,9 +298,19 @@ input[type="checkbox"] {
 } /* 핫 테마일 경우 */
 
 .leader {
+    font-weight: bold;
     background-color: #fff9c4;
-} /* 리더인 경우 */
+}
 
+.watchlist {
+    font-weight: bold;
+    background-color: #dffcdc;
+}
+
+/* 두 클래스가 함께 적용될 때의 스타일 */
+.watchlist.leader {
+    background-color: #fff9c4; /* 관심종목의 배경색을 우선 적용 */
+}
 .first-occurrence {
     background-color: #ffe0e0;
 }

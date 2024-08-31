@@ -197,6 +197,7 @@ function handleStocks($mysqli, $issue_id, $stocks, $date) {
         $sector = $stock['sector'] ?? ''; // Added to capture sector input
         $stock_comment = $stock['comment'] ?? '';
         $isLeader = isset($stock['is_leader']) ? '1' : '0'; // Adjusted to string
+        $isWatchlist = isset($stock['is_watchlist']) ? '1' : '0'; // New field
 
         if ($code !== '' && $name !== '') {
             // Retrieve close_rate, volume, and amount from v_daily_price
@@ -224,11 +225,11 @@ function handleStocks($mysqli, $issue_id, $stocks, $date) {
             // Insert the data into market_issue_stocks
             $stmt = $mysqli->prepare("
                 INSERT INTO market_issue_stocks 
-                (issue_id, code, name, sector, close_rate, volume, trade_amount, stock_comment, is_leader, date, create_dtime) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                (issue_id, code, name, sector, close_rate, volume, trade_amount, stock_comment, is_leader, is_watchlist, date, create_dtime) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
             ");
             $stmt->bind_param(
-                'issssddsss', 
+                'issssddssss', 
                 $issue_id, 
                 $code, 
                 $name, 
@@ -238,6 +239,7 @@ function handleStocks($mysqli, $issue_id, $stocks, $date) {
                 $trade_amount, 
                 $stock_comment, 
                 $isLeader, 
+                $isWatchlist, 
                 $date
             );
 

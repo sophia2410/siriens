@@ -139,7 +139,7 @@ function render_issue_register_form($dateParam = null, $issueParam = null, $newI
             });
         }
 
-        function IssueRegisterForm_AddStock(stockIndex, code = '', name = '', comment = '', isLeader = '', sector = '') {
+        function IssueRegisterForm_AddStock(stockIndex, code = '', name = '', comment = '', isLeader = '', isWatchlist = '', sector = '') {
             const container = document.getElementById('issue_register_stocks_container');
             const newStock = document.createElement('div');
             newStock.className = 'issue_register_stock_item';
@@ -150,6 +150,9 @@ function render_issue_register_form($dateParam = null, $issueParam = null, $newI
                     <input type="text" name="stocks[${stockIndex}][sector]" value="${sector}" placeholder="섹터" style="flex: 1; margin-right: 10px;" autocomplete="off">
                     <label style="margin-left: 10px;">
                         <input type="checkbox" name="stocks[${stockIndex}][is_leader]" ${isLeader ? 'checked' : ''}> 주도주
+                    </label>
+                    <label style="margin-left: 10px;">
+                        <input type="checkbox" name="stocks[${stockIndex}][is_watchlist]" ${isWatchlist ? 'checked' : ''}> 관심
                     </label>
                     <button type="button" onclick="IssueRegisterForm_RemoveStock(this)" style="margin-left: 10px;">삭제</button>
                 </div>
@@ -173,6 +176,7 @@ function render_issue_register_form($dateParam = null, $issueParam = null, $newI
                 item.querySelector('input[name^="stocks"][name$="[code]"]').name = `stocks[${index}][code]`;
                 item.querySelector('input[name^="stocks"][name$="[comment]"]').name = `stocks[${index}][comment]`;
                 item.querySelector('input[name^="stocks"][name$="[is_leader]"]').name = `stocks[${index}][is_leader]`;
+                item.querySelector('input[name^="stocks"][name$="[is_watchlist]"]').name = `stocks[${index}][is_watchlist]`;
             });
         }
 
@@ -212,7 +216,8 @@ function render_issue_register_form($dateParam = null, $issueParam = null, $newI
                         container.empty();
                         data.stocks.forEach((stock, index) => {
                             const isLeader = stock['is_leader'] === '1' ? true : false;
-                            IssueRegisterForm_AddStock(index, stock.code, stock.name, stock.stock_comment, isLeader, stock.sector);
+                            const isWatchList = stock['is_watchlist'] === '1' ? true : false;
+                            IssueRegisterForm_AddStock(index, stock.code, stock.name, stock.stock_comment, isLeader, isWatchList, stock.sector);
                         });
                         IssueRegisterForm_ReindexStockFields();
                     }

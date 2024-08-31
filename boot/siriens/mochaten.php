@@ -55,13 +55,13 @@ if(isset($_GET['mainF'])) {
 		</td>
 		<td style='width:87%' rowspan=2 valign=top>
 			<div style="margin: 0; border: 0; font: inherit;vertical-align: baseline; padding: 0;height: calc(100vh - 100px);">
-				<iframe id="iframeR" style="width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 30px);" src="../watchlist/viewChart.php?pgmId=mochaten&mochaten_date=<?=$mochaten_date?>">
+				<iframe id="iframeR" style="width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 30px);" src="">
 				</iframe>
 			</div>
 		</td>
 	</tr>
 	<tr>
-	<td>
+		<td>
 			<div style="margin: 0; border: 0; font: inherit;vertical-align: baseline; padding: 0;height: calc(100vh - 100px);">
 				<iframe id="iframeL" style="width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 100px);" src="mochaten_L.php">
 				</iframe>
@@ -87,9 +87,6 @@ function searchMochaten(code) {
 
 	brWidth = window.innerWidth;
 	iframeL.src = "mochaten_L.php?mochaten_date="+key_val+"&brWidth="+brWidth;
-
-	showC();
-
 	return;
 }
 
@@ -97,15 +94,6 @@ function searchMochaten(code) {
 function viewMochaten(date, cd, nm) {
 	brWidth = window.innerWidth;
 	iframeR.src = "mochaten_R.php?mochaten_date="+date+"&code="+cd+"&name="+nm+"&brWidth="+brWidth;
-	return;
-}
-
-// 기간 관종 차트 모아보기
-function showC() {
-	key_val  = document.getElementById('mochaten_date').options[document.getElementById("mochaten_date").selectedIndex].value;
-
-	pgmId = 'mochaten';
-	iframeR.src = "../watchlist/viewChart.php?pgmId="+pgmId+"&mochaten_date="+key_val;
 	return;
 }
 </script>

@@ -31,7 +31,7 @@ def main():
 	cur = conn.cursor()
 	
 	sql = "SELECT max(date) date FROM calendar a WHERE date <= (select DATE_FORMAT(now(), '%Y%m%d'))"
-	# sql = "SELECT date FROM calendar a WHERE date = '20240814'"
+	# sql = "SELECT date FROM calendar a WHERE date = '20240829'"
 	
 	df = pd.read_sql(sql, conn)
 	date = df['date'].values[0].decode('utf-8')
@@ -57,6 +57,11 @@ def main():
 	# 사용변수 일부 초기화
 	hf = '';
 	file=open("signal.txt", "w", encoding="utf-8")
+	
+	for p_tag in soup.find_all("p"):
+		if "네이버 톡톡" in p_tag.text:
+			p_tag.decompose()
+
 	for content in soup.find_all("p", class_="se-text-paragraph se-text-paragraph-align-"):
 
 		#그룹, 종목 정보 가져오기

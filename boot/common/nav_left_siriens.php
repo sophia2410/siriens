@@ -81,14 +81,14 @@ if($_SERVER["HTTP_HOST"] == 'localhost') {
 
             <!-- Nav Item -->
             <li class="nav-item">
-                <a class="nav-link" href="<?=$PATH?>siriens/xrayTick_Analysis.php">
+                <a class="nav-link" href="<?=$PATH?>watchlist/xrayTick_Analysis.php">
                     <i class="fas fa-fw fa-book"></i>
                     <span>Analysis</span></a>
             </li>
 
             <!-- Nav Item -->
             <li class="nav-item">
-                <a class="nav-link" href="<?=$PATH?>siriens/xrayTick_Stock.php">
+                <a class="nav-link" href="<?=$PATH?>watchlist/xrayTick_Stock.php">
                     <i class="fas fa-fw fa-book"></i>
                     <span>A Stock</span></a>
             </li>
@@ -137,13 +137,6 @@ if($_SERVER["HTTP_HOST"] == 'localhost') {
                     <i class="fas fa-fw fa-gift"></i>
                     <span>aStar WatchList </span></a>
             </li>
-
-            <!-- Nav Item -->
-            <li class="nav-item">
-                <a class="nav-link" href="<?=$PATH?>signalDeep/findKeyword.php">
-                    <i class="fas fa-fw fa-book"></i>
-                    <span>Search Keyword</span></a>
-            </li>
             
             <!-- Divider -->
             <hr class="sidebar-divider d-none d-md-block">
@@ -174,6 +167,13 @@ if($_SERVER["HTTP_HOST"] == 'localhost') {
 
 
             <!-- 미사용메뉴 -->
+
+            <!-- Nav Item -->
+            <!-- <li class="nav-item">
+                <a class="nav-link" href="<?=$PATH?>signalDeep/findKeyword.php">
+                    <i class="fas fa-fw fa-book"></i>
+                    <span>Search Keyword</span></a>
+            </li> -->
 
             <!-- Nav Item -->
             <!-- <li class="nav-item">

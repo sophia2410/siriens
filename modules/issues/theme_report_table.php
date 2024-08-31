@@ -1,11 +1,9 @@
 <?php
 // table_view.php
-
-require($_SERVER['DOCUMENT_ROOT']."/boot/common/top.php");
-require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
+require($_SERVER['DOCUMENT_ROOT']."/modules/common/common_header_sub.php");
 
 $endDate = date('Ymd', time());
-$startDate = date('Ymd', strtotime('-14 days', time()));
+$startDate = date('Ymd', strtotime('-20 days', time()));
 
 // Fetch themes with occurrence count and sorted by the latest date and occurrence count
 $theme_query = "
@@ -17,6 +15,8 @@ $theme_query = "
         mis.code AS stock_code, 
         mis.close_rate, 
         mis.trade_amount,
+        mis.is_leader,
+        mis.is_watchlist,
         COUNT(mi.date) OVER (PARTITION BY mi.theme) AS occurrence_count  -- 테마별 발생 건수 계산
     FROM 
         market_issues mi
@@ -29,10 +29,11 @@ $theme_query = "
     AND 
         (mis.trade_amount > 500 or mis.close_rate > 10)
     ORDER BY 
-        mi.date ASC,  -- 종목이 나타난 일자 순으로 정렬
         CASE WHEN mi.theme != '' THEN MAX(mi.date) OVER (PARTITION BY mi.theme) ELSE 0 END DESC,  -- 테마의 최신 날짜 순으로 정렬
-        occurrence_count DESC;  -- 발생 건수 순으로 정렬";
-
+        mi.date ASC,  -- 종목이 나타난 일자 순으로 정렬
+        occurrence_count DESC,  -- 발생 건수 순으로 정렬
+        close_rate DESC;  -- 등락률 높은 순으로 정렬";
+Database_logQuery($theme_query, [$startDate, $endDate]);
 $theme_result = $mysqli->query($theme_query);
 
 $themes = [];
@@ -46,6 +47,8 @@ while ($row = $theme_result->fetch_assoc()) {
     $keyword_group_name = $row['keyword_group_name'];
     $stock_code = $row['stock_code'];
     $stock_name = $row['stock_name'];
+    $is_leader = $row['is_leader'];
+    $is_watchlist = $row['is_watchlist'];
 
     // Initialize the theme if not already set
     if (!isset($themes[$theme])) {
@@ -68,6 +71,10 @@ while ($row = $theme_result->fetch_assoc()) {
         'stock_name' => $stock_name . $stock_appearance_order[$stock_code],  // Append the appearance order to the stock name
         'close_rate' => number_format($row['close_rate'], 2) . "%",
         'trade_amount' => number_format($row['trade_amount']) . "억",
+        'close_rate_css' => $row['close_rate'],
+        'trade_amount_css' => $row['trade_amount'],
+        'is_leader' => $is_leader,
+        'is_watchlist' => $is_watchlist,
     ];
 
     // 날짜 저장
@@ -87,33 +94,6 @@ rsort($dates);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>테마 및 데이터 보기</title>
     <style>
-        body, html {
-            margin: 0;
-            padding: 0;
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 5px 0;
-            border: 2px solid #444;
-        }
-
-        th, td {
-            border: 1px solid #888;
-            padding: 8px;
-            text-align: left;
-            vertical-align: top;
-        }
-
-        th {
-            background-color: #f0f0f0;
-            font-weight: bold;
-            text-align: center;
-        }
-
         .theme-cell {
             font-weight: bold;
             background-color: #e0e0e0;
@@ -156,8 +136,18 @@ rsort($dates);
                             <?php if (isset($data[$date])): ?>
                                 <?php foreach ($data[$date] as $entry): ?>
                                     <div>
-                                        <?= htmlspecialchars($entry['stock_name']) ?>
-                                        (<?= htmlspecialchars($entry['close_rate']) ?>, <?= htmlspecialchars($entry['trade_amount']) ?>)
+                                        <?php
+                                        // 주도주 표시
+                                        $leaderClass = ($entry['is_leader'] === '1') ? 'leader' : '';
+                                        // 관심종목 표시
+                                        $watchListClass = ($entry['is_watchlist'] === '1') ? 'watchlist' : '';
+                                        // 등락률 따른 스타일 클래스
+                                        $closeRateClass = Utility_GetCloseRateClass($entry['close_rate_css']);
+                                        // 금액에 따른 스타일 클래스
+                                        $amountClass = Utility_GetAmountClass($entry['trade_amount_css']);
+                                        ?>
+                                        <span class="<?= $watchListClass ?> <?= $leaderClass ?>"><?= htmlspecialchars($entry['stock_name']) ?></span>
+                                        (<span class="<?= $closeRateClass ?>"><?= htmlspecialchars($entry['close_rate']) ?></span>, <span class="<?= $amountClass ?>"><?= htmlspecialchars($entry['trade_amount']) ?></span>)
                                     </div>
                                 <?php endforeach; ?>
                             <?php endif; ?>

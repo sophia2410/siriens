@@ -79,7 +79,8 @@ function viewChart(sector, theme) {
 // 문서 이미지 선택 시 오른쪽 프레임에 차트 + Xray 체결 보기
 function xrayTick(sector, theme) {
 	brWidth = window.innerWidth;
-	iframeR.src = "../siriens/xrayTick_StockList.php?pgmId=astarWatchlist&sector="+sector+"&theme="+theme+"&brWidth="+brWidth;
+	pgmId = 'aStarWatchlist';
+	iframeR.src = "../watchlist/xrayTick_StockList.php?pgmId="+pgmId+"&sector="+sector+"&theme="+theme+"&brWidth="+brWidth;
 	return;
 }
 </script>

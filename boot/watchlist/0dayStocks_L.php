@@ -69,7 +69,7 @@ $result = $mysqli->query($query);
 	while($row = $result->fetch_array(MYSQLI_BOTH)) {
 		$watchlist_date = $row['date'];
 		if($pre_watchlist_date != $row['date']) {
-			echo "<tr class='table-danger text-dark' align=left><th colspan=4>[+] <b><a href=\"javascript:callFrameRD('".$row['date']."')\">".$row['watchlist_date_str']."</b></a>&nbsp; ";
+			echo "<tr class='table-danger text-dark' align=left><th colspan=4>[+] <b>".$row['watchlist_date_str']."</b>&nbsp; ";
 			echo "(코스피: ".$row['kospi_index']." , 코스닥: ".$row['kosdaq_index'].") ";
 			echo "<a href=\"javascript:callviewChart('".$row['date']."', '$increase_rate')\"><img style='width:24px; height:24px; border:solid thin' src='https://siriens.mycafe24.com/image/view_chart.png'></a> ";
 			echo "<a href=\"javascript:callxrayTick('".$row['date']."', '$increase_rate')\"><img style='width:24px; height:24px; border:solid thin' src='https://siriens.mycafe24.com/image/view_review.png'></a></th></tr>";
@@ -116,11 +116,6 @@ $result = $mysqli->query($query);
 // parent 함수 호출, 오른쪽 프레임 종목정보 표시
 function callFrameRS(wdate, sdate, cd, nm) {
 	window.parent.viewStock(wdate, sdate, cd, nm);
-}
-
-// parent 함수 호출, 오른쪽 프레임 일자별 내용 표시
-function callFrameRD(date, cd, nm, idx) {
-	window.parent.viewDay(date, cd, nm, idx);
 }
 
 // parent 함수 호출, 오른쪽 프레임 일자별 내용 표시

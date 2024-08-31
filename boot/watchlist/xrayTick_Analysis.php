@@ -75,7 +75,7 @@ $result = $mysqli->query($query);
 <div class="flex-container">
     <div class="left">
         &nbsp;
-		<select id="search_date" class="select">
+        <select id="search_date" class="select">
         <?php
             $query = "SELECT date, 
                              CASE WHEN B.watchlist_date IS NULL THEN '' ELSE '(Y)' END regi_watchlist
@@ -97,32 +97,44 @@ $result = $mysqli->query($query);
             }
             echo $option;
         ?>
-		</select>
-		<input type=checkbox id='highchartview' checked> Highchart 바로보기 &nbsp;
+        </select>
+
+        <label>
+            <input type="radio" name="chartview" id="naverChart" value="NaverChart"> NaverChart
+        </label>
+        <label>
+            <input type="radio" name="chartview" id="highChart" value="HighChart" checked> HighChart
+        </label>
+        / &nbsp;
+        <input type=checkbox id='highchartview'> Highchart 바로보기 &nbsp;
+        <button type="button" class="btn btn-danger btn-sm" onclick="xrayTick('IPOstock')">신규주</button>
         <button type="button" class="btn btn-danger btn-sm" onclick="xrayTick('0dayStocks','29.5', '0')">상한가</button>
         <button type="button" class="btn btn-danger btn-sm" onclick="xrayTick('0dayStocks','20','2000')">20% || 2000억↑</button>
         <button type="button" class="btn btn-danger btn-sm" onclick="xrayTick('0dayStocks','0','0')">0일차모음</button>
         <button type="button" class="btn btn-danger btn-sm" onclick="xrayTick('mochaten')">모차십</button>
-        <button type="button" class="btn btn-danger btn-sm" id="watchlistThemeButton">최근테마(관.종)</button>
-        <button type="button" class="btn btn-danger btn-sm" id="marketIssuesThemeButton">최근테마(마켓이슈)</button>
-        <button type="button" class="btn btn-danger btn-sm" onclick="xrayTick('sophiaWatchlist','2 최근0일차☆','')">최근0일차(관.종)</button>
+        <button type="button" class="btn btn-danger btn-sm" id="watchlistThemeButton">테마(옵시디언)</button>
+        <button type="button" class="btn btn-danger btn-sm" id="marketIssuesThemeButton">테마(마켓이슈)</button>
+        <button type="button" class="btn btn-danger btn-sm" onclick="xrayTick('marketIssueWatchlist')">관종(마켓이슈)</button>
         <button type="button" class="btn btn-danger btn-sm" onclick="xrayTick('xraytick')">조회일자</button> &nbsp; 
         <input type=text id=buy_cnt style='width:30px' value=6>건/<input type=text id=buy_period style='width:30px' value=10>일내
         <input type=checkbox id='0dayview' checked> 0일차포함 &nbsp;
-        <button type="button" class="btn btn-danger btn-sm" onclick="xrayTick('buy_streak')">연속매수</button> &nbsp;
+        <button type="button" class="btn btn-danger btn-sm" onclick="xrayTick('buyStreak')">연속매수</button> &nbsp;
 
-        <select id="status_cd" class="select" onchange="xrayTick('chart_status')">
-            <?php echo $status_options; ?>
-        </select>">연속매수</button> 
-
-        <select id="frequency" class="select" onchange="xrayTick('frequency')">
+        <select id="status_cd" class="select" onchange="xrayTick('chartStatus')">
             <?php echo $status_options; ?>
         </select>
+
+        <!-- 발생빈도를 보려고 한것 같은데.. 일단 보류.. 24.08.31 -->
+        <!-- <select id="frequency" class="select" onchange="xrayTick('frequency')">
+            <?php echo $status_options; ?>
+        </select> -->
 
     </div>
     <div class="right">
     <button type="button" class="btn btn-info btn-sm" onclick="comment_save()">코멘트 저장</button> 
-        <button type="button" class="btn btn-info btn-sm" id="excel_down">관종엑셀 다운로드</button>
+
+    <!-- Naver 차트 보기에 기능이 있어 우선 막아둠 24.08.31 -->
+    <!-- <button type="button" class="btn btn-info btn-sm" id="excel_down">관종엑셀 다운로드</button> -->
     </div>
 </div>
 <div id="sectorContainer" class="sector-list" style="display:none;"></div>
@@ -201,7 +213,7 @@ function displayThemes(themes, source) {
     container.empty(); // Clear existing content
 
     // Determine the correct parameters for xrayTick based on the source
-    var tickType = source === 'market_issues' ? 'market_issue' : 'sophiaWatchlist';
+    var tickType = source === 'market_issues' ? 'marketIssue' : 'sophiaWatchlist';
 
     themes.forEach(function(theme) {
         var sector = source === 'market_issues' ? theme.type : '1 최근테마☆';
@@ -229,26 +241,6 @@ function displayThemes(themes, source) {
     });
 }
 
-// // Function to display themes as buttons
-// function displayThemes(themes, source) {
-//     var container = $('#sectorContainer');
-//     container.empty();
-
-//     // Determine the correct parameters for xrayTick based on the source
-//     var tickType = source === 'market_issues' ? 'market_issue' : 'sophiaWatchlist';
-//     var sector = source === 'market_issues' ? '' : '1 최근테마☆';
-
-//     themes.forEach(function(theme) {
-//         var themeButton = $('<button>')
-//             .addClass('btn btn-secondary btn-sm sector-item')
-//             .text(theme.name)
-//             .attr('type', 'button')
-//             .attr('onclick', `xrayTick('${tickType}', '${sector}', '${theme.name}')`);
-
-//         container.append(themeButton);
-//     });
-// }
-
 function selectSector(id, name) {
     console.log('Selected Sector ID: ' + id + ', Name: ' + name);
     // 선택된 섹터에 대한 추가 작업을 여기에서 수행할 수 있습니다.
@@ -256,24 +248,27 @@ function selectSector(id, name) {
 
 // 순간체결 데이터 조회하기
 function xrayTick(pgmId, key1='', key2='') {
-	search_date  = document.getElementById('search_date').options[document.getElementById("search_date").selectedIndex].value;
+    search_date  = document.getElementById('search_date').options[document.getElementById("search_date").selectedIndex].value;
+
     if(document.getElementById('highchartview').checked == true) highchartview  = 'Y';
     else highchartview  = 'N';
-
+    
     if(pgmId == '0dayStocks') {
         parm = "&increase_rate=" + key1 + "&trade_amt=" + key2;
     } else if(pgmId == 'mochaten') {
         parm = "";
-    } else if(pgmId == 'sophiaWatchlist' || pgmId == 'market_issue') {
+    } else if(pgmId == 'IPOstock') {
+        parm = "";
+    } else if(pgmId == 'sophiaWatchlist' || pgmId == 'marketIssue') {
         parm = "&sector=" + key1 + "&theme=" + key2;
     } else if(pgmId == 'xraytick') {
         parm = "";
-    } else if(pgmId == 'buy_streak') {
+    } else if(pgmId == 'buyStreak') {
         buy_cnt    = document.getElementById('buy_cnt').value;
         buy_period = document.getElementById('buy_period').value;
         zeroday_view = document.getElementById('0dayview').checked;
         parm = "&buy_cnt=" + buy_cnt + "&buy_period=" + buy_period + "&zeroday_view=" + zeroday_view;
-    } else if(pgmId == 'chart_status'){
+    } else if(pgmId == 'chartStatus'){
         status_cd  = document.getElementById('status_cd').options[document.getElementById("status_cd").selectedIndex].value;
         parm = "&chart_status=" + status_cd;
     } else if(pgmId == 'frequency'){
@@ -281,18 +276,31 @@ function xrayTick(pgmId, key1='', key2='') {
         parm = "&frequency=" + frequency;
     }
 
-    if(highchartview == 'Y')
+
+    
+    // 라디오 버튼의 값에 따라 chartview 변수 설정
+    let chartview = '';
+    if (document.getElementById('naverChart').checked) {
+        chartview = 'NaverChart';
+    } else if (document.getElementById('highChart').checked) {
+        chartview = 'HighChart';
+    }
+    // chartview 값에 따라 iframe의 src 설정
+    if (chartview === 'NaverChart') {
+        iframeB.src = "viewChart.php?pgmId=" + pgmId + "&search_date=" + search_date + parm;
+    } else if (chartview === 'HighChart') {
         iframeB.src = "xrayTick_HighchartView.php?pgmId=" + pgmId + "&search_date=" + search_date + parm;
-    else
+    } else {
         iframeB.src = "xrayTick_StockList.php?pgmId=" + pgmId + "&search_date=" + search_date + parm;
+    }
+
     return;
 }
-
 
 // 코멘트 저장
 function comment_save() {
     document.getElementById("iframeB").contentWindow.saveComment();
-	return;
+    return;
 }
 
 </script>
