@@ -20,7 +20,7 @@ $result = $mysqli->query($query);
 	
 <?php
 if(isset($_GET['mainF'])) {
-	require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
+	require($_SERVER['DOCUMENT_ROOT']."/modules/common/common_nav_menu.php");
 } else {
 	require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_share.php");
 }

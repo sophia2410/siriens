@@ -228,7 +228,7 @@ while ($row = $result->fetch_assoc()) {
 <div id="wrapper">
 
 <?php
-require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
+require($_SERVER['DOCUMENT_ROOT']."/modules/common/common_nav_menu.php");
 ?>
 
 <!-- Left Content Wrapper -->
@@ -242,7 +242,7 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
             <?php endforeach; ?>
         </select>
         <input type="button" class="btn btn-danger btn-sm" value="조회" onclick="search()">
-        <span id="evening_subject"></span>
+        <span id="evening_report_title"></span>
     </div>
 
     <h2>Issues and Stocks for <?= $date ?></h2>

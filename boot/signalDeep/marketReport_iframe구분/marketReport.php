@@ -51,7 +51,7 @@
             border: 1px solid #ccc;
             border-radius: 5px;
         }
-        #evening_subject {
+        #evening_report_title {
             margin-left: 10px;
         }
     </style>
@@ -61,12 +61,12 @@
             document.getElementById('leftFrame').src = 'marketReport_L.php?report_date=' + selectedDate;
             document.getElementById('rightFrame').src = 'marketReport_R.php?report_date=' + selectedDate;
 
-            // AJAX request to get evening_subject
+            // AJAX request to get evening_report_title
             var xhr = new XMLHttpRequest();
-            xhr.open('GET', 'api.php?action=get_evening_subject&report_date=' + selectedDate, true);
+            xhr.open('GET', 'api.php?action=get_evening_report_title&report_date=' + selectedDate, true);
             xhr.onreadystatechange = function() {
                 if (xhr.readyState == 4 && xhr.status == 200) {
-                    document.getElementById('evening_subject').innerText = xhr.responseText;
+                    document.getElementById('evening_report_title').innerText = xhr.responseText;
                 }
             };
             xhr.send();
@@ -88,7 +88,7 @@
 <div id="wrapper">
 
 <?php
-require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
+require($_SERVER['DOCUMENT_ROOT']."/modules/common/common_nav_menu.php");
 ?>
 
 <!-- Content Wrapper -->
@@ -104,7 +104,7 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
             <?php endforeach; ?>
         </select>
         <input type="button" class="btn btn-danger btn-sm" value="조 회" onclick="search()">
-        <span id="evening_subject"></span>
+        <span id="evening_report_title"></span>
     </div>
 
         <div class="split left">

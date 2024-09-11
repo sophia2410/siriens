@@ -22,8 +22,8 @@ def job():
     except Exception as e:
         logging.error(f"크롤링 작업 중 오류 발생: {e}")
 
-# 작업 시작 스케줄 설정 (매일 9시 5분에 시작)
-schedule.every().day.at("09:00").do(lambda: schedule.every(5).minutes.do(job))
+# 작업 시작 스케줄 설정 (매일 9시 3분에 시작)
+schedule.every().day.at("09:00").do(lambda: schedule.every(3).minutes.do(job))
 
 # 작업 중지 스케줄 설정 (매일 3시 35분에 종료)
 def stop_job():
@@ -32,7 +32,7 @@ def stop_job():
 
 schedule.every().day.at("15:35").do(stop_job)
 
-logging.info("스케줄러 시작. 9시 5분에 시작하고 3시 35분에 종료합니다.")
+logging.info("스케줄러 시작. 9시 3분 시작, 3시 35분에 종료. 3분간격")
 
 while True:
     schedule.run_pending()

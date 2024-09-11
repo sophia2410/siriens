@@ -1,18 +1,16 @@
 <?php
-	// 화면에서 일자 등 정보 클릭 시 해당 일자 그래프를 바로 보는 여러가지 버전을 시도했으나 속도 이슈로 중단. 현재는 팝업이 최선. // 24.06.28
-	
-	// 종목정보
-	$code = isset($_GET['code']) ? $_GET['code'] : '';
-	$name = isset($_GET['name']) ? $_GET['name'] : ''; 
+// 화면에서 일자 등 정보 클릭 시 해당 일자 그래프를 바로 보는 여러가지 버전을 시도했으나 속도 이슈로 중단. 현재는 팝업이 최선. // 24.06.28
 
-	$pageTitle = "실시간 1Month-$name";
-	
-	require($_SERVER['DOCUMENT_ROOT']."/boot/common/top.php");
-	require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
-	require("xrayTick_queries.php");
-?>
+// 종목정보
+$code = isset($_GET['code']) ? $_GET['code'] : '';
+$name = isset($_GET['name']) ? $_GET['name'] : ''; 
 
-<?php
+$pageTitle = "실시간 1Month-$name";
+
+require($_SERVER['DOCUMENT_ROOT']."/boot/common/top.php");
+require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
+require("xrayTick_queries.php");
+	
 $pgmId = (isset($_GET['pgmId'])) ? $_GET['pgmId'] : '';
 
 $search_date   = (isset($_GET['search_date'])  ) ? $_GET['search_date']   : date('Ymd');
@@ -41,6 +39,12 @@ $trade_qry = $result_trade['query'];
 $trade_table = $result_trade['table'];
 $today = $result_trade['today'];
 ?>
+
+<style>
+    th, td {
+        padding: .2rem !important;
+    }
+</style>
 
 <body>
 <form name="form1" method='POST' action='xrayTick_script.php' onsubmit="return false">
@@ -187,11 +191,11 @@ if($pgmId == '') {
 		echo "<td width=60%>$today_issue</td></tr><tr><td>";
 
 		// X-RAY 순간체결 거래량 쿼리 실행
-		$query2 = "SELECT cal.date, SUBSTR(STR_TO_DATE(cal.date, '%Y%m%d'),6) date_str, xray.close_rate, xray.tot_trade_amt, xray.amount, xray.cnt
+		$query2 = "SELECT cal.date, SUBSTR(STR_TO_DATE(cal.date, '%Y%m%d'),6) date_str, xray.close_rate, xray.high_rate, xray.low_rate, xray.tot_trade_amt, xray.amount, xray.cnt
 					FROM calendar cal
 					LEFT OUTER JOIN 
 						(
-							SELECT xr.code, xr.name, xr.date, dp.close_rate close_rate, round(dp.amount/100000000,0) tot_trade_amt, round(xr.tot_amt/100000000,1) amount,  xr.tot_cnt cnt
+							SELECT xr.code, xr.name, xr.date, dp.close_rate, dp.high_rate, dp.low_rate, round(dp.amount/100000000,0) tot_trade_amt, round(xr.tot_amt/100000000,1) amount,  xr.tot_cnt cnt
 							FROM kiwoom_xray_tick_summary  xr
 							LEFT OUTER JOIN daily_price dp
 							ON dp.date = xr.date
@@ -208,12 +212,13 @@ if($pgmId == '') {
 		// 종목 X-RAY 체결량 표시 - 변수 초기화
 		$xray_date = "";
 		$xray_close_rate = "";
+		$xray_highlow_rate = "";
 		$xray_tot_amount = "";
 		$xray_amount = "";
 		$xray_cnt = "";
 
 		while($row = $result2->fetch_array(MYSQLI_BOTH)) {
-			$xray_date .= "<th align=center style='width:80px; height: 30px;'><a href=\"javascript:openPopupXrayTick('{$code}', '".$row['date']."')\">". $row['date_str']."</a></th>";
+			$xray_date .= "<th align=center style='width:80px; height:25px;'><a href=\"javascript:openPopupXrayTick('{$code}', '".$row['date']."')\">". $row['date_str']."</a></th>";
 			
 			if($row['cnt'] > 0) {
 
@@ -235,18 +240,20 @@ if($pgmId == '') {
 
 				// xray 거래대금에 따라 스타일 적용
 				if($row['amount'] > 500)
-					$amt_style = "mark text-danger font-weight-bold h6";
+					$amt_style = "mark text-danger font-weight-bold";
 				else if($row['amount'] > 100)
-					$amt_style = "text-danger font-weight-bold h6";
+					$amt_style = "text-danger font-weight-bold";
 				else
 					$amt_style = "font-weight-bold";
 
-				$xray_close_rate.= "<td align=center style='width:80px; height: 30px;' {$rate_style}>". $row['close_rate']."%</td>";
-				$xray_tot_amount.= "<td align=center style='width:80px; height: 30px;{$tot_amt_style}'>". number_format($row['tot_trade_amt'])."억</td>";
-				$xray_cnt       .= "<td align=center style='width:80px; height: 30px;'>". number_format($row['cnt'])."건</td>";
-				$xray_amount    .= "<td align=center style='width:80px; height: 30px;' class='"."$amt_style"."'>". number_format($row['amount'])."억</td>";
+				$xray_close_rate.= "<td align=center style='width:80px; height: 25px;' {$rate_style}>". $row['close_rate']."%</td>";
+				$xray_highlow_rate.= "<td align=center style='width:80px; height: 25px; font-size:10px'>{$row['high_rate']} / {$row['low_rate']}</td>";
+				$xray_tot_amount.= "<td align=center style='width:80px; height: 25px;{$tot_amt_style}'>". number_format($row['tot_trade_amt'])."억</td>";
+				$xray_cnt       .= "<td align=center style='width:80px; height: 25px;'>". number_format($row['cnt'])."건</td>";
+				$xray_amount    .= "<td align=center style='width:80px; height: 25px;' class='"."$amt_style"."'>". number_format($row['amount'])."억</td>";
 			} else {
 				$xray_close_rate.= "<td align=center>-</td>";
+				$xray_highlow_rate.= "<td align=center>-</td>";
 				$xray_tot_amount.= "<td align=center>-</td>";
 				$xray_cnt       .= "<td align=center>-</td>";
 				$xray_amount    .= "<td align=center>-</td>";
@@ -257,6 +264,7 @@ if($pgmId == '') {
 		echo "<table class='table table-sm table-bordered small text-dark' style='table-layout: fixed;' >";
 		echo "<tr align=center style='background-color:#fdf9f5;'>".$xray_date."</tr>";
 		echo "<tr align=center>".$xray_close_rate."</tr>";
+		echo "<tr align=center>".$xray_highlow_rate."</tr>";
 		echo "<tr align=center>".$xray_tot_amount."</tr>";
 		echo "<tr align=center><td colspan=100></td></tr>";
 		echo "<tr align=center>".$xray_cnt."</tr>";
@@ -294,7 +302,7 @@ if($pgmId == '') {
 			<input type='hidden' name=name$d value='$stock_name'>
 			<div class='form-group' style='display: flex; align-items: center;'>
 				<input type=checkbox name=pick_yn$d value='Y' style='margin-right: 10px;'>
-				<textarea class='form-control' style='display:flex' id=comment$d name=comment$d rows='2'>$comment</textarea>
+				<textarea class='form-control' style='display:flex' id=comment$d name=comment$d rows='1'>$comment</textarea>
 			</div>";
 
 		

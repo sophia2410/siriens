@@ -104,6 +104,7 @@ def handle_stocks(cursor, issue_id, stocks, date, sector):
         name = stock['name']
         stock_comment = stock['comment']
         is_leader = '1' if stock.get('is_leader') else '0'
+        is_watchlist = '1' if stock.get('is_watchlist') else '0'
 
         # 주식 코드를 stock 테이블에서 가져옴
         cursor.execute("SELECT code FROM stock WHERE name = %s AND last_yn = 'Y'", (name,))
@@ -121,10 +122,10 @@ def handle_stocks(cursor, issue_id, stocks, date, sector):
         # 쿼리 및 파라미터를 출력하여 디버깅
         query = """
             INSERT INTO market_issue_stocks 
-            (issue_id, code, name, close_rate, volume, trade_amount, stock_comment, is_leader, sector, date, create_dtime) 
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+            (issue_id, code, name, close_rate, volume, trade_amount, stock_comment, is_leader, is_watchlist, sector, date, create_dtime) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
         """
-        params = (issue_id, code, name, close_rate, volume, trade_amount, stock_comment, is_leader, sector, date)
+        params = (issue_id, code, name, close_rate, volume, trade_amount, stock_comment, is_leader, is_watchlist, sector, date)
         # print(f"Executing query: {query} with params: {params}")
         
         try:
@@ -167,7 +168,12 @@ def process_issues(db, df):
 
             # 주식 데이터를 처리
             stocks = [
-                {'name': row.get(f'종목명'), 'comment': row.get(f'종목 코멘트'), 'is_leader': row.get(f'주도주여부')}
+                {
+                    'name': row.get(f'종목명'), 
+                    'comment': row.get(f'종목 코멘트'), 
+                    'is_leader': row.get(f'주도주여부'),
+                    'is_watchlist': row.get(f'관심종목여부')  # 관심종목여부 추가
+                }
             ]
             sector = row.get('섹터', '')  # 섹터는 market_issue_stocks 테이블에 추가
             handle_stocks(cursor, issue_id, stocks, date, sector)

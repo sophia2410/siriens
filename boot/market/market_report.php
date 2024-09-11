@@ -203,7 +203,7 @@ while($row = $stocks_20_result->fetch_assoc()) {
 <div id="wrapper">
 
 <?php
-require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
+require($_SERVER['DOCUMENT_ROOT']."/modules/common/common_nav_menu.php");
 ?>
 
 <!-- Left Content Wrapper -->
@@ -216,7 +216,7 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
                 <option value="<?= $date['report_date'] ?>" <?= ($date['report_date'] == $report_date) ? 'selected' : '' ?>><?= $date['report_date_str'] ?></option>
             <?php endforeach; ?>
         </select>
-        <span id="evening_subject"></span>
+        <span id="evening_report_title"></span>
     </div>
 
     <!-- Main Content -->

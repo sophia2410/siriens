@@ -8,8 +8,10 @@ $startDate = date('Ymd', strtotime('-20 days', time()));
 // Fetch themes with occurrence count and sorted by the latest date and occurrence count
 $theme_query = "
     SELECT 
-        mi.theme, 
-        mi.date AS theme_date,  
+        CASE WHEN mi.theme != '' THEN mi.theme WHEN mis.sector != '' THEN mis.sector ELSE '미분류' END AS theme, -- 기존 theme로 분류해서 돌아가는 로직 활용하기 위해, theme 컬럼명 활용
+        CASE WHEN mi.theme != '' THEN 'theme' ELSE 'sector' END AS group_type, 
+        mi.date AS theme_date, 
+        mi.hot_theme, 
         kg.group_name AS keyword_group_name,
         mis.name AS stock_name, 
         mis.code AS stock_code, 
@@ -29,12 +31,39 @@ $theme_query = "
     AND 
         (mis.trade_amount > 500 or mis.close_rate > 10)
     ORDER BY 
+        CASE WHEN mi.theme != '' THEN 'theme' ELSE 'sector' END DESC, -- 테마 우선 정렬
         CASE WHEN mi.theme != '' THEN MAX(mi.date) OVER (PARTITION BY mi.theme) ELSE 0 END DESC,  -- 테마의 최신 날짜 순으로 정렬
-        mi.date ASC,  -- 종목이 나타난 일자 순으로 정렬
         occurrence_count DESC,  -- 발생 건수 순으로 정렬
+        mi.date ASC,  -- 종목이 나타난 일자 순으로 정렬
         close_rate DESC;  -- 등락률 높은 순으로 정렬";
-Database_logQuery($theme_query, [$startDate, $endDate]);
 $theme_result = $mysqli->query($theme_query);
+
+$index_query = "
+    SELECT 
+        market_fg, 
+        date, 
+        close_rate, 
+        ROUND(amount / 1000000000000, 2) AS amount_in_trillion  -- 거래대금을 천억 단위로 변환
+    FROM 
+        market_index 
+    WHERE 
+        date BETWEEN '$startDate' AND '$endDate'
+    AND 
+        market_fg IN ('KOSPI', 'KOSDAQ')
+    ORDER BY 
+        date ASC, market_fg ASC;
+";
+$index_result = $mysqli->query($index_query);
+
+$indices = [];
+while ($row = $index_result->fetch_assoc()) {
+    // Convert the date from YYYYMMDD to YYYY-MM-DD for consistency
+    $formatted_date = date('Y-m-d', strtotime($row['date']));
+    $indices[$formatted_date][$row['market_fg']] = [
+        'close_rate' => number_format($row['close_rate'], 2) . "%",
+        'amount' => number_format($row['amount_in_trillion'], 2) . "조",
+    ];
+}
 
 $themes = [];
 $dates = [];
@@ -94,6 +123,16 @@ rsort($dates);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>테마 및 데이터 보기</title>
     <style>
+        /* Fix the header */
+        thead th {
+            position: sticky;
+            top: 0;
+            background-color: white; /* Ensures the header has a background */
+            z-index: 2; /* Ensures the header stays above other content */
+            border-top: 3px solid #000;
+            box-shadow: 0 2px 5px -2px rgba(0, 0, 0, 0.15); /* 부드러운 그림자 추가 */
+        }
+
         .theme-cell {
             font-weight: bold;
             background-color: #e0e0e0;
@@ -101,7 +140,7 @@ rsort($dates);
         }
 
         .border-top-strong {
-            border-top: 4px solid #000;
+            border-top: 3px solid #000;
         }
 
         .group-cell {
@@ -114,9 +153,31 @@ rsort($dates);
 <table>
     <thead>
         <tr>
-            <th colspan=2>테마/일자</th>
+            <th colspan=2 class="theme-header">테마/일자</th>
             <?php foreach ($dates as $date): ?>
-                <th><?= date('m월 d일', strtotime($date)) ?></th>
+                <th>
+                    <?= date('m월 d일', strtotime($date)) ?>
+
+                    <div style="font-size: 0.9em;">
+                        <div style="margin-bottom: 5px;">
+                            <div style="font-weight: bold; color: <?= ($indices[$date]['KOSPI']['close_rate'][0] === '-') ? 'blue' : 'red'; ?>">
+                                KOSPI <?= $indices[$date]['KOSPI']['close_rate'] ?>
+                            </div>
+                            <div style="font-size: 0.8em; color: #666;">
+                                <?= $indices[$date]['KOSPI']['amount'] ?>
+                            </div>
+                        </div>
+                        <div style="border-top: 1px solid #eee; padding-top: 5px;">
+                            <div style="font-weight: bold; color: <?= ($indices[$date]['KOSDAQ']['close_rate'][0] === '-') ? 'blue' : 'red'; ?>">
+                                KOSDAQ <?= $indices[$date]['KOSDAQ']['close_rate'] ?>
+                            </div>
+                            <div style="font-size: 0.8em; color: #666;">
+                                <?= $indices[$date]['KOSDAQ']['amount'] ?>
+                            </div>
+                        </div>
+                    </div>
+                    
+                </th>
             <?php endforeach; ?>
         </tr>
     </thead>

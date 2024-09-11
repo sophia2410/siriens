@@ -17,7 +17,7 @@
                     <h2>Today Market Comment</h2>
                     <p>
                         <?php
-                         $query = "SELECT evening_subject comment FROM market_report WHERE report_date = '20240618'";
+                         $query = "SELECT evening_report_title comment FROM market_report WHERE report_date = '20240618'";
                         $result = $mysqli->query($query);
                         if ($result->num_rows > 0) {
                             $row = $result->fetch_assoc();

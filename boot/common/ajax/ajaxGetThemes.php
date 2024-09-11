@@ -10,28 +10,23 @@ $source = isset($_GET['source']) ? $_GET['source'] : 'market_issues';
 
 if ($source === 'watchlist_sophia') {
     // Fetch themes from watchlist_sophia
-    $query = "SELECT min(sort_theme) AS id, theme AS name FROM watchlist_sophia WHERE sector = '1 최근테마☆' GROUP BY theme ORDER BY sort_theme";
+    $query = "SELECT min(sort_theme) AS id, theme AS name FROM watchlist_sophia WHERE sector = '2 최근테마' GROUP BY theme ORDER BY sort_theme";
 } else {
     // Default to fetching themes from market_issues
-    $query = "SELECT DISTINCT 
-                CASE 
-                    WHEN mi.theme IS NOT NULL AND mi.theme != '' THEN mi.theme
-                    ELSE REPLACE(SUBSTRING_INDEX(kg.group_name, ' ', 1), '#', '')
-                END AS name,
+    $query = "SELECT 
+                CASE WHEN mi.theme != '' THEN mi.theme WHEN mis.sector != '' THEN mis.sector ELSE '미분류' END AS name,
                 MAX(mi.date) AS max_date,
                 MAX(mi.hot_theme) AS hot_theme,
-                CASE 
-                    WHEN mi.theme IS NOT NULL AND mi.theme != '' THEN 'theme'
-                    ELSE 'keyword'
-                END AS type
+                CASE  WHEN mi.theme IS NOT NULL AND mi.theme != '' THEN 'theme' ELSE 'sector' END AS type
             FROM 
                 market_issues mi
-            LEFT JOIN 
-                keyword_groups kg ON mi.keyword_group_id = kg.group_id
-            WHERE 
-                (mi.theme IS NOT NULL AND mi.theme != '') OR (kg.group_name IS NOT NULL AND kg.group_name != '')
+            JOIN 
+                market_issue_stocks mis ON mis.issue_id = mi.issue_id
+            WHERE
+                mi.date >= DATE_SUB(CURDATE(), INTERVAL 1 MONTH)
             GROUP BY 
-                name, type
+                CASE WHEN mi.theme != '' THEN mi.theme  ELSE mis.sector END,
+                CASE  WHEN mi.theme IS NOT NULL AND mi.theme != '' THEN 'theme' ELSE 'sector' END
             ORDER BY 
                 type DESC,
                 hot_theme DESC,

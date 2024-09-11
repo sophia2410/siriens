@@ -12,7 +12,7 @@ $theme = "";
 <div id="wrapper">
 
 <?php
-require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
+require($_SERVER['DOCUMENT_ROOT']."/modules/common/common_nav_menu.php");
 ?>
 
 <!-- Content Wrapper -->
@@ -23,7 +23,7 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
 	
 <form name="form1" method='POST' onsubmit="return false">
 <?php
-	$query = " SELECT A.date, B.evening_subject, IF(C.proc_cnt>0,'Y', 'N') proc_yn
+	$query = " SELECT A.date, B.evening_report_title, IF(C.proc_cnt>0,'Y', 'N') proc_yn
 				 FROM calendar A
 				 LEFT OUTER JOIN market_report B
 				   ON B.report_date = A.date
@@ -42,7 +42,7 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
 		} else {
 			$select = "";
 		}
-		$input_date .= "<option value='". $row['date']."' $select>". $row['date']." - ". $row['proc_yn']." - ".$row['evening_subject']."</option>";
+		$input_date .= "<option value='". $row['date']."' $select>". $row['date']." - ". $row['proc_yn']." - ".$row['evening_report_title']."</option>";
 	}
 	$input_date .= "</select> ";
 ?>

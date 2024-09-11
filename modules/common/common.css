@@ -18,55 +18,11 @@ body, html {
 #container {
     display: flex;
     height: 100vh;
-    margin-left: 100px;
+    margin-left: 100px !important;
     flex-direction: row;
     width: calc(100% - 100px);
     padding: 0;
     box-sizing: border-box;
-}
-
-/* 메뉴바 스타일 */
-#nav-menu {
-    width: 100px;
-    background-color: #e74c3c; /* 배경을 붉은색 계열로 설정 */
-    padding: 10px 0;
-    height: 100vh;
-    position: fixed;
-    top: 0;
-    left: 0;
-    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
-    font-family: 'Roboto', sans-serif; /* 얇고 선명한 폰트 사용 */
-}
-
-#nav-menu ul {
-    list-style-type: none;
-    padding: 0;
-    margin: 0;
-}
-
-#nav-menu ul li {
-    margin-bottom: 20px; /* 메뉴 아이템 간격 조절 */
-}
-
-#nav-menu ul li a {
-    display: flex;
-    align-items: center;
-    padding: 5px 15px;
-    text-decoration: none;
-    color: #ffffff; /* 텍스트 색상 흰색으로 설정 */
-    font-size: 14px; /* 글씨 크기 조정 */
-    font-weight: 300; /* 얇은 글씨체 적용 */
-    transition: background-color 0.3s, color 0.3s;
-}
-
-#nav-menu ul li a i {
-    margin-right: 10px;
-    font-size: 16px;
-}
-
-#nav-menu ul li a:hover {
-    background-color: #c0392b; /* 호버 시 더 어두운 붉은색 */
-    color: #ffffff;
 }
 
 /* 테이블 스타일 */
@@ -177,6 +133,12 @@ input[type="text"], input[type="date"], textarea {
 
 input[type="checkbox"] {
     margin-right: 5px;
+}
+
+hr {
+    border: none;
+    border-top: 2px solid #ccc;
+    margin: 20px 20px; /* 수평선 위아래 간격 */
 }
 
 /* 컨텐츠 영역 */

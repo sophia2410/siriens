@@ -287,20 +287,20 @@ if($_POST['proc_fg'] == 'D') {	// 뉴스삭제처리
 		// $mysqli->query($qry);
 	// 2023.09.23 주석 END------------------------------------------------------------------------------------------------
 
-		// siriens_report 에 title 적용
-		$qry = "REPLACE INTO market_report
-				(
-					report_date,
-					evening_subject
-				)
-				SELECT	page_date,
-						SUBSTRING_INDEX(SUBSTRING_INDEX(page_title,'\"',-2),'\"',1)
-				FROM	rawdata_siri_report
-				WHERE	page_date = '$_POST[page_date]'
-				AND  (page_title is not null  AND page_title <> '')";
+		// siriens_report 에 title 적용 => DBUp_SignalEvening.py 에서 처리하는 것으로 수정 24.09.07
+		// $qry = "REPLACE INTO market_report
+		// 		(
+		// 			report_date,
+		// 			evening_report_title
+		// 		)
+		// 		SELECT	page_date,
+		// 				SUBSTRING_INDEX(SUBSTRING_INDEX(page_title,'\"',-2),'\"',1)
+		// 		FROM	rawdata_siri_report
+		// 		WHERE	page_date = '$_POST[page_date]'
+		// 		AND  (page_title is not null  AND page_title <> '')";
 
-		echo $qry."<br><br>";
-		$mysqli->query($qry);
+		// echo $qry."<br><br>";
+		// $mysqli->query($qry);
 			
 	} else { // 장전뉴스 반영인 경우
 		// signals 테이블에 뉴스 데이터 반영

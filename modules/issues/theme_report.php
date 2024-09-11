@@ -7,12 +7,12 @@ require($_SERVER['DOCUMENT_ROOT']."/modules/common/common_header.php"); // 공�
 <div id="container">
     <div id="content-area">
         <div class="tab-container">
-            <div class="tab active" data-url="theme_report_flex.php">플렉스박스 보기</div>
-            <div class="tab" data-url="theme_report_table.php">테이블 보기</div>
+            <div class="tab" data-url="theme_report_flex.php">플렉스박스 보기</div>
+            <div class="tab active" data-url="theme_report_table.php">테이블 보기</div>
         </div>
 
         <div class="tab-content">
-            <iframe id="contentFrame" src="theme_report_flex.php"></iframe>
+            <iframe id="contentFrame" src="theme_report_table.php"></iframe>
         </div>
     </div>
 </div>

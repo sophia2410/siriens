@@ -34,10 +34,21 @@
     <!-- Custom styles for this template-->
     <link href="<?=$PATH?>/boot/common/css/sb-admin-2.min.css" rel="stylesheet">
     <!link href="<?=$PATH?>/boot/common/css/tui-grid.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://uicdn.toast.com/grid/latest/tui-grid.css" />    
+    <link rel="stylesheet" href="https://uicdn.toast.com/grid/latest/tui-grid.css" />
+
+    <!-- 메뉴바 아이콘 위한 스타일시트 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
     
     <!script src="js/tui-grid.js"><!/script>
     <script src="https://uicdn.toast.com/grid/latest/tui-grid.js"></script>
     <script src="<?=$PATH?>/boot/common/js/common.js"></script>
+    <style>
+    /* modules 의 메뉴바를 쓰기 위해 임의로 컨테이너 margin 설정 */
+    #content-wrapper {
+        margin-left: 100px !important;
+        width: calc(100% - 100px) !important;
+    }
+    </style>
 
 </head>

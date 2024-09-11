@@ -32,8 +32,8 @@ class DBUpdater:
         
 
         # 특정일자 모차십 처리
-        # mochaten_date = '20240830'
-        # trade_date = '20240829'
+        # mochaten_date = '20240909'
+        # trade_date = '20240906'
 
         pathExl = f'E:/Project/202410/data/_Mochaten/{mochaten_date}.xlsx'
         rdxls = pd.read_excel(pathExl, engine='openpyxl')

@@ -587,7 +587,7 @@ $result = $stmt->get_result();
 <div id="container">
     
 <?php
-require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
+require($_SERVER['DOCUMENT_ROOT']."/modules/common/common_nav_menu.php");
 ?>
     <!-- 등록 화면 -->
     <div id="left-panel">

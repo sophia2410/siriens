@@ -195,9 +195,8 @@ $result = $stmt->get_result();
 
 						const data = response.data;
 
-						if (data.theme && data.sector) {
+						if (data.theme) {
 							$('#issue_register_theme').val(data.theme);
-							$('#issue_register_sector').val(data.sector);
 						}
 
 						// Inject the fetched history into the history panel regardless

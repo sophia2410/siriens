@@ -48,7 +48,7 @@ echo "<input type=button class='btn btn-danger btn-sm' value='조 회' onclick='
 $query = " SELECT STR_TO_DATE(A.date, '%Y%m%d') issue_date, DAYOFWEEK(A.date) - 2 arr_idx
 				, CONCAT('[코스피]', CASE WHEN B.close_rate >= 0 THEN CONCAT('<font color=red> ▲',B.close_rate,'% </font>') ELSE  CONCAT('<font color=blue> ▼',B.close_rate,'% </font>') END,' / ') kospi_index
 				, CONCAT('[코스닥]', CASE WHEN C.close_rate >= 0 THEN CONCAT('<font color=red> ▲',C.close_rate,'% </font>') ELSE  CONCAT('<font color=blue> ▼',C.close_rate,'% </font>') END) kosdaq_index
-				, E.evening_subject
+				, E.evening_report_title
 				, F.today_theme
 			FROM calendar A
 			LEFT OUTER JOIN market_index B
@@ -103,7 +103,7 @@ while($row = $result->fetch_array(MYSQLI_BOTH)) {
 		$arr_idx = $row['arr_idx'];
 
 		$input[$r1][$arr_idx]  = "<b><center>".$row['issue_date']."</center></b>";
-		$input[$r2][$arr_idx]  = "<b class='small'>".$row['evening_subject']."</b>";
+		$input[$r2][$arr_idx]  = "<b class='small'>".$row['evening_report_title']."</b>";
 		$input[$r3][$arr_idx]  = $row['kospi_index']."".$row['kosdaq_index'];
 		$input[$r4][$arr_idx]  = "<table style='width:100%;' class='table table-light table-sm table-bordered small text-dark'>";
 		// $input[$r4][$arr_idx] .= "<tr style='vertical-align:top;'class='mark font-weight-bold'>".$row['today_theme']."</td></tr>";

@@ -31,7 +31,7 @@ $query = " SELECT Y.date, STR_TO_DATE(Y.date, '%Y%m%d') watchlist_date_str, Z.*
 							, A.market_cap
 							, A.tracking_yn
 							, CASE WHEN A.theme is null OR  A.theme = '' THEN A.sector ELSE A.theme END uprsn
-							, E.evening_subject
+							, E.evening_report_title
 						FROM daily_watchlist A
 						LEFT OUTER JOIN market_index B
 						on B.date = A.watchlist_date
@@ -75,8 +75,8 @@ $result = $mysqli->query($query);
 			echo "<a href=\"javascript:callxrayTick('".$row['date']."', '$increase_rate')\"><img style='width:24px; height:24px; border:solid thin' src='https://siriens.mycafe24.com/image/view_review.png'></a></th></tr>";
 			// 리뷰 등록 잠시 막아두기
 			// echo "<a href=\"javascript:callFrameRV('".$row['date']."')\"><img style='width:28px; height:28px; border:solid thin' src='https://siriens.mycafe24.com/image/view_review.png'></a></th></tr>";
-			if($row['evening_subject'] != '') 
-				echo "<tr class='table-info text-dark' align=left><th colspan=4>'".$row['evening_subject']."</th></tr>";
+			if($row['evening_report_title'] != '') 
+				echo "<tr class='table-info text-dark' align=left><th colspan=4>'".$row['evening_report_title']."</th></tr>";
 		}
 		// 종목명을 변수에 저장
 		$name = $row['name'];

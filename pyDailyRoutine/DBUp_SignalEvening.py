@@ -6,6 +6,7 @@ import pandas as pd
 from bs4 import BeautifulSoup
 from datetime import datetime
 import pymysql
+import re
 import sys
 sys.path.append("E:/Project/202410/www/boot/common/python") 
 from crawling_news import crawling_news
@@ -22,6 +23,17 @@ def special_char(str):
 	# pt = re.sub('[\{\}\[\]\/?.,;:|\)*~`!^\-_+<>@\#$%&\\\=\(\'\"]', '', pt)
 	return pt
 
+
+def extract_title(title):
+	"""제목에서 따옴표 내의 내용 또는 불필요한 부분을 제거한 순수 제목을 반환"""
+	# Signal Evening: 따옴표 안의 텍스트 추출
+	cleaned_title = re.findall(r'".*?"', title)
+	if cleaned_title:
+		return cleaned_title[0].strip('"')  # 따옴표 제거 후 반환
+	else:
+		# 따옴표가 없는 경우 날짜, 괄호, 불필요한 부분을 제거
+		return re.sub(r'^\d{4}\.\d{2}\.\d{2}\.\(.\)\s.*\sSignal Evening\s+|\[장 전 뉴스 Check\]\s+', '', title).strip()
+
 # 시그널리포트 가져오기
 ##---------------------------------------------------------------------- 
 
@@ -31,42 +43,101 @@ def main():
 	cur = conn.cursor()
 	
 	sql = "SELECT max(date) date FROM calendar a WHERE date <= (select DATE_FORMAT(now(), '%Y%m%d'))"
-	# sql = "SELECT date FROM calendar a WHERE date = '20240829'"
+	# sql = "SELECT date FROM calendar a WHERE date = '20240910'"
 	
 	df = pd.read_sql(sql, conn)
 	date = df['date'].values[0].decode('utf-8')
 
-	link = 'http://localhost/scrap/' +  date + '.html'
-	print(link)
-
-	href = requests.get(link, headers={'User-agent': 'Mozilla/5.0'})
-	# 한글 깨져서 테스트
-	# soup = BeautifulSoup(href.text.replace('<!-- SE-TEXT { -->',''), "html.parser")
-	soup = BeautifulSoup(href.content.decode('utf-8','replace'), "html.parser")
-	print(soup)
-	title = soup.find("title")
-	ptt = title.text
+	## market_report 장전뉴스, 시그널이브닝 타이틀 넣어주기
+	# 이브닝 리포트 링크
+	evening_link = 'http://localhost/scrap/' + date + '.html'
+	print(f"Evening link: {evening_link}")
 	
-	# 이브닝 일자 셋팅. 기존에는 타이틀에서 잘라 썼는데 왜 그랬을까? ;;
+	evening_href = requests.get(evening_link, headers={'User-agent': 'Mozilla/5.0'})
+	evening_soup = BeautifulSoup(evening_href.content.decode('utf-8', 'replace'), "html.parser")
+	
+	# 이브닝 리포트 타이틀 추출
+	evening_title = evening_soup.find("title")
+	if evening_title:
+		evening_title_text = evening_title.text
+		# 제목에서 필요없는 부분 제거 (날짜와 " " 사이의 내용만 가져오기)
+		evening_cleaned_title = extract_title(evening_title_text)
+		print(f"Evening Report Title: {evening_cleaned_title}")
+
+	# 모닝 리포트 링크
+	morning_link = 'http://localhost/scrap/' + date + 'P.html'
+	print(f"Morning link: {morning_link}")
+	
+	morning_href = requests.get(morning_link, headers={'User-agent': 'Mozilla/5.0'})
+	morning_soup = BeautifulSoup(morning_href.content.decode('utf-8', 'replace'), "html.parser")
+
+	# 모닝 리포트 타이틀 추출
+	morning_title = morning_soup.find("title")
+	if morning_title:
+		morning_title_text = morning_title.text
+		# 제목에서 필요없는 부분 제거 (날짜와 " " 사이의 내용만 가져오기)
+		morning_cleaned_title = extract_title(morning_title_text)
+		print(f"Morning Report Title: {morning_cleaned_title}")
+
+	# 첫 번째 뉴스 제목과 링크 추출
+
+	module_text = morning_soup.find('div', {'class': 'se-module se-module-text'})
+	if module_text:
+		first_news_tag = module_text.find('p', {'class': 'se-text-paragraph'})
+		if first_news_tag:
+			first_news_a = first_news_tag.find('a', href=True)  # 해당 <p> 태그 안의 첫 번째 <a> 태그를 찾음
+			if first_news_a:
+				first_news = first_news_a.text.strip()  # 뉴스 제목
+				first_news_link = first_news_a['href'].split('#')[0]  # 뉴스 링크에서 # 이후는 제거
+			else:
+				first_news = first_news_tag.text.strip()  # <a> 태그가 없는 경우 <p> 태그의 텍스트 사용
+				first_news_link = 'No Link'
+		else:
+			first_news = 'No News'
+			first_news_link = 'No Link'
+	else:
+		first_news = 'No News'
+		first_news_link = 'No Link'
+
+
+	# 데이터베이스에 이브닝 리포트 타이틀과 모닝 리포트 타이틀, 첫 번째 뉴스 저장
+	sql = '''
+		INSERT INTO market_report (report_date, morning_report_title, morning_news_title, morning_news_link, evening_report_title)
+		VALUES (%s, %s, %s, %s, %s)
+		ON DUPLICATE KEY UPDATE
+			morning_report_title=%s,
+			morning_news_title=%s,
+			morning_news_link=%s,
+			evening_report_title=%s
+	'''
+	# SQL 실행
+	cur.execute(sql, (
+		date, morning_cleaned_title, first_news, first_news_link, evening_cleaned_title, 
+		morning_cleaned_title, first_news, first_news_link, evening_cleaned_title
+	))
+	conn.commit()
+
+	## 시그널 이브닝 크롤링 저장 처리
+	# 이브닝 일자 셋팅
 	dt = date
 
 	# 제목 ", ' 에 \ 붙여주기 && 특수문자 제거
-	ec_ptt = special_char(ptt)
+	ec_ptt = special_char(evening_title_text)
 
 	# 본문 읽어와서 DB 등록하기
 	# 사용변수 일부 초기화
 	hf = '';
 	file=open("signal.txt", "w", encoding="utf-8")
 	
-	for p_tag in soup.find_all("p"):
+	for p_tag in evening_soup.find_all("p"):
 		if "네이버 톡톡" in p_tag.text:
 			p_tag.decompose()
 
-	for content in soup.find_all("p", class_="se-text-paragraph se-text-paragraph-align-"):
+	for content in evening_soup.find_all("p", class_="se-text-paragraph se-text-paragraph-align-"):
 
 		#그룹, 종목 정보 가져오기
 		if len(content.find_all("b")) > 0 :
-			hd = content.find("b")    # for st in content.select("b"):
+			hd = content.find("b")	# for st in content.select("b"):
 			# print(hd.text)
 
 			# 시그널리포트 대분류인 경우
@@ -160,11 +231,11 @@ def main():
 				cr_title = special_char(cnd[0])
 				sql = f"UPDATE rawdata_siri_report"\
 					f"   SET crawling_title = '{cr_title}'"\
-					f"     , crawling_name  = '{cnd[1]}'"\
-					f"     , crawling_date  = '{cnd[2]}'"\
-					f"     , crawling_time  = '{cnd[3]}'"\
+					f"	 , crawling_name  = '{cnd[1]}'"\
+					f"	 , crawling_date  = '{cnd[2]}'"\
+					f"	 , crawling_time  = '{cnd[3]}'"\
 					f" WHERE page_date = '{dt}'"\
-					f"   AND link      = '{hf}'"\
+					f"   AND link	  = '{hf}'"\
 					f"   AND page_fg   = 'E'"
 
 				file.write(sql)
@@ -194,16 +265,16 @@ def main():
 
 	sql = f"UPDATE rawdata_siri_report A"\
 			f" INNER JOIN ( SELECT Y.cd, Y.nm, Y.nm_sub1, X.link "\
-			f"                FROM (SELECT SUBSTR(link_1, 1, INSTR(link_1,'/')-1) AS link_2, link "\
-			f"                        FROM (SELECT link, replace(replace(link,'http://', ''),'https://', '') AS link_1 "\
-			f"                                FROM rawdata_siri_report "\
-			f"                               WHERE page_date = '{dt}'"\
-			f"                                 AND page_fg = 'E' "\
-			f"                             ) A "\
-			f"                      ) X "\
-			f"               INNER JOIN (SELECT cd, nm, nm_sub1 FROM comm_cd WHERE l_cd = 'PB000' ) Y "\
-			f"                  ON Y.nm_sub1 =X.link_2 ) B"\
-			f"    ON B.link    = A.link "\
+			f"				FROM (SELECT SUBSTR(link_1, 1, INSTR(link_1,'/')-1) AS link_2, link "\
+			f"						FROM (SELECT link, replace(replace(link,'http://', ''),'https://', '') AS link_1 "\
+			f"								FROM rawdata_siri_report "\
+			f"							   WHERE page_date = '{dt}'"\
+			f"								 AND page_fg = 'E' "\
+			f"							 ) A "\
+			f"					  ) X "\
+			f"			   INNER JOIN (SELECT cd, nm, nm_sub1 FROM comm_cd WHERE l_cd = 'PB000' ) Y "\
+			f"				  ON Y.nm_sub1 =X.link_2 ) B"\
+			f"	ON B.link	= A.link "\
 			f"   SET A.publisher = B.nm"\
 			f" WHERE page_date = '{dt}'"\
 			f"   AND page_fg   = 'E'"\
@@ -218,21 +289,21 @@ def main():
 					# # 이브닝 등록 완료 후 기등록 데이터와 비교, 보완처리
 					# # signals에 등록된 뉴스의 경우 데이터 불러오기
 					# sql = f"UPDATE rawdata_siri_report A"\
-					#         f" INNER JOIN signals B"\
-					#         f"    ON B.link      = A.link"\
-					#         f"   SET A.date      = B.date"\
-					#         f"     , A.time      = B.time"\
-					#         f"     , A.title     = (CASE WHEN A.title = '' THEN B.title ELSE A.title END)"\
-					#         f"     , A.publisher = B.publisher"\
-					#         f"     , A.writer    = B.writer"\
-					#         f"     , A.code      = B.code"\
-					#         f"     , A.stock     = B.name"\
-					#         f"     , A.content   = (CASE WHEN A.content IS NULL THEN B.content WHEN A.content = '' THEN B.content ELSE A.content END)"\
-					#         f"     , A.exists_yn = 'Y'"\
-					#         f"     , A.confirm_fg= B.confirm_fg"\
-					#         f"     , A.signal_id = B.signal_id"\
-					#         f" WHERE page_date = '{dt}'"\
-					#         f"   AND page_fg   = 'E'"
+					#		 f" INNER JOIN signals B"\
+					#		 f"	ON B.link	  = A.link"\
+					#		 f"   SET A.date	  = B.date"\
+					#		 f"	 , A.time	  = B.time"\
+					#		 f"	 , A.title	 = (CASE WHEN A.title = '' THEN B.title ELSE A.title END)"\
+					#		 f"	 , A.publisher = B.publisher"\
+					#		 f"	 , A.writer	= B.writer"\
+					#		 f"	 , A.code	  = B.code"\
+					#		 f"	 , A.stock	 = B.name"\
+					#		 f"	 , A.content   = (CASE WHEN A.content IS NULL THEN B.content WHEN A.content = '' THEN B.content ELSE A.content END)"\
+					#		 f"	 , A.exists_yn = 'Y'"\
+					#		 f"	 , A.confirm_fg= B.confirm_fg"\
+					#		 f"	 , A.signal_id = B.signal_id"\
+					#		 f" WHERE page_date = '{dt}'"\
+					#		 f"   AND page_fg   = 'E'"
 
 					# file.write(sql)
 					# file.write('\n')

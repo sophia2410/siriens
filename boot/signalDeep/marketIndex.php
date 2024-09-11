@@ -18,7 +18,7 @@ $checkedTitle = ($onlyTitle == 'Y') ? ' checked' : '';
 <div id="wrapper">
 
 <?php
-require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
+require($_SERVER['DOCUMENT_ROOT']."/modules/common/common_nav_menu.php");
 ?>
 
 <!-- Content Wrapper -->
@@ -55,7 +55,7 @@ echo "&nbsp;";
 echo "<input type=button class='btn btn-danger btn-sm' value='조 회' onclick='search()'>";
 
 // 마켓인덱스 모아보기
-$query = " SELECT STR_TO_DATE(A.date, '%Y%m%d') report_date, DAYOFWEEK(A.date) - 2 arr_idx , B.evening_subject
+$query = " SELECT STR_TO_DATE(A.date, '%Y%m%d') report_date, DAYOFWEEK(A.date) - 2 arr_idx , B.evening_report_title
 				, C.index_cd, C.index_nm, C.index_value, C.index_diff, C.index_close_rate
 			FROM calendar A
 			LEFT OUTER JOIN siriens_report B
@@ -82,7 +82,7 @@ while($row = $result->fetch_array(MYSQLI_BOTH)) {
 
 		$mi_value[$wk][$di]['rd'] = $row['report_date'];
 		$mi_value[$wk][$di]['ai'] = $row['arr_idx'];
-		$mi_value[$wk][$di]['es'] = $row['evening_subject'];
+		$mi_value[$wk][$di]['es'] = $row['evening_report_title'];
 	}
 
 	// // 1주차 첫 거래일이 월요일이 아닌 경우 배열 만들어주기
@@ -215,7 +215,7 @@ echo "</table>";
 // 		$pre_theme = '';
 
 // 		$input[$r1][$arr_idx]  = "<b><center>".$row['report_date']."</center></b>";
-// 		$input[$r2][$arr_idx]  = "<b>".$row['evening_subject']."</b>";
+// 		$input[$r2][$arr_idx]  = "<b>".$row['evening_report_title']."</b>";
 // 		$input[$r3][$arr_idx]  = "<table style='width:100%' class='table table-light table-sm table-bordered small text-dark'>";
 // 		$input[$r3][$arr_idx] .= "<tr style='height:10px'>";
 // 		$input[$r3][$arr_idx] .= "<td align=left>".$row['index_nm']." %</td>";

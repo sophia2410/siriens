@@ -117,8 +117,8 @@ if ($currentIssue !== null) {
 
 
 // Query to fetch the most recent theme and sector for the identified exact group ID
-$themeSectorQuery = "
-    SELECT mi.theme, mi.sector
+$themeQuery = "
+    SELECT mi.theme
     FROM market_issues mi
     JOIN keyword_groups kg
     ON mi.keyword_group_id = kg.group_id
@@ -127,17 +127,16 @@ $themeSectorQuery = "
     LIMIT 1
 ";
 
-$themeSectorStmt = $mysqli->prepare($themeSectorQuery);
-$themeSectorStmt->bind_param('s', $keywords);
-$themeSectorStmt->execute();
-$themeSectorResult = $themeSectorStmt->get_result();
+$themeStmt = $mysqli->prepare($themeQuery);
+$themeStmt->bind_param('s', $keywords);
+$themeStmt->execute();
+$themeResult = $themeStmt->get_result();
 
 $data = [];
 
-if ($themeSectorRow = $themeSectorResult->fetch_assoc()) {
+if ($themeRow = $themeResult->fetch_assoc()) {
     $data = [
-        'theme' => $themeSectorRow['theme'],
-        'sector' => $themeSectorRow['sector']
+        'theme' => $themeRow['theme']
     ];
 }
 

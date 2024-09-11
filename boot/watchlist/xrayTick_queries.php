@@ -103,22 +103,24 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $th
 						, A.date 0day_date
 						, A.code 
 						, A.name
-						, A.theme, A.keyword_group_name, A.is_leader, A.is_watchlist, A.stock_comment
-						, CASE WHEN A.theme is null OR  A.theme = '' THEN A.keyword_group_name ELSE A.theme END uprsn
+						, A.theme, A.sector, A.is_leader, A.is_watchlist, A.stock_comment
+						, CASE WHEN A.theme is null OR  A.theme = '' THEN A.sector ELSE A.theme END uprsn
 						, CASE WHEN B.close_rate >= 0 THEN CONCAT('<font color=red> ▲',B.close_rate,'% </font>') ELSE  CONCAT('<font color=blue> ▼',ABS(B.close_rate),'% </font>') END close_rate_str
 						, CASE WHEN B.tot_trade_amt >= 1000 THEN CONCAT('<font color=red><b>',FORMAT(B.tot_trade_amt,0),'억</b></font>') ELSE  CONCAT(B.tot_trade_amt,'억') END tot_trade_amt_str
 						, B.tot_trade_amt
 						$trade_qry
 						, M.mochaten_cnt
-					FROM (SELECT theme, keyword_group_name, code, name, MAX(date) date, MAX(is_leader) AS is_leader, MAX(is_watchlist) AS is_watchlist, MAX(stock_comment) AS stock_comment
-						  FROM v_market_issue
-						  WHERE 
-							CASE 
-								WHEN '$sector' = 'theme' THEN theme = '$theme'
-								WHEN '$sector' = 'keyword' THEN keyword_group_name LIKE '%#$theme%' 
-								ELSE 1=1
-							END
-						  GROUP BY theme, keyword_group_name, code, name
+					FROM (SELECT group_keyword, keyword_group_name, theme, code, name,
+								 MAX(sector) AS sector, MAX(date) date, MAX(is_leader) AS is_leader, MAX(is_watchlist) AS is_watchlist, MAX(stock_comment) AS stock_comment
+						  FROM (SELECT CASE WHEN theme != '' THEN theme
+										WHEN sector != '' THEN sector
+										ELSE '미분류'
+									END group_keyword, vmi.*
+								FROM v_market_issue vmi
+								WHERE date BETWEEN DATE_FORMAT(DATE_SUB('{$search_date}', INTERVAL 1 MONTH), '%Y%m%d') AND '$search_date'
+							   ) smi
+						  WHERE group_keyword LIKE '%$theme%'
+						  GROUP BY group_keyword, keyword_group_name, theme, code, name
 						 ) A
 					LEFT OUTER JOIN (SELECT * FROM daily_watchlist WHERE (watchlist_date, code) IN (SELECT MAX(watchlist_date), code FROM daily_watchlist  GROUP BY code)) B
 					ON A.code = B.code

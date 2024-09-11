@@ -13,7 +13,7 @@ $watchlist_date = (isset($_GET['watchlist_date'])   ) ? $_GET['watchlist_date'] 
 <div id="wrapper">
 	
 <?php
-require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
+require($_SERVER['DOCUMENT_ROOT']."/modules/common/common_nav_menu.php");
 ?>
 
 <!-- Content Wrapper -->

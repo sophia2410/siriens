@@ -18,7 +18,7 @@ $checkedTitle = ($onlyTitle == 'Y') ? ' checked' : '';
 <div id="wrapper">
 
 <?php
-require($_SERVER['DOCUMENT_ROOT']."/boot/common/nav_left_siriens.php");
+require($_SERVER['DOCUMENT_ROOT']."/modules/common/common_nav_menu.php");
 ?>
 
 <!-- Content Wrapper -->
@@ -63,7 +63,7 @@ echo "<input type=button class='btn btn-danger btn-sm' value='조 회' onclick='
 // 시그널이브닝 타이틀 모아보기
 if($onlyTitle == 'Y')
 {
-	$query = " SELECT STR_TO_DATE(A.date, '%Y%m%d') report_date, DAYOFWEEK(A.date) - 2 arr_idx , B.evening_subject
+	$query = " SELECT STR_TO_DATE(A.date, '%Y%m%d') report_date, DAYOFWEEK(A.date) - 2 arr_idx , B.evening_report_title
 					, '' today_theme_cd, '' today_theme_nm, '' today_theme_rank, '' code, '' name, 0 close_rate, 0 volume, 0 tot_trade_amt
 				FROM calendar A
 				LEFT OUTER JOIN siriens_report B
@@ -80,7 +80,7 @@ else {
 	$sub_query = ($tenbillionOR == 'Y') ? " AND ( C.volume >= 10000 OR C.tot_trade_amt >= 1000) " : $sub_query;
 
 	// 테마 - 인포스탁 기준으로 뽑아오기
-	// $query = " SELECT STR_TO_DATE(A.date, '%Y%m%d') report_date, DAYOFWEEK(A.date) - 2 arr_idx , B.evening_subject, D.today_theme_cd, D.today_theme_nm, D.today_theme_rank, C.code, C.name, C.close_rate, C.volume, C.tot_trade_amt
+	// $query = " SELECT STR_TO_DATE(A.date, '%Y%m%d') report_date, DAYOFWEEK(A.date) - 2 arr_idx , B.evening_report_title, D.today_theme_cd, D.today_theme_nm, D.today_theme_rank, C.code, C.name, C.close_rate, C.volume, C.tot_trade_amt
 	// 			FROM calendar A
 	// 			LEFT OUTER JOIN siriens_report B
 	// 			ON B.report_date = A.date
@@ -105,7 +105,7 @@ else {
 	// 			ORDER BY A.date, D.today_theme_rank, D.today_theme_nm, C.close_rate DESC";
 
 	// 테마 - 키워드 기준으로 뽑아오기
-	// $query = " SELECT STR_TO_DATE(A.date, '%Y%m%d') report_date, DAYOFWEEK(A.date) - 2 arr_idx , B.evening_subject, D.today_theme_cd, D.today_theme_nm, D.today_theme_rank, C.code, C.name, C.close_rate, C.volume, C.tot_trade_amt, C.stock_keyword
+	// $query = " SELECT STR_TO_DATE(A.date, '%Y%m%d') report_date, DAYOFWEEK(A.date) - 2 arr_idx , B.evening_report_title, D.today_theme_cd, D.today_theme_nm, D.today_theme_rank, C.code, C.name, C.close_rate, C.volume, C.tot_trade_amt, C.stock_keyword
 	// 			FROM calendar A
 	// 			LEFT OUTER JOIN siriens_report B
 	// 			ON B.report_date = A.date
@@ -134,7 +134,7 @@ else {
 	// 			ORDER BY A.date, D.today_theme_rank, D.today_theme_nm, C.stock_keyword, C.close_rate DESC";
 
 	// 테마 - 시리언즈이브닝 기준 뽑아오기
-	$query = " SELECT STR_TO_DATE(A.date, '%Y%m%d') report_date, DAYOFWEEK(A.date) - 2 arr_idx , B.evening_subject, '' today_theme_cd, '' today_theme_nm, '' today_theme_rank, C.code, C.name, C.close_rate, C.volume, C.tot_trade_amt, C.stock_keyword
+	$query = " SELECT STR_TO_DATE(A.date, '%Y%m%d') report_date, DAYOFWEEK(A.date) - 2 arr_idx , B.evening_report_title, '' today_theme_cd, '' today_theme_nm, '' today_theme_rank, C.code, C.name, C.close_rate, C.volume, C.tot_trade_amt, C.stock_keyword
 				FROM calendar A
 				LEFT OUTER JOIN market_report B
 				ON B.report_date = A.date
@@ -192,7 +192,7 @@ while($row = $result->fetch_array(MYSQLI_BOTH)) {
 		$pre_theme = '';
 
 		$input[$r1][$arr_idx]  = "<b><center>".$row['report_date']."</center></b>";
-		$input[$r2][$arr_idx]  = "<b>".$row['evening_subject']."</b>";
+		$input[$r2][$arr_idx]  = "<b>".$row['evening_report_title']."</b>";
 		$input[$r3][$arr_idx]  = "<table style='width:100%' class='table table-light table-sm table-bordered small text-dark'>";
 		$input[$r3][$arr_idx] .= "<tr class='mark font-weight-bold'><td colspan=4>".$row['today_theme_nm']."</td></tr>";
 		// $input[$r3][$arr_idx] .= "<tr class='mark'><td colspan=4>".$row['issue']."</td></tr>";

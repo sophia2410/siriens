@@ -7,7 +7,7 @@ $startDate = date('Ymd', strtotime('-20 days', time()));
 // Fetch themes with occurrence count and sorted by the latest date and occurrence count
 $theme_query = "
     SELECT 
-        CASE WHEN mi.theme = '' THEN mi.sector ELSE mi.theme END AS theme, 
+        CASE WHEN mi.theme = '' THEN mis.sector ELSE mi.theme END AS theme, 
         CASE WHEN mi.theme = '' THEN 'sector' ELSE 'theme' END AS group_type, 
         mi.date AS theme_date,  
         kg.group_name AS keyword_group_name,
@@ -17,7 +17,7 @@ $theme_query = "
         mis.trade_amount,
 		MAX(mis.is_leader) OVER (PARTITION BY mi.theme, kg.group_name, mis.code) AS is_leader, -- leader 여부
 		MAX(mis.is_watchlist) OVER (PARTITION BY mi.theme, kg.group_name, mis.code) AS is_watchlist, -- 관심종목 여부
-        COUNT(mi.date) OVER (PARTITION BY mi.theme, mi.sector) AS occurrence_count,  -- 테마별 발생 건수 계산
+        COUNT(mi.date) OVER (PARTITION BY mi.theme, mis.sector) AS occurrence_count,  -- 테마별 발생 건수 계산
         MIN(mi.date) OVER (PARTITION BY mi.theme, kg.group_name) AS keyword_occurrence_date,  -- 키워드그룹별 최초 발생 일
         COUNT(mi.date) OVER (PARTITION BY mi.theme, kg.group_name) AS keyword_occurrence_count  -- 키워드그룹별 종목 건수
     FROM 

@@ -32,7 +32,7 @@ $query = " SELECT Z.*
 						, A.buy_band
 						, CASE WHEN A.buy_pick = 'Y' THEN '<b>B</b>' ELSE '' END buy_pick
 						, (SELECT COUNT(*) FROM calendar WHERE date <= A.scenario_date and date > A.watchlist_date) tracking_day
-						, E.evening_subject
+						, E.evening_report_title
 					FROM daily_watchlist_scenario A
 					LEFT OUTER JOIN market_index B
 					on B.date = A.scenario_date
@@ -66,8 +66,8 @@ $result = $mysqli->query($query);
 		if($pre_scenario_date != $row['scenario_date']) {
 			echo "<tr class='table-danger  text-dark' align=left><th colspan=6><b>▶ <a href=\"javascript:callFrameRD('".$row['scenario_date']."')\">".$row['scenario_date_str']."</b></a> 의 시나리오! &nbsp;&nbsp; (코스피 : ".$row['kospi_index']." , 코스닥 : ".$row['kosdaq_index'].") </th></tr>";
 			
-			if($row['evening_subject'] != '') 
-				echo "<tr class='table-info  text-dark' align=left><th colspan=6>'".$row['evening_subject']."</th></tr>";
+			if($row['evening_report_title'] != '') 
+				echo "<tr class='table-info  text-dark' align=left><th colspan=6>'".$row['evening_report_title']."</th></tr>";
 		}
 
 		$bgstyle = ($row['tracking_day'] > 0) ? "background-color:#F6F6F6;" : "";

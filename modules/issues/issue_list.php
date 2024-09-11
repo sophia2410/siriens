@@ -39,6 +39,7 @@ function render_issue_list($mysqli, $criteriaType, $criteriaValue) {
                 WHERE mis.code = ? 
                 ORDER BY mi.hot_theme DESC, kg.group_name ASC
             ");
+
             $issuesQuery->bind_param('s', $criteriaValue);
             $stocksQuery = $mysqli->prepare("
                 SELECT *
@@ -62,6 +63,7 @@ function render_issue_list($mysqli, $criteriaType, $criteriaValue) {
     while ($stock = $stocksResult->fetch_assoc()) {
         $stocksData[$stock['issue_id']][] = $stock;
     }
+    // print_r($stocksData);
 
     // 화면 렌더링
     ?>
