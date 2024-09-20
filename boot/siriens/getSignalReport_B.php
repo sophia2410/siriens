@@ -56,8 +56,8 @@ if($_SERVER["HTTP_HOST"] == 'localhost') {
 						, A.content
 						, CASE WHEN A.publisher != '' or A.publisher is not null THEN CONCAT('[',A.publisher,']') ELSE '' END publisher
 						, A.writer
-						, A.date
-						, A.time
+						, A.news_date
+						, A.news_time
 						, A.grouping
 						, A.keyword
 						, A.exists_yn
@@ -67,24 +67,24 @@ if($_SERVER["HTTP_HOST"] == 'localhost') {
 						, Z.volume
 						, D.confirm_fg
 						, E.tot_trade_amt
-					FROM  rawdata_siri_report A
+					FROM  signal_evening A
 					LEFT OUTER JOIN (SELECT C.code, C.name, B.close_rate, round(B.volume/1000,0) volume
 					                   FROM daily_price B
 									  INNER JOIN stock C
 									     ON C.code = B.code
-									  WHERE B.DATE = '$key_val[0]'
+									  WHERE B.date = '$key_val[0]'
 									    AND C.last_yn = 'Y') Z
 					  ON Z.code = A.code
 					LEFT OUTER JOIN signals D
 					  ON D.signal_id = A.signal_id
-					LEFT OUTER JOIN (SELECT code, tot_trade_amt FROM mochaten WHERE mochaten_date = (SELECT REPLACE(MIN(date), '-', '') FROM calendar WHERE date > '$key_val[0]') AND cha_fg = 'MC000' ) E
+					LEFT OUTER JOIN (SELECT code, tot_trade_amt FROM mochaten WHERE mochaten_date = (SELECT MIN(date) FROM calendar WHERE date > '$key_val[0]') AND cha_fg = 'MC000' ) E
 					  ON E.code = A.code
 				   WHERE A.page_date = '$key_val[0]'
 				     AND A.page_fg   = '$key_val[1]'
 					 AND A.del_yn = 'N'
 					ORDER BY A.id ";
 
-		// echo $qry;
+		// echo "<pre>$qry</pre>";
 		$result = $mysqli->query($qry);
 
 		echo "<br>";
@@ -92,31 +92,31 @@ if($_SERVER["HTTP_HOST"] == 'localhost') {
 
 		$i=0;
 		while($row = $result->fetch_array(MYSQLI_BOTH)) {
-		    $id          = $row['id'];
-			$page_date   = $row['page_date'];
-			$page_fg     = $row['page_fg'];
-			$signal_grp  = $row['signal_grp'];
-			$signal_id   = $row['signal_id'];
-			$theme       = $row['theme'];
-			$stocks      = $row['stocks'];
-			$code        = $row['code'];
-			$stock       = $row['stock'];
-			$link        = $row['link'];
-			$title       = $row['title'];
-			$date        = $row['date'];
-			$time        = $row['time'];
-			$publisher   = $row['publisher'];
-			$writer      = $row['writer'];
-			$content     = $row['content'];
-			$grouping    = $row['grouping'];
-			$keyword     = $row['keyword'];
-			$exists_yn   = $row['exists_yn'];
-			$del_yn      = $row['del_yn'];
-			$save_yn     = $row['save_yn'];
-			$today_pick  = $row['today_pick'];
-			$close_rate  = $row['close_rate'];
-			$volume      = $row['volume'];
-			$confirm_fg  = $row['confirm_fg'];
+		    $id        = $row['id'];
+			$page_date = $row['page_date'];
+			$page_fg   = $row['page_fg'];
+			$signal_grp= $row['signal_grp'];
+			$signal_id = $row['signal_id'];
+			$theme     = $row['theme'];
+			$stocks    = $row['stocks'];
+			$code      = $row['code'];
+			$stock     = $row['stock'];
+			$link      = $row['link'];
+			$title     = $row['title'];
+			$news_date = $row['news_date'];
+			$news_time = $row['news_time'];
+			$publisher = $row['publisher'];
+			$writer    = $row['writer'];
+			$content   = $row['content'];
+			$grouping  = $row['grouping'];
+			$keyword   = $row['keyword'];
+			$exists_yn = $row['exists_yn'];
+			$del_yn    = $row['del_yn'];
+			$save_yn   = $row['save_yn'];
+			$today_pick= $row['today_pick'];
+			$close_rate= $row['close_rate'];
+			$volume    = $row['volume'];
+			$confirm_fg= $row['confirm_fg'];
 			$tot_trade_amt = $row['tot_trade_amt'];
 
 			// 화면 간소화 위해 몇몇 항목 빼고 조정처리, 추가 시 TD 재정리 필요  2023.04.09
@@ -141,7 +141,7 @@ if($_SERVER["HTTP_HOST"] == 'localhost') {
 			// 	<td style='font-size:13pt'><b>($exists_yn/$confirm_fg)<textarea name=title$id style='width:550px; height:15px; $borderColor'>$title</textarea></b></td>
 			// 	<td style='width:100px'>$publisher</td>
 			// 	<td style='width:90px'><input type=text name=writer$id value='$writer' style='width:80px'></td>
-			// 	<td style='width:180px'><input type=text name=date$id value='$date' style='width:80px'> <input type=text name=time$id value='$time' style='width:75px'></td>
+			// 	<td style='width:180px'><input type=text name=news_date$id value='$news_date' style='width:80px'> <input type=text name=news_time$id value='$news_time' style='width:75px'></td>
 			// 	<td style='width:800px'><a href=\"javascript:popupNews('".$link."')\">$link</a></td>
 			// </tr>
 			// <tr valign=top>
@@ -178,7 +178,7 @@ if($_SERVER["HTTP_HOST"] == 'localhost') {
 			// 	<td style='width: 150px;'><input type=text name=stock$id  value='$stock' style='width:150px;border: 0.1rem solid;zoom:1.1;background-color: #fdeaea;'> <a href=\"javascript:findNews('$code')\"></td>
 			// 	<td style='width: 130px;'><b>$close_rate % </b></td>
 			// 	<!--td style='width:90px'><input type=text name=writer$id value='$writer' style='width:80px'></td//-->
-			// 	<td style='width:200px'><input type=text name=date$id value='$date' style='width:80px'> <!--input type=text name=time$id value='$time' style='width:75px'//--></td>
+			// 	<td style='width:200px'><input type=text name=news_date$id value='$news_date' style='width:80px'> <!--input type=text name=news_time$id value='$news_time' style='width:75px'//--></td>
 			// 	<td style='width:600px;overflow:hidden;text-overflow;ellipsis;'>$publisher <a href=\"javascript:popupNews('".$link."')\">$link</a></td>
 			// </tr>
 			// <tr valign=top>
@@ -213,7 +213,7 @@ if($_SERVER["HTTP_HOST"] == 'localhost') {
 				<td><input type=text name=stock$id  value='$stock' style='width:150px;border: 0.1rem solid;zoom:1.1;background-color: #fdeaea;$mochaten0'> $code_info <a href=\"javascript:findNews('$code')\"></td>
 				<td style='width:130px'><b>$close_rate % / ".number_format($volume)."K</b></td>
 				<!--td style='width:90px'><input type=text name=writer$id value='$writer' style='width:80px'></td//-->
-				<td><input type=text name=date$id value='$date' style='width:80px'> <!--input type=text name=time$id value='$time' style='width:75px'//--></td>
+				<td><input type=text name=news_date$id value='$news_date' style='width:80px'> <!--input type=text name=news_time$id value='$news_time' style='width:75px'//--></td>
 				<td style='width:".$link_width.";  overflow:hidden;text-overflow;ellipsis;white-space:nowrap;'>$publisher / $signal_id/ <a href=\"javascript:popupNews('".$link."')\" style='font-size:.5rem;'>".substr($link,0,60)."</a></td>
 			</tr>
 			<tr valign=top>
@@ -223,7 +223,6 @@ if($_SERVER["HTTP_HOST"] == 'localhost') {
 			";
 
 			$i++;
-
 		}		
 		echo "<input type=hidden name=total_cnt value=$i>";
 		echo "<input type=hidden name=proc_fg>";

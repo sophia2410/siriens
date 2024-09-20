@@ -1,8 +1,8 @@
 <?php
 require($_SERVER['DOCUMENT_ROOT']."/modules/common/common_header_sub.php");
 
-$endDate = date('Ymd', time());
-$startDate = date('Ymd', strtotime('-20 days', time()));
+$endDate = date('Y-m-d', time());
+$startDate = date('Y-m-d', strtotime('-20 days', time()));
 
 // Fetch themes with occurrence count and sorted by the latest date and occurrence count
 $theme_query = "

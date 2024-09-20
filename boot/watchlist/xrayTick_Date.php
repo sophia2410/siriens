@@ -30,7 +30,7 @@ require($_SERVER['DOCUMENT_ROOT']."/modules/common/common_nav_menu.php");
 
 $query = " SELECT date
 			 FROM calendar
-			WHERE date <= (select DATE_FORMAT(now(), '%Y%m%d'))
+			WHERE date <= now()
 			AND   date >= '20240201'
 			ORDER BY date DESC";
 

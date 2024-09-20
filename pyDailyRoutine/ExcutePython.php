@@ -63,7 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <!-- URL 입력 필드 및 크롤링 버튼 추가 -->
     <div class="crawl-container">
         <button onclick="crawlPage()">Crawl Page</button>
-        <input type="text" id="urlInput" placeholder="Enter URL" value="https://contents.premium.naver.com/nomadand/nomad/contents/240911081950790dg">
+        <input type="text" id="urlInput" placeholder="Enter URL" value="">
     </div>
 
     <hr>

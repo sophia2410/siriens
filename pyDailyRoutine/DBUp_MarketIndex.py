@@ -37,14 +37,12 @@ print(f"처리 시작 시간: {start_time}")
 cursor = db.cursor()
 
 # 1주전 거래일 구해오기. 등락률을 위해 이전 데이터 필요, 주말, 연휴 등 때문에 넉넉하게 지난주 데이터를 구한다.
-query_date = f"SELECT DATE_FORMAT(MAX(date), '%Y-%m-%d') FROM daily_price WHERE date <= (SELECT DATE_FORMAT(DATE_ADD(now(), INTERVAL -1 WEEK), '%Y%m%d'))"
-
+query_date = f"SELECT MAX(date) FROM daily_price WHERE date <= (SELECT DATE_ADD(now(), INTERVAL -1 WEEK))"
 cursor.execute(query_date)
 start_date = cursor.fetchone()[0].decode('utf-8')
 
 # 1주전 거래일 구해오기. 등락률을 위해 이전 데이터 필요, 주말, 연휴 등 때문에 넉넉하게 지난주 데이터를 구한다.
 query_date = f"SELECT DATE_FORMAT(DATE_ADD(now(), INTERVAL +1 DAY), '%Y-%m-%d')"
-
 cursor.execute(query_date)
 end_date= cursor.fetchone()[0].decode('utf-8')
 
@@ -71,11 +69,11 @@ for index, ticker in index_dict.items():
 
     # 데이터의 행에 대해 반복
     for row in data.itertuples():
-        # row.Index 값을 'yyyymmdd' 형식의 문자열로 변환
-        date_str = row.Index.strftime ('%Y%m%d')
+        # row.Index 값을 'yyyy-mm-dd' 형식의 문자열로 변환
+        date = row.Index.strftime('%Y-%m-%d')
         
         # stock.get_index_price_change 함수를 호출하여 거래대금을 구함
-        trading_value = stock.get_index_price_change (date_str, date_str, index)
+        trading_value = stock.get_index_price_change (date, date, index)
 
         if trading_value.empty:
             # 비어 있다면, row 변수에 0 을 할당함
@@ -91,7 +89,7 @@ for index, ticker in index_dict.items():
 
         # 'yyyymmdd' 형식의 문자열로 삽입
         # insert 문에 trading_value 컬럼을 추가하고, row 변수를 삽입함
-        sql = f"INSERT IGNORE INTO market_index (market_fg, date, open, high, low, close, volume, close_rate, amount) VALUES ('{index}', '{date_str}', {row.Open}, {row.High}, {row.Low}, {row.Close}, {row.Volume}, {row.close_rate}, {amount})"
+        sql = f"INSERT IGNORE INTO market_index (market_fg, date, open, high, low, close, volume, close_rate, amount) VALUES ('{index}', '{date}', {row.Open}, {row.High}, {row.Low}, {row.Close}, {row.Volume}, {row.close_rate}, {amount})"
         print(sql)
         # SQL 쿼리 실행
         cursor.execute(sql)

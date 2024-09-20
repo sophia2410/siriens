@@ -137,7 +137,7 @@ if(isset($_POST['proc_fg'])) {
         $name = $_POST['name'];
         $status_cd = $_POST['status_cd'];
         $frequency = $_POST['frequency'];
-        $status_date = date('Ymd');
+        $status_date = date('Y-m-d');
     
         // 키가 같으면 업데이트
         $qry = "INSERT INTO chart_status (code, name, status_cd, frequency, status_date) 

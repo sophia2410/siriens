@@ -23,7 +23,7 @@ cursor = db.cursor()
 
 
 # 오늘 날짜와 가장 가까운 날짜를 구합니다.
-query_date = f"SELECT MAX(date) FROM daily_price WHERE date <= (select DATE_FORMAT(DATE_ADD(now(), INTERVAL 0 DAY), '%Y%m%d'))"
+query_date = f"SELECT MAX(date) FROM daily_price WHERE date <= (select DATE_ADD(now(), INTERVAL 0 DAY))"
 
 cursor.execute(query_date)
 closest_date = cursor.fetchone()[0].decode('utf-8')

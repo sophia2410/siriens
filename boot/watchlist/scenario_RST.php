@@ -2,13 +2,13 @@
 require($_SERVER['DOCUMENT_ROOT']."/boot/common/top.php");
 require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 
-$watchlist_date = (isset($_GET['watchlist_date'])) ? $_GET['watchlist_date'] : '';
+$0day_date = (isset($_GET['0day_date'])) ? $_GET['0day_date'] : '';
 
 $query = "SELECT	sector,
 					theme,
 					issue
-			FROM daily_watchlist X
-			WHERE watchlist_date = '$watchlist_date'
+			FROM 0day_stocks X
+			WHERE 0day_date = '$0day_date'
 			AND (sector is not null AND sector != '')
 			GROUP BY sector, theme, issue";
 // echo $query."<br><br>";
@@ -37,14 +37,14 @@ $query = "SELECT  T.idx,
 					SELECT  'A' idx,
 						sector,
 						theme
-					FROM daily_watchlist X
-					WHERE watchlist_date >= (select DATE_FORMAT(DATE_ADD(now(), INTERVAL -5 DAY), '%Y%m%d'))
+					FROM 0day_stocks X
+					WHERE 0day_date >= (select DATE_FORMAT(DATE_ADD(now(), INTERVAL -5 DAY), '%Y%m%d'))
 					AND (sector is not null AND sector != '')
 					UNION ALL
 					SELECT 'B' idx,
 						sector,
 						theme
-					FROM daily_watchlist Y
+					FROM 0day_stocks Y
 					WHERE (sector is not null AND sector != '')
 				) T
 			GROUP BY T.idx, T.sector, T.theme

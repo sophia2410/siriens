@@ -25,7 +25,7 @@
 		<?php
 			$query = " SELECT max(date) date
 						FROM calendar
-					WHERE date <= (select DATE_FORMAT(now(), '%Y%m%d'))";
+					WHERE date <= now()";
 
 			$result = $mysqli->query($query);
 			$row = $result->fetch_array(MYSQLI_BOTH);

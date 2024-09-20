@@ -54,8 +54,8 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 		echo "<h3></h3>";
 	} else {
 		// 모차십 등록 이력 불러오기
-		$query = " SELECT STR_TO_DATE(A.mochaten_date, '%Y%m%d') mochaten_date
-						, STR_TO_DATE(A.trade_date   , '%Y%m%d') trade_date
+		$query = " SELECT A.mochaten_date
+						, A.trade_date
 						, C.cnt
 						, A.cha_fg
 						, A.name
@@ -139,7 +139,7 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 
 		
 		//X-RAY 순간체결 거래량
-		$query = "	SELECT cal.date, SUBSTR(STR_TO_DATE(cal.date, '%Y%m%d'),3) date_str, xray.close_rate, xray.amount, xray.cnt
+		$query = "	SELECT cal.date, DATE_FORMAT(cal.date, '%m-%d') mm_dd, xray.close_rate, xray.amount, xray.cnt
 					FROM calendar cal
 					LEFT OUTER JOIN 
 						(
@@ -152,8 +152,8 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 							GROUP BY xr.date
 						) xray
 					ON xray.date = cal.date
-					WHERE cal.date >= (select max(date) from calendar where date <=(select DATE_FORMAT(DATE_ADD(now(), INTERVAL -30 DAY), '%Y%m%d')))
-					AND cal.date <= (select max(date) from calendar where date <=(select DATE_FORMAT(DATE_ADD(now(), INTERVAL 0 DAY), '%Y%m%d')))
+					WHERE cal.date >= (select max(date) from calendar where date <= (select DATE_ADD(now(), INTERVAL -30 DAY)))
+					AND cal.date <= (select max(date) from calendar where date <= (select DATE_ADD(now(), INTERVAL 0 DAY)))
 					ORDER BY cal.date desc
 					";
 		$result = $mysqli->query($query);
@@ -164,7 +164,7 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 		$xray_amount = "";
 		$xray_cnt = "";
 		while($row = $result->fetch_array(MYSQLI_BOTH)) {
-			$xray_date .= "<th align=center style='width:80px; height: 30px;'><a href=\"javascript:openPopupXrayTick('{$code}', '".$row['date']."')\">". $row['date_str']."</a></th>";
+			$xray_date .= "<th align=center style='width:80px; height: 30px;'><a href=\"javascript:openPopupXrayTick('{$code}', '".$row['date']."')\">". $row['mm_dd']."</a></th>";
 			
 			if($row['cnt'] > 0) {
 				// 거래대금에 따라 스타일 적용
@@ -216,7 +216,7 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 		}
 
 		// 종목 최대 거래량 
-		$query = "SELECT SUBSTR(DATE_FORMAT(Z.date, '%Y/%m/%d'),3) date
+		$query = "SELECT SUBSTR(Z.date,3) date
 						, Z.code
 						, Z.close
 						, floor(Z.amount / 100000000) tot_trade_amt
@@ -238,28 +238,28 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 		//TODAY ISSUE
 		$today_issue = '';
 
-		// infostock 에서 구하기
-		$query = "SELECT  CONCAT(CASE WHEN length(C.today_theme_nm) > 1 THEN CONCAT('[',C.today_theme_nm,'] ',C.issue,'<BR><BR>') ELSE '' END) today_theme
-								, B.issue today_issue
-								, B.detail today_detail
-					FROM siriens_infostock B
-					LEFT OUTER JOIN siriens_infostock_theme C
-					ON C.today_theme_cd = B.today_theme_cd
-					WHERE B.report_date = (select max(date) from calendar where date < '$mochaten_date')
-					AND B.code =  '$code'" ;
-		// echo "<pre>$query</pre>";
-		$result = $mysqli->query($query);
+		// infostock 에서 구하기  --> infostock 미사용으로 제외 처리 24.09.13
+		// $query = "SELECT  CONCAT(CASE WHEN length(C.today_theme_nm) > 1 THEN CONCAT('[',C.today_theme_nm,'] ',C.issue,'<BR><BR>') ELSE '' END) today_theme
+		// 						, B.issue today_issue
+		// 						, B.detail today_detail
+		// 			FROM siriens_infostock B
+		// 			LEFT OUTER JOIN siriens_infostock_theme C
+		// 			ON C.today_theme_cd = B.today_theme_cd
+		// 			WHERE B.report_date = (select max(date) from calendar where date < '$mochaten_date')
+		// 			AND B.code =  '$code'" ;
+		// // echo "<pre>$query</pre>";
+		// $result = $mysqli->query($query);
 				
-		while( $row = $result->fetch_array(MYSQLI_BOTH) ){
-			$today_issue = $row['today_theme']."<b>".$row['today_issue']."</b><br>".$row['today_detail']."<br>";
-		}
+		// while( $row = $result->fetch_array(MYSQLI_BOTH) ){
+		// 	$today_issue = $row['today_theme']."<b>".$row['today_issue']."</b><br>".$row['today_detail']."<br>";
+		// }
 
-		// infostock에 없을 경우 signal evening에서 가져오기 -> 있어도 가져오기.. 비교
+		// infostock에 없을 경우 signal evening에서 가져오기 --> infostock 미사용으로 제외 처리 24.09.13
 		// if($today_issue == '') {
 			$query = "SELECT CONCAT('[',A.signal_grp
 								, CASE WHEN length(A.theme) > 1 && A.theme != A.signal_grp THEN CONCAT(A.theme, ']<BR>') ELSE ']<BR>' END) today_theme
 								, A.title today_issue
-						FROM	rawdata_siri_report A
+						FROM	signal_evening A
 						WHERE	page_date = (select max(date) from calendar where date < '$mochaten_date')
 						AND  page_fg = 'E'
 						AND  today_pick = 'Y'
@@ -275,20 +275,20 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 
 		// 다 없을 경우 최근뉴스 가져오기
 		if($today_issue == '') {
-			$query = "SELECT  date
+			$query = "SELECT  news_date
 							, title
 							, link
 						FROM signals B
 						WHERE B.code = '$code'
-						AND B.date <= (select max(date) from calendar where date < '$mochaten_date')
-						ORDER BY date DESC
+						AND B.news_date <= (select max(date) from calendar where date < '$mochaten_date')
+						ORDER BY news_date DESC
 						LIMIT 1 " ;
 
 			// echo "<pre>$query</pre>";
 			$result = $mysqli->query($query);
 
 			while( $row = $result->fetch_array(MYSQLI_BOTH) ){
-				$today_issue = '('.$row['date'].')'.$row['title'];
+				$today_issue = '('.$row['news_date'].')'.$row['title'];
 			}
 		}
 
@@ -411,57 +411,59 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 		$xray_amount = "";
 		$xray_cnt = "";
 
+		//재료 보완 필요 -- 일단 막아두기 24.09.13
+        // $query = "SELECT 'REPORT' seq
+		// 				, STR_TO_DATE(A.report_date, '%Y%m%d') date
+		// 				, CONCAT(CASE WHEN A.today_issue is not null THEN concat(' #',A.today_issue) ELSE '' END) title
+		// 				, '' content
+		// 				, '' publisher
+		// 				, '' writer
+		// 				, '' link
+		// 				, '' keyword
+		// 				, '' signal_id
+		// 				, close_rate
+		// 				, volume
+		// 			FROM (	SELECT report_date, code, name
+		// 						, MAX(siri_issue) today_issue
+		// 					FROM (	SELECT	report_date, code, name
+		// 								, CASE  WHEN D.signal_grp is NOT NULL AND D.signal_grp != '' 
+		// 										THEN CASE WHEN D.theme is NOT NULL AND D.theme != '' THEN concat(D.signal_grp, '-', D.theme) ELSE D.signal_grp END
+		// 										ELSE CASE WHEN D.theme is NOT NULL AND D.theme != '' THEN D.theme ELSE '' END END siri_theme
+		// 								, CONCAT(CASE WHEN D.issue is NOT NULL AND D.issue != '' THEN D.issue 
+		// 											ELSE CASE WHEN D.stock_CPR != '' THEN D.stock_CPR ELSE '' END END
+		// 										) siri_issue
+		// 								, stock_connect siri_stock_connect
+		// 							FROM siriens_evening D
+		// 							WHERE code =  '$code'
+		// 						) E
+		// 					GROUP BY report_date, code, name
+		// 					) A
+		// 					LEFT OUTER JOIN (SELECT B.date, B.close_rate, round(B.volume/1000,0) volume
+		// 							   FROM daily_price B
+		// 							  WHERE B.code =  '$code') Z
+		// 			  		ON Z.date = A.report_date
+		// 		  UNION ALL
+		// 		  SELECT 'NEWS' seq
+		// 				, STR_TO_DATE(date, '%Y%m%d') date
+		// 				, title
+		// 				, content
+		// 				, publisher
+		// 				, writer
+		// 				, link
+		// 				, CONCAT(B.grouping
+		// 				, CASE WHEN keyword  != '' THEN concat(' #',keyword ) ELSE '' END) keyword 
+		// 				, signal_id 
+		// 				, '' close_rate
+		// 				, '' volume
+		// 			 FROM signals B
+        //             WHERE B.code =  '$code'
+		// 			ORDER BY date DESC, seq DESC
+        // 		" ;
+
+
 		//재료
-        $query = "SELECT 'REPORT' seq
-						, STR_TO_DATE(A.report_date, '%Y%m%d') date
-						, CONCAT(CASE WHEN A.today_issue is not null THEN concat(' #',A.today_issue) ELSE '' END) title
-						, '' content
-						, '' publisher
-						, '' writer
-						, '' link
-						, '' keyword
-						, '' signal_id
-						, close_rate
-						, volume
-					FROM (	SELECT report_date, code, name
-								, CASE WHEN MAX(infostock_issue) = '' THEN MAX(siri_issue) ELSE MAX(infostock_issue) END today_issue
-							FROM (	SELECT	report_date, code, name, '' infostock_theme_issue, '' infostock_theme_detail
-										, '' infostock_issue, '' infostock_detail
-										, CASE  WHEN D.signal_grp is NOT NULL AND D.signal_grp != '' 
-												THEN CASE WHEN D.theme is NOT NULL AND D.theme != '' THEN concat(D.signal_grp, '-', D.theme) ELSE D.signal_grp END
-												ELSE CASE WHEN D.theme is NOT NULL AND D.theme != '' THEN D.theme ELSE '' END END siri_theme
-										, CONCAT(CASE WHEN D.issue is NOT NULL AND D.issue != '' THEN D.issue 
-													ELSE CASE WHEN D.stock_CPR != '' THEN D.stock_CPR ELSE '' END END
-												) siri_issue
-										, stock_connect siri_stock_connect
-									FROM siriens_evening D
-									WHERE code =  '$code'
-									UNION ALL
-									SELECT B.report_date
-										, B.code
-										, B.name
-										, C.issue infostock_theme_issue
-										, C.detail infostock_theme_detail
-										, B.issue infostock_issue
-										, B.detail infostock_detail
-										, '' siri_theme
-										, '' siri_issue
-										, '' siri_stock_connect
-									FROM siriens_infostock B
-									LEFT OUTER JOIN siriens_infostock_theme C
-									ON C.today_theme_cd = B.today_theme_cd
-									WHERE B.issue != ''
-									  AND B.code =  '$code'
-								) E
-							GROUP BY report_date, code, name
-							) A
-							LEFT OUTER JOIN (SELECT B.date, B.close_rate, round(B.volume/1000,0) volume
-									   FROM daily_price B
-									  WHERE B.code =  '$code') Z
-					  		ON Z.date = A.report_date
-				  UNION ALL
-				  SELECT 'NEWS' seq
-						, STR_TO_DATE(date, '%Y%m%d') date
+        $query = "SELECT 'NEWS' seq
+						, news_date
 						, title
 						, content
 						, publisher
@@ -474,7 +476,7 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 						, '' volume
 					 FROM signals B
                     WHERE B.code =  '$code'
-					ORDER BY date DESC, seq DESC
+					ORDER BY news_date DESC, seq DESC
         		" ;
 
 		// echo "<pre>$query</pre>";
@@ -484,14 +486,14 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 		while($row = $result->fetch_array(MYSQLI_BOTH)) {
 			if($row['seq'] == "REPORT") {
 				echo "<tr class='table-warning'>";
-				echo "<td style='width:100px;height:12px;' align=center>".$row['date']."</td>";
+				echo "<td style='width:100px;height:12px;' align=center>".$row['news_date']."</td>";
 				echo "<td style='width:70px;height:12px;' align=right><b>".$row['close_rate']."%</b></td>";
 				echo "<td style='width:70px;height:12px;' align=right><b>".number_format($row['volume'])."K</b></td>";
 				echo "<td colspan=2>".$row['title']."</td>";
 				echo "</tr>";
 			} else {
 				echo "<tr>";
-				echo "<td style='width:100px;height:12px;' align=center>".$row['date']."</td>";
+				echo "<td style='width:100px;height:12px;' align=center>".$row['news_date']."</td>";
 				echo "<td style='height:12px;'>&nbsp</td>";
 				echo "<td style='height:12px;'>&nbsp</td>";
 				echo "<td style='height:12px;'> <a href=\"javascript:openPopupNews('".$row['link']."')\">".$row['title']."</a><br><br>".$row['content']."</td>";

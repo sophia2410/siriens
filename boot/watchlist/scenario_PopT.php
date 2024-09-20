@@ -32,8 +32,8 @@ echo "<table class='table table-sm' border=1>
 		<th>뉴스</th>
 		</tr>";
 
-$query = "SELECT STR_TO_DATE(A.watchlist_date, '%Y%m%d') watchlist_date_str,
-				A.watchlist_date,
+$query = "SELECT STR_TO_DATE(A.0day_date, '%Y%m%d') watchlist_date_str,
+				A.0day_date,
 				A.code,
 				A.name,
 				A.sector,
@@ -42,11 +42,11 @@ $query = "SELECT STR_TO_DATE(A.watchlist_date, '%Y%m%d') watchlist_date_str,
 				A.stock_keyword,
 				A.hot_theme,
 				A.theme_comment,
-				(SELECT title FROM rawdata_siri_report Z WHERE Z.page_date = A.watchlist_date AND Z.code = A.code ORDER BY date DESC LIMIT 1) news
-		FROM daily_watchlist A
+				(SELECT title FROM signal_evening Z WHERE Z.page_date = A.0day_date AND Z.code = A.code ORDER BY date DESC LIMIT 1) news
+		FROM 0day_stocks A
 		WHERE sector = '$sector'
 		AND theme = '$theme'
-		ORDER BY watchlist_date DESC";
+		ORDER BY 0day_date DESC";
 // echo $query."<br><br>";
 $result = $mysqli->query($query);
 
@@ -65,7 +65,7 @@ while($row = $result->fetch_array(MYSQLI_BOTH)) {
 	echo "<td><input type=text name=issue$i style='width: 300px;' value=\"".$row['issue']."\"></td>";
 	echo "<td><input type=text name=stock_keyword$i style='width:300px;' value=\"".$row['stock_keyword']."\">";
 	echo "<td><input type=text name=theme_comment$i style='width:300px;' value=\"".$row['theme_comment']."\"></td>";
-	echo "<input type=hidden name=watchlist_date$i value=\"".$row['watchlist_date']."\">";
+	echo "<input type=hidden name=0day_date$i value=\"".$row['0day_date']."\">";
 	echo "<input type=hidden name=code$i value=\"".$row['code']."\"></td>";
 	echo "<td align=left>".$row['news']."</td>";
 	echo "</tr>";

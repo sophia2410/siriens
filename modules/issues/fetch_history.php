@@ -2,7 +2,7 @@
 require($_SERVER['DOCUMENT_ROOT']."/modules/common/database.php");
 
 $keywords = $_GET['keywords'] ?? '';
-$excludeDate = $_GET['exclude_date'] ? str_replace('-', '', $_GET['exclude_date']) :  null; // Get the exclude_date parameter
+$excludeDate = $_GET['exclude_date'] ?? null; // Get the exclude_date parameter
 
 // Ensure no output other than JSON when needed
 header('Content-Type: application/json');

@@ -26,7 +26,7 @@ cursor = db.cursor()
 
 # 관종 해당일자 구하기
 # 처리 시작
-watchlist_date = datetime.today().strftime('%Y%m%d')
+0day_date = datetime.today().strftime('%Y%m%d')
 
 # 쿼리문 실행
 sql = """SELECT '' a, '' b, A.name, '' c, '' d, '' e, '' f, '' g, A.code, A.sector, A.theme, A.category, A.comment
@@ -57,7 +57,7 @@ for r in range(len(result)):
         else:
             ws.write(r+1, c, result[r][c])
 # 엑셀 파일 저장
-filename = f"C:/KiwoomHero4/today_watchlist/{watchlist_date}.xls"
+filename = f"C:/KiwoomHero4/today_watchlist/{0day_date}.xls"
 wb.save(filename)
 
 # 엑셀 파일 열기

@@ -136,30 +136,30 @@ if($review_date == ''){
 				, B.volume
 				, CASE WHEN B.theme is null OR  B.theme = '' THEN B.sector ELSE B.theme END uprsn
 				, B.issue
-				, B.watchlist_date
+				, B.0day_date
 				, R.group_sum
 				, X.sector_sum
 			FROM daily_watchlist_review A
-			INNER JOIN daily_watchlist B
-			ON A.watchlist_date = B.watchlist_date
+			INNER JOIN 0day_stocks B
+			ON A.0day_date = B.0day_date
 			AND A.code = B.code
 			LEFT OUTER JOIN daily_price C
-			ON C.date = (SELECT min(date) FROM calendar WHERE date > B.watchlist_date)
+			ON C.date = (SELECT min(date) FROM calendar WHERE date > B.0day_date)
 			AND C.code = B.code
-			INNER JOIN (	SELECT G.sector, G.theme, SUM(G.tot_trade_amt) AS group_sum, MAX(G.watchlist_date) AS group_max_date
+			INNER JOIN (	SELECT G.sector, G.theme, SUM(G.tot_trade_amt) AS group_sum, MAX(G.0day_date) AS group_max_date
 							FROM daily_watchlist_review S
-							INNER JOIN daily_watchlist G
-							ON S.watchlist_date = G.watchlist_date
+							INNER JOIN 0day_stocks G
+							ON S.0day_date = G.0day_date
 							AND S.code = G.code
 							WHERE S.review_date = '$review_date'
 							GROUP BY G.sector, G.theme
 						) R
 			ON B.sector = R.sector
 			AND B.theme  = R.theme
-			INNER JOIN (	SELECT G.sector, SUM(G.tot_trade_amt) AS sector_sum, MAX(G.watchlist_date) AS sector_max_date
+			INNER JOIN (	SELECT G.sector, SUM(G.tot_trade_amt) AS sector_sum, MAX(G.0day_date) AS sector_max_date
 							FROM daily_watchlist_review S
-							INNER JOIN daily_watchlist G
-							ON S.watchlist_date = G.watchlist_date
+							INNER JOIN 0day_stocks G
+							ON S.0day_date = G.0day_date
 							AND S.code = G.code
 							WHERE S.review_date = '$review_date'
 							GROUP BY G.sector
@@ -244,7 +244,7 @@ if($review_date == ''){
 <input type=hidden name=search_fg value=<?=$search_fg?>>
 <input type=hidden name=cnt value=<?=$i?>>
 <!-- 관심종목 가져오기 처리하기 위해 추가 -->
-<input type=hidden name=watchlist_date>
+<input type=hidden name=0day_date>
 <input type=hidden name=code>
 </form>
 <iframe name="saveFrame" src="scenario_script.php" style='border:0px;' width=1000 height=700>
@@ -272,7 +272,7 @@ function addReviewStock(date) {
 function getWatchlist(date) {
 	form = document.form1;
 	form.proc_fg.value = 'getWatchlist';
-	form.watchlist_date.value = date;
+	form.0day_date.value = date;
 	form.target = "saveFrame";
 	form.submit();
 }
@@ -281,7 +281,7 @@ function getWatchlist(date) {
 function addWatchlist(date, stock) {
 	form = document.form1;
 	form.proc_fg.value = 'addWatchlist';
-	form.watchlist_date.value = date;
+	form.0day_date.value = date;
 	form.stock.value = stock;
 	form.target = "saveFrame";
 	form.submit();

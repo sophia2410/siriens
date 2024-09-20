@@ -28,7 +28,7 @@ with open("E:/Project/202410/www/pyObsidian/vars_downExcel.txt", "r", encoding="
 
 # 관종 해당일자 구하기
 # 처리 시작
-watchlist_date = datetime.today().strftime('%Y%m%d')
+0day_date = datetime.today().strftime('%Y%m%d')
 
 # 쿼리문 실행
 sql = f"SELECT V.name, V.code, V.group_key, V.tot_trade_amt, V.close_rate_str, V.tot_trade_amt_str "\
@@ -44,7 +44,7 @@ result = cursor.fetchall()
 cursor.close()
 db.close()
 
-md_file = f'D:/Obsidian/Trader Sophia/20 Study/watchlist_0day/{filename}_{watchlist_date}.md'
+md_file = f'D:/Obsidian/Trader Sophia/20 Study/watchlist_0day/{filename}_{0day_date}.md'
 
 if  os.path.exists(md_file):
     os.remove(md_file) 

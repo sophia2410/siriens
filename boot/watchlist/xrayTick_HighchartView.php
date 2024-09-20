@@ -15,7 +15,7 @@
 <?php
 $pgmId = (isset($_GET['pgmId'])) ? $_GET['pgmId'] : '';
 
-$search_date   = (isset($_GET['search_date'])  ) ? $_GET['search_date']   : date('Ymd');
+$search_date   = (isset($_GET['search_date'])  ) ? $_GET['search_date']   : date('Y-m-d');
 $increase_rate = (isset($_GET['increase_rate'])) ? $_GET['increase_rate'] : 10;
 $trade_amt     = (isset($_GET['trade_amt'])    ) ? $_GET['trade_amt'] : 0;
 
@@ -176,7 +176,7 @@ if($pgmId == '') {
 			$query3 = "SELECT CONCAT('[',A.signal_grp
 							, CASE WHEN length(A.theme) > 1 && A.theme != A.signal_grp THEN CONCAT(A.theme, ']<BR>') ELSE ']<BR>' END) today_theme
 							, A.title today_issue
-					FROM	rawdata_siri_report A
+					FROM	signal_evening A
 					WHERE	page_date = (select max(date) from calendar where date <= '$zeroday_date')
 					AND  page_fg = 'E'
 					AND  code =  '$code'" ;
@@ -186,8 +186,8 @@ if($pgmId == '') {
 							, ' [',A.signal_grp
 							, CASE WHEN length(A.theme) > 1 && A.theme != A.signal_grp THEN CONCAT(A.theme, ']<BR>') ELSE ']<BR>' END) today_theme
 							, A.title today_issue
-					FROM	rawdata_siri_report A
-					WHERE	page_date = (select max(date) from rawdata_siri_report where date <= '$search_date' and code = '$code')
+					FROM	signal_evening A
+					WHERE	page_date = (select max(date) from signal_evening where date <= '$search_date' and code = '$code')
 					AND  page_fg = 'E'
 					AND  code =  '$code'" ;
 

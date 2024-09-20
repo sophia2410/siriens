@@ -9,21 +9,19 @@
     <meta name="description" content="">
     <meta name="author" content="">
 
-    
-    
     <?php
         if(isset($pageTitle))
             echo "<title>$pageTitle</title>";
         else
             echo "<title>202410 - Sophia Report</title>";
 
-        date_default_timezone_set('Asia/Seoul');
-
         if($_SERVER["HTTP_HOST"] == 'localhost') {
             $PATH = "http://localhost";
         } else {
             $PATH = "https://siriens.mycafe24.com";
         }
+
+        date_default_timezone_set('Asia/Seoul');
     ?>
     <!-- Custom fonts for this template-->
     <link href="<?=$PATH?>/boot/common/vendor/fontawesome-free/css/all.min.css" rel="stylesheet" type="text/css">

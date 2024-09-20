@@ -31,9 +31,8 @@ $key_val = explode("/", $signal_page);
 	// 시그널리포트 불러오기
 	$qry  = " SELECT a.link,
 						a.signal_id,
-						a.date      as signals_date,
 						a.news_date as signals_news_date,
-						a.time      as signals_time,
+						a.news_time as signals_news_time,
 						a.title     as signals_title,
 						a.content   as signals_content,
 						a.publisher as signals_publisher,
@@ -43,8 +42,8 @@ $key_val = explode("/", $signal_page);
 						a.grouping  as signals_grouping,
 						a.keyword   as signals_keyword,
 						a.remark    as signals_remark,
-						b.date,
-						b.time,
+						b.news_date,
+						b.news_time,
 						b.title,
 						b.content,
 						b.publisher,
@@ -55,15 +54,15 @@ $key_val = explode("/", $signal_page);
 						b.keyword,
 						b.stocks
 				FROM signals a
-				INNER JOIN rawdata_siri_report b
+				INNER JOIN signal_evening b
 					ON  b.signal_id = a.signal_id
 					AND b.page_date ='$key_val[0]'
 					AND b.page_fg   ='$key_val[1]'
-					AND (  (b.date     != a.date) 
-						OR (b.content  != a.content)
-						OR (b.title    != a.title)
-						OR (b.code     != a.code)
-						OR (b.stock    != a.name)
+					AND (  (b.news_date != a.news_date) 
+						OR (b.content   != a.content)
+						OR (b.title     != a.title)
+						OR (b.code      != a.code)
+						OR (b.stock     != a.name)
 						OR (a.confirm_fg != 1)
 						)";
 	// echo $qry;
@@ -76,9 +75,8 @@ $key_val = explode("/", $signal_page);
 	while($row = $result->fetch_array(MYSQLI_BOTH)) {
 		$id                = $row['signal_id'];
 		$link              = $row['link'];
-		$signals_date      = $row['signals_date'];
 		$signals_news_date = $row['signals_news_date'];
-		$signals_time      = $row['signals_time'];
+		$signals_news_time = $row['signals_news_time'];
 		$signals_title     = $row['signals_title'];
 		$signals_content   = $row['signals_content'];
 		$signals_publisher = $row['signals_publisher'];
@@ -88,8 +86,8 @@ $key_val = explode("/", $signal_page);
 		$signals_grouping  = $row['signals_grouping'];
 		$signals_keyword   = $row['signals_keyword'];
 		$signals_remark    = $row['signals_remark'];
-		$date              = $row['date'];
-		$time              = $row['time'];
+		$news_date         = $row['news_date'];
+		$news_time         = $row['news_time'];
 		$title             = $row['title'];
 		$content           = $row['content'];
 		$publisher         = $row['publisher'];
@@ -136,12 +134,12 @@ $key_val = explode("/", $signal_page);
 		</tr>
 		<tr> 
 			<td style='width:120px'><h2>일자/시간</td>";
-		if($signals_date != $date || $signals_date != $signals_news_date  ) echo "<td><h1 style='color:red'>X</h1></td>";
+		if($signals_news_date != $news_date) echo "<td><h1 style='color:red'>X</h1></td>";
 		else echo "<td>&nbsp;</td>";
 
 		echo "
-			<td><input type=text name=date$id value='$signals_date' style='width:80px'> <input type=text name=news_date$id value='$signals_news_date' style='width:80px'> <input type=text name=time$id value='$signals_time' style='width:80px'></td>
-			<td>$date</td>
+			<td><input type=text name=news_date$id value='$signals_news_date' style='width:80px'> <input type=text name=news_time$id value='$signals_news_time' style='width:80px'></td>
+			<td>$news_date</td>
 		</tr>";
 		// <tr> 
 		// 	<td style='width:120px'><h2>그룹</td>";

@@ -18,11 +18,11 @@ if(isset($_POST['proc_fg'])) {
 	$code = isset($_POST['code']) ? $_POST['code'] : "";
 	
 	if($_POST['proc_fg'] == 'getWatchlist') {
-		$watchlist_date = $_POST['watchlist_date'];
+		$0day_date = $_POST['0day_date'];
 
 		// 500억 이상 or 상한가+250억 이상 0일차 불러오기
-		$qry = "INSERT IGNORE INTO daily_watchlist
-				( watchlist_date
+		$qry = "INSERT IGNORE INTO 0day_stocks
+				( 0day_date
 				, code
 				, name
 				, regi_reason
@@ -46,18 +46,18 @@ if(isset($_POST['proc_fg'])) {
 					, A.trade_date
 					, now()
 				FROM mochaten A
-				WHERE A.trade_date = '".$watchlist_date."'
+				WHERE A.trade_date = '".$0day_date."'
 				AND A.cha_fg = 'MC000'
 				AND (A.tot_trade_amt >= 500 OR (A.close_rate > 29 AND A.tot_trade_amt >= 150))";
 
 		echo $qry."<br><br>";
 		$mysqli->query($qry);
 
-		$qry = "UPDATE daily_watchlist A
+		$qry = "UPDATE 0day_stocks A
 				INNER JOIN daily_price B
-				ON  B.date = A.watchlist_date
+				ON  B.date = A.0day_date
 				AND B.code = A.code
-				INNER JOIN (SELECT * FROM daily_watchlist WHERE (watchlist_date, code) IN (SELECT MAX(watchlist_date), code FROM daily_watchlist WHERE watchlist_date < '$watchlist_date' GROUP BY code)) C
+				INNER JOIN (SELECT * FROM 0day_stocks WHERE (0day_date, code) IN (SELECT MAX(0day_date), code FROM 0day_stocks WHERE 0day_date < '$0day_date' GROUP BY code)) C
 				ON C.code = A.code
 				SET A.close_rate = CASE WHEN A.close_rate IS NULL THEN B.close_rate ELSE A.close_rate END
 					, A.volume = CASE WHEN A.volume IS NULL THEN round(B.volume/1000,0) ELSE A.volume END
@@ -67,13 +67,13 @@ if(isset($_POST['proc_fg'])) {
 					, A.issue =  C.issue
 					, A.stock_keyword =  C.stock_keyword
 					, A.tracking_reason =  C.tracking_reason
-					, A.tracking_start_date =  CASE WHEN C.tracking_yn = 'Y' THEN C.tracking_start_date ELSE A.watchlist_date END
-				WHERE A.watchlist_date = '$watchlist_date'";
+					, A.tracking_start_date =  CASE WHEN C.tracking_yn = 'Y' THEN C.tracking_start_date ELSE A.0day_date END
+				WHERE A.0day_date = '$0day_date'";
 
 		echo "<pre>$qry</pre>"."<br><br>";
 		$mysqli->query($qry);
 	} else if($_POST['proc_fg'] == 'addWatchlist') {
-		$watchlist_date = $_POST['watchlist_date'];
+		$0day_date = $_POST['0day_date'];
 		$pval = $_POST['stock'];
 
 		$qry = "SELECT code
@@ -90,8 +90,8 @@ if(isset($_POST['proc_fg'])) {
 			echo '<script>alert("종목 정보를 찾을 수 없습니다."); parent.focus();</script>';
 		}
 		else {
-			$qry = "INSERT IGNORE INTO daily_watchlist
-					( watchlist_date
+			$qry = "INSERT IGNORE INTO 0day_stocks
+					( 0day_date
 					, code
 					, name
 					, close_rate
@@ -101,7 +101,7 @@ if(isset($_POST['proc_fg'])) {
 					, tracking_reason
 					, create_dtime
 					)
-					SELECT '$watchlist_date'
+					SELECT '$0day_date'
 						, A.code
 						, A.name
 						, CASE WHEN B.close_rate IS NOT NULL THEN B.close_rate ELSE 0 END
@@ -112,9 +112,9 @@ if(isset($_POST['proc_fg'])) {
 						, now()
 					FROM stock A
 					LEFT OUTER JOIN daily_price B
-					ON  B.date = '$watchlist_date'
+					ON  B.date = '$0day_date'
 					AND B.code = A.code
-					LEFT OUTER JOIN (SELECT * FROM daily_watchlist WHERE watchlist_date = (SELECT MAX(watchlist_date) FROM daily_watchlist WHERE watchlist_date < '$watchlist_date')) C
+					LEFT OUTER JOIN (SELECT * FROM 0day_stocks WHERE 0day_date = (SELECT MAX(0day_date) FROM 0day_stocks WHERE 0day_date < '$0day_date')) C
 					ON C.code = A.code
 					WHERE A.code = '$code'";
 
@@ -123,7 +123,7 @@ if(isset($_POST['proc_fg'])) {
 		}
 	} else if($_POST['proc_fg'] == 'saveScenario') {
 		// 관종리스트 업데이트
-		$qry = " UPDATE daily_watchlist
+		$qry = " UPDATE 0day_stocks
 					SET sector	  = '".$_POST['sector']."'
 					, theme		  = '".$_POST['theme']."'
 					, issue		  = '".$_POST['issue']."'
@@ -131,7 +131,7 @@ if(isset($_POST['proc_fg'])) {
 					, regi_reason	  = '".$_POST['regi_reason']."'
 					, tracking_yn	  = '".$_POST['tracking_yn']."'
 					, tracking_reason = '".$_POST['tracking_reason']."'
-				WHERE watchlist_date = '".$_POST['watchlist_date']."'
+				WHERE 0day_date = '".$_POST['0day_date']."'
 				AND code = '".$_POST['code']."'";
 
 		echo $qry."<br><br>";
@@ -141,11 +141,11 @@ if(isset($_POST['proc_fg'])) {
 
 			// 시나리오 업데이트 또는 인서트
 			$qry = " INSERT INTO daily_watchlist_scenario
-						(scenario_date, code, name, buy_pick, buy_band, scenario, buysell_yn, buysell_category, buysell_review, watchlist_date, create_dtime)
+						(scenario_date, code, name, buy_pick, buy_band, scenario, buysell_yn, buysell_category, buysell_review, 0day_date, create_dtime)
 					SELECT '".$_POST['scenario_date']."', code, name, '".$_POST['buy_pick']."', '".$_POST['buy_band']."', '".$_POST['scenario']."'
-						 , '".$_POST['buysell_yn']."', '".$_POST['buysell_category']."', '".$_POST['buysell_review']."', watchlist_date, now()
-					FROM  daily_watchlist
-					WHERE watchlist_date = '".$_POST['watchlist_date']."'
+						 , '".$_POST['buysell_yn']."', '".$_POST['buysell_category']."', '".$_POST['buysell_review']."', 0day_date, now()
+					FROM  0day_stocks
+					WHERE 0day_date = '".$_POST['0day_date']."'
 					AND   code = '".$_POST['code']."'
 					ON DUPLICATE KEY UPDATE
 						buy_pick = '".$_POST['buy_pick']."',
@@ -161,7 +161,7 @@ if(isset($_POST['proc_fg'])) {
 			$sub_query = "SELECT date, close FROM daily_price
 							WHERE code = '".$_POST['code']."'
 							AND date <= (select max(date) from daily_price where date < '".$_POST['scenario_date']."' AND code = '".$_POST['code']."' limit 1)
-							AND date > (select DATE_FORMAT(DATE_ADD('".$_POST['scenario_date']."', INTERVAL -1 YEAR), '%Y%m%d'))
+							AND date > (select DATE_ADD('".$_POST['scenario_date']."', INTERVAL -1 YEAR))
 							ORDER BY date DESC ";
 
 			$u_query = "SELECT 
@@ -336,13 +336,13 @@ if(isset($_POST['proc_fg'])) {
 			$hot_theme = isset($_POST[$hot_theme]) ? 'Y' : 'N';
 			$tobecontinued = isset($_POST[$tobecontinued]) ? 'Y' : 'N';
 
-			$qry = "UPDATE daily_watchlist
+			$qry = "UPDATE 0day_stocks
 					SET sector		= '".$_POST[$sector]."'
 					,	theme		= '".$_POST[$theme]."'
 					,	issue		= '".$_POST[$issue]."'
 					, 	hot_theme	= '$hot_theme'
 					, 	theme_comment= '".$_POST[$theme_comment]."'
-					WHERE watchlist_date ='".$_POST['search_date']."'
+					WHERE 0day_date ='".$_POST['search_date']."'
 					AND sector  ='".$_POST[$org_sector]."' 
 					AND theme  ='".$_POST[$org_theme]."' 
 					AND issue  ='".$_POST[$org_issue]."'";
@@ -355,21 +355,21 @@ if(isset($_POST['proc_fg'])) {
 		$review_date = $_POST['review_date'];
 		$day_cnt = $_POST['day_cnt'];
 
-		// daily_watchlist 데이터 불러오기
+		// 0day_stocks 데이터 불러오기
 		$qry = "INSERT IGNORE INTO daily_watchlist_review
 				( review_date
 				, code
 				, name
-				, watchlist_date
+				, 0day_date
 				)
 				SELECT '".$_POST['review_date']."'
 					, code
 					, name
-					, max(watchlist_date) watchlist_date
-				FROM daily_watchlist
+					, max(0day_date) 0day_date
+				FROM 0day_stocks
 				WHERE tracking_yn = 'Y'
-				AND watchlist_date <= '$review_date'
-				AND watchlist_date >= (select DATE_FORMAT(DATE_ADD('$review_date', INTERVAL -1*$day_cnt DAY), '%Y%m%d'))
+				AND 0day_date <= '$review_date'
+				AND 0day_date >= (SELECT DATE_ADD('$review_date', INTERVAL -1*$day_cnt DAY))
 				GROUP BY code, name";
 
 		echo $qry."<br>";
@@ -463,7 +463,7 @@ if(isset($_POST['proc_fg'])) {
 
 			// 트레킹 종료를 선택한 경우
 			if(isset($_POST[$traking_yn])) {
-				$qry = "UPDATE daily_watchlist
+				$qry = "UPDATE 0day_stocks
 						SET	tracking_yn = 'N'
 						,	tracking_end_date = '$review_date'
 						WHERE code = '".$_POST[$code]."'

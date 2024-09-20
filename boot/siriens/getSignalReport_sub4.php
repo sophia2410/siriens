@@ -27,8 +27,8 @@ $code = (isset($_GET['code'])) ? $_GET['code'] : '';
 	// 검색조건 설정
 	// 뉴스검색 기본 쿼리문		
 	$qry1  = " SELECT A.signal_id
-					, STR_TO_DATE(A.date, '%Y%m%d') date
-					, A.time
+					, A.news_date
+					, A.news_time
 					, A.title
 					, A.content
 					, A.publisher
@@ -39,7 +39,7 @@ $code = (isset($_GET['code'])) ? $_GET['code'] : '';
 					, A.confirm_fg
 				FROM signals A
 				WHERE code like '$code' 
-				ORDER BY A.confirm_fg, STR_TO_DATE(A.date, '%Y%m%d') desc ";
+				ORDER BY A.confirm_fg, A.news_date desc ";
 
 	//echo $qry1;
 	$result = $mysqli->query($qry1);
@@ -50,8 +50,8 @@ $code = (isset($_GET['code'])) ? $_GET['code'] : '';
 	while($row = $result->fetch_array(MYSQLI_BOTH)) {
 		// echo $qry1;
 		$signal_id  = $row['signal_id'];
-		$date       = $row['date'];
-		$time       = $row['time'];
+		$news_date  = $row['news_date'];
+		$news_time  = $row['news_time'];
 		$title      = $row['title'];
 		$content    = $row['content'];
 		$publisher  = $row['publisher'];
@@ -65,7 +65,7 @@ $code = (isset($_GET['code'])) ? $_GET['code'] : '';
 		echo "
 		<tr style='border: 1px solid #444444; background-color:$bgcolor'>
 			<td><input type=button value='$signal_id' onclick=\"setNews('".$signal_id."','".$link."')\"></td>
-			<td width=70>$date</td>
+			<td width=70>$news_date</td>
 			<td width=300 style='font:red;'>$title</td>
 			<td>$publisher</td>
 			<td>$keyword</td>

@@ -1,124 +1,23 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Python Script Executor</title>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <style>
-        button {
-            display: block;
-            margin: 10px 0;
-        }
-        #result {
-            margin-top: 20px;
-            white-space: pre-wrap;
-            border: 1px solid #ddd;
-            padding: 10px;
-            height: 300px; /* 결과 표시 영역 크기 증가 */
-            overflow-y: auto; /* 스크롤 가능 */
-        }
-        #log {
-            margin-top: 20px;
-            white-space: pre-wrap;
-            border: 1px solid #ddd;
-            padding: 10px;
-            height: 200px; /* 로그 표시 영역 크기 */
-            overflow-y: auto; /* 스크롤 가능 */
-        }
-        .crawl-container {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .crawl-container input {
-            flex: 1; /* 남은 공간을 차지하게 함 */
-            padding: 8px;
-        }
-        .crawl-container button {
-            padding: 8px;
-        }
-    </style>
-</head>
-<body>
-    <h1>Python Script Executor</h1>
+import re
+import html
 
-    <!-- URL 입력 필드 및 크롤링 버튼 추가 -->
-    <h2>Crawl Morning Report</h2>
-    <div class="crawl-container">
-        <label for="urlInput">Enter the URL to crawl:</label>
-        <input type="text" id="urlInput" placeholder="Enter URL" value="https://contents.premium.naver.com/nomadand/nomad/contents/240911081950790dg">
-        <button onclick="crawlPage()">Crawl Page</button>
-    </div>
+# Title extraction function for both Morning and Evening reports
+def extract_title(title):
+    # 불필요한 날짜, "장 전 뉴스 Check", "Signal Evening" 등의 부분을 제거
+    cleaned_title = re.sub(r'^\d{4}\.\d{2}\.\d{2}\.\(.\)\s*(\[장 전 뉴스 Check\]|Signal Evening)\s*', '', title)
+    
+    # 제일 바깥의 따옴표를 제거 (양 끝에 있을 경우)
+    if cleaned_title.startswith('"') and cleaned_title.endswith('"'):
+        cleaned_title = cleaned_title[1:-1]
 
-    <button onclick="executeScript('pyDailyRoutine/DBUp_XrayTickExe.py')">Execute DBUp_XrayTickExe.py</button>
-    <button onclick="executeScript('pyDailyRoutine/DBUp_MochatenList.py')">Execute DBUp_MochatenList.py</button>
-    <button onclick="executeScript('pyDailyRoutine/DBUp_SignalEvening.py')">Execute DBUp_SignalEvening.py</button>
-    <button onclick="executeScript('pyObsidian/Obsidian_ConvertSignalReport.py')">Execute Obsidian_ConvertSignalReport.py</button>
-    <button onclick="executeScript('pyObsidian/WatchList_DBUp.py')">Execute WatchList_DBUp.py</button>
-    <button onclick="executeScript('pyObsidian/Obsidian_DBDownStockInfo.py')">Execute Obsidian_DBDownStockInfo.py</button>
+    # 최종적으로 정리된 제목 반환
+    return cleaned_title.strip()
 
-    <div id="result">Result will be displayed here...</div>
-    <h2>Execution Log</h2>
-    <div id="log">Log will be displayed here...</div>
+title_morning = '2024.09.12.(목) [장 전 뉴스 Check] ""엔비디아 밀어 올려"…나스닥 2.17% 급등"'
+title_evening = '2024.09.11.(수) Signal Evening "美대선 첫 토론, 해리스 판정승... 이차전지·에너지주 강세"'
 
-    <script>
-        // 크롤링 실행 함수
-        function crawlPage() {
-            const url = $('#urlInput').val();
-            if (url === "") {
-                alert("Please enter a URL.");
-                return;
-            }
-            $('#result').text('Crawling page...'); // 크롤링 진행 중 메시지 표시
-            $.ajax({
-                url: 'ExcutePython_script.php',  // 같은 PHP 파일에서 처리
-                type: 'POST',
-                data: { url: url },  // URL 데이터를 전송
-                success: function(response) {
-                    $('#result').html(response);  // 실행 결과를 result 영역에 표시
-                    updateLog();  // 로그 업데이트
-                },
-                error: function(xhr, status, error) {
-                    $('#result').text('Error: ' + error);
-                }
-            });
-        }
+morning_title = extract_title(title_morning)
+evening_title = extract_title(title_evening)
 
-        // 일반 스크립트 실행 함수
-        function executeScript(scriptName) {
-            $('#result').text('Executing script...'); // "실행 중" 메시지 표시
-            $.ajax({
-                url: 'ExcutePython_script.php',  // 같은 PHP 파일에서 처리
-                type: 'POST',
-                data: { script: scriptName },
-                success: function(response) {
-                    $('#result').html(response);  // 실행 결과를 result 영역에 표시
-                    updateLog();  // 로그 업데이트
-                },
-                error: function(xhr, status, error) {
-                    $('#result').text('Error: ' + error);
-                }
-            });
-        }
-
-        // 로그 업데이트 함수
-        function updateLog() {
-            $.ajax({
-                url: 'ExcutePython_readlog.php',
-                type: 'GET',
-                success: function(response) {
-                    $('#log').html(response);
-                },
-                error: function(xhr, status, error) {
-                    $('#log').text('Error: ' + error);
-                }
-            });
-        }
-
-        // 페이지 로드 시 로그 업데이트
-        $(document).ready(function() {
-            updateLog();
-        });
-    </script>
-</body>
-</html>
+print(morning_title)  # 출력: 엔비디아 밀어 올려…나스닥 2.17% 급등
+print(evening_title)  # 출력: 美대선 첫 토론, 해리스 판정승... 이차전지·에너지주 강세

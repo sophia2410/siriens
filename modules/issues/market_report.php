@@ -5,25 +5,10 @@ require($_SERVER['DOCUMENT_ROOT']."/modules/common/common_header.php");
 require($_SERVER['DOCUMENT_ROOT']."/modules/issues/issue_register_form.php");
 require($_SERVER['DOCUMENT_ROOT']."/modules/issues/issue_list.php");
 
-
-$report_date = isset($_GET['report_date']) ? $_GET['report_date'] : date('Ymd', time());
-$report_date = str_replace('-', '', $report_date);
-
-// Fetch dates for the select box
-$query = "
-SELECT report_date, CONCAT(SUBSTRING(report_date, 1, 4), '년 ', SUBSTRING(report_date, 5, 2), '월 ', SUBSTRING(report_date, 7, 2), '일') report_date_str
-FROM market_report
-ORDER BY report_date DESC
-LIMIT 50";
-
-$result = $mysqli->query($query);
-$dates = [];
-while($row = $result->fetch_assoc()) {
-    $dates[] = $row;
-}
+$report_date = isset($_GET['report_date']) ? $_GET['report_date'] : date('Y-m-d', time());
 
 // Fetch market comment, overview and titles
-$overview_query = "SELECT market_review, market_overview, us_market_overview, other_market_overview, morning_report_title, morning_news_link, evening_report_title FROM market_report WHERE report_date = '$report_date'";
+$overview_query = "SELECT market_review, market_overview, us_market_overview, other_market_overview, morning_report_title, morning_news_link, evening_report_title FROM market_report WHERE date = '$report_date'";
 $overview_result = $mysqli->query($overview_query);
 $overview_row = $overview_result->fetch_assoc();
 $market_review = isset($overview_row) ? $overview_row['market_review'] : '';
@@ -152,7 +137,7 @@ $recent_themes_query = "
         MAX(mis.close_rate) DESC  -- 테마 내에서 등락률 기준 역순 정렬
     ";
 
-Database_logQuery($recent_themes_query, [$report_date]);
+// Database_logQuery($recent_themes_query, [$report_date]);
 $recent_themes_result = $mysqli->query($recent_themes_query);
 $recent_themes = [];
 while($row = $recent_themes_result->fetch_assoc()) {
@@ -271,12 +256,12 @@ while ($row = $index_result->fetch_assoc()) {
         }
 
         textarea {
-            height: 120px; /* 텍스트 입력 영역의 높이를 크게 조정 */
+            height: 100px; /* 텍스트 입력 영역의 높이를 크게 조정 */
             margin-bottom: 20px;
         }
 
         textarea.large {
-            height: 250px; /* 텍스트 입력 영역의 높이를 크게 조정 */
+            height: 200px; /* 텍스트 입력 영역의 높이를 크게 조정 */
         }
 
         textarea.middle {
@@ -284,7 +269,7 @@ while ($row = $index_result->fetch_assoc()) {
         }
 
         textarea.small {
-            height: 80px; /* 텍스트 입력 영역의 높이를 크게 조정 */
+            height: 70px; /* 텍스트 입력 영역의 높이를 크게 조정 */
         }
 
         #middle-content {
@@ -402,7 +387,7 @@ while ($row = $index_result->fetch_assoc()) {
     <!-- Date and Save Controls -->
     <div id="controls">
         <div>
-            <input type="date" id="report_date" value="<?= date('Y-m-d', strtotime($report_date)) ?>" onchange="search()">
+            <input type="date" id="report_date" value="<?= $report_date ?>" onchange="search()">
             <button onclick="saveReport()">Save Report</button>
         </div>
         <div id="index-section">
@@ -554,7 +539,7 @@ while ($row = $index_result->fetch_assoc()) {
             return;
         }
 
-        var report_date = report_date_element.value.replace(/-/g, ''); // 날짜를 'YYYYMMDD' 형식으로 변환
+        var report_date = report_date_element.value;
         var market_overview = market_overview_element.value;
         var us_market_overview = us_market_overview_element.value;
         var other_market_overview = other_market_overview_element.value;

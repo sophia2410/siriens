@@ -25,7 +25,7 @@ db = pymysql.connect(
 cursor = db.cursor()
 
 # 오늘 날짜와 가장 가까운 날짜를 구합니다.
-query_date = f"SELECT MAX(date) FROM daily_price WHERE date <= (select DATE_FORMAT(DATE_ADD(now(), INTERVAL 0 DAY), '%Y%m%d'))"
+query_date = f"SELECT MAX(date) FROM daily_price WHERE date <= (select DATE_ADD(now(), INTERVAL 0 DAY))"
 
 cursor.execute(query_date)
 closest_date = cursor.fetchone()[0].decode('utf-8')
@@ -77,13 +77,12 @@ with open(md_file, 'w', encoding='utf-8') as f:
         query = f'''
         SELECT CONCAT('**',title,'**') news_title
             , content
-            , CONCAT('(', STR_TO_DATE(date, '%Y%m%d'), CASE WHEN publisher IS NOT NULL THEN CONCAT(', ', publisher) ELSE '' END, ')') as news_info
+            , CONCAT('(', news_date, CASE WHEN publisher IS NOT NULL THEN CONCAT(', ', publisher) ELSE '' END, ')') as news_info
         FROM signals 
         WHERE code='{code}' 
-        AND date >=(select DATE_FORMAT(DATE_ADD({closest_date}, INTERVAL -1 DAY), '%Y%m%d')) 
-        ORDER BY date;
+        AND news_date >=(select DATE_ADD({closest_date}, INTERVAL -1 DAY)) 
+        ORDER BY news_date;
         '''
-        # , CONCAT('(', STR_TO_DATE(date, '%Y%m%d'), ') ', title) as news_title
 
         cursor.execute(query)
         stock_news = cursor.fetchall()

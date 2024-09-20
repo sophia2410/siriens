@@ -59,18 +59,18 @@ $query = " SELECT STR_TO_DATE(A.date, '%Y%m%d') issue_date, DAYOFWEEK(A.date) - 
 			and C.market_fg = 'KOSDAQ'
 			LEFT OUTER JOIN market_report E
 			ON E.report_date = A.date
-			LEFT OUTER JOIN (SELECT watchlist_date
+			LEFT OUTER JOIN (SELECT 0day_date
 									, GROUP_CONCAT('<tr class=\'font-weight-bold\'><td>', CASE WHEN hot_theme = 'Y' THEN CONCAT('<font color=red>',today_theme,'</font>') ELSE today_theme END ,'</td></tr>' ORDER BY hot_theme DESC, tot_trade_amt DESC SEPARATOR '') today_theme
-								FROM (SELECT watchlist_date, hot_theme
+								FROM (SELECT 0day_date, hot_theme
 										, CASE WHEN theme is null OR  theme = '' THEN sector ELSE CONCAT (sector, ' > ' , theme) END today_theme
 										, SUM(tot_trade_amt) tot_trade_amt
-									  FROM daily_watchlist A
-									  WHERE watchlist_date BETWEEN CONCAT('$issue_mon','01') AND CONCAT('$issue_mon','31')
-									  GROUP BY watchlist_date, hot_theme, theme, sector
-									  ORDER BY watchlist_date, hot_theme DESC, tot_trade_amt DESC) Z
-									  GROUP BY watchlist_date
+									  FROM 0day_stocks A
+									  WHERE 0day_date BETWEEN CONCAT('$issue_mon','01') AND CONCAT('$issue_mon','31')
+									  GROUP BY 0day_date, hot_theme, theme, sector
+									  ORDER BY 0day_date, hot_theme DESC, tot_trade_amt DESC) Z
+									  GROUP BY 0day_date
 							) F
-			ON  F.watchlist_date = A.date
+			ON  F.0day_date = A.date
 			WHERE A.date BETWEEN CONCAT('$issue_mon','01') AND CONCAT('$issue_mon','31')
 			ORDER BY A.date, F.today_theme ";
 

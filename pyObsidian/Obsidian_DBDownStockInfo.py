@@ -99,12 +99,12 @@ for stock_name in stock_list:
 
     # 관련 기사 가져오기
     query = f"""
-    SELECT STR_TO_DATE(date, '%Y%m%d') date
+    SELECT news_date date
         , CONCAT('[',REPLACE(REPLACE(title, '[',''),']','_'),'](',link,')') title
         , REPLACE(content,"\r\n", "<br>") content
     FROM signals
     WHERE code='{stock_code}'
-    ORDER BY date DESC
+    ORDER BY news_date DESC
     """
     cursor.execute(query)
     articles = cursor.fetchall()

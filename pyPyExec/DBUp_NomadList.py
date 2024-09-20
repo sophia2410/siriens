@@ -25,7 +25,7 @@ class DBUpdater :
 			return st
 
 	def read_xlsx(self):
-		sql =  "SELECT max(date) date FROM calendar a WHERE date <= (select DATE_FORMAT(now(), '%Y%m%d'))"
+		sql =  "SELECT max(date) date FROM calendar a WHERE date <= now()"
 		df = pd.read_sql(sql, self.conn)
 		date = df['date'][0].decode('utf-8')
 

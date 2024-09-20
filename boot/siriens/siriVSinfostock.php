@@ -91,7 +91,7 @@ require($_SERVER['DOCUMENT_ROOT']."/modules/common/common_nav_menu.php");
 							 , CONCAT('[',A.signal_grp , CASE WHEN A.theme is not null or A.theme != '' THEN concat('-',A.theme,']') ELSE ']' END) siri_theme
 							 , A.title siri_issue
 							 , A.stocks siri_friend_stock
-						  FROM rawdata_siri_report A
+						  FROM signal_evening A
 						 WHERE code IS NOT NULL
 						   AND page_date = '$report_date'
 						   AND today_pick = 'Y'

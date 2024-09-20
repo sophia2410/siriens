@@ -6,6 +6,7 @@ from pykrx import stock
 import pandas as pd
 from datetime import datetime
 import re
+import html
 
 # Special character handler
 def special_char(str):
@@ -16,11 +17,18 @@ def special_char(str):
 
 # Title extraction function
 def extract_title(title):
-    cleaned_title = re.findall(r'".*?"', title)
-    if cleaned_title:
-        return cleaned_title[0].strip('"')
-    else:
-        return re.sub(r'^\d{4}\.\d{2}\.\d{2}\.\(.\)\s.*\sSignal Evening\s+|\[장 전 뉴스 Check\]\s+', '', title).strip()
+    # HTML 엔티티를 디코딩 (예: &quot; -> ")
+    decoded_title = html.unescape(title)
+    
+    # 불필요한 날짜와 "장 전 뉴스 Check" 부분을 제거
+    cleaned_title = re.sub(r'^\d{4}\.\d{2}\.\d{2}\.\(.\)\s*\[장 전 뉴스 Check\]\s*', '', decoded_title)
+    
+    # 제일 바깥의 따옴표를 제거 (양 끝에 있을 경우)
+    if cleaned_title.startswith('"') and cleaned_title.endswith('"'):
+        cleaned_title = cleaned_title[1:-1]
+
+    # 최종적으로 정리된 제목 반환
+    return cleaned_title.strip()
 
 # Connect to database
 def connect_db():
@@ -47,7 +55,9 @@ def update_market_report(url):
     # Extract title
     title_tag = soup.find("title")
     if title_tag:
+        print("title_tag.text" + title_tag.text)
         morning_title = extract_title(title_tag.text)
+        print("morning_title" + morning_title)
     else:
         morning_title = "No Title"
 
@@ -111,12 +121,12 @@ def update_market_index():
         data['close_rate'] = data['close_rate'].fillna(0)
 
         for row in data.itertuples():
-            date_str = row.Index.strftime('%Y%m%d')
+            date = row.Index.strftime('%Y-%m-%d')
 
             # Insert or update market_index table
             sql = f"""
                 INSERT IGNORE INTO market_index (market_fg, date, open, high, low, close, volume, close_rate)
-                VALUES ('{index}', '{date_str}', {row.Open}, {row.High}, {row.Low}, {row.Close}, {row.Volume}, {row.close_rate})
+                VALUES ('{index}', '{date}', {row.Open}, {row.High}, {row.Low}, {row.Close}, {row.Volume}, {row.close_rate})
             """
             cursor.execute(sql)
 

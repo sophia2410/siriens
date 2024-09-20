@@ -26,7 +26,7 @@ if($_POST['proc_fg'] == 'D') {	// 뉴스삭제처리
 	for($i=0; $i<$total_cnt; $i++){
 		$id = 'id'.$i;
 		if(isset($_POST[$id])) {
-			$qry = "UPDATE rawdata_siri_report
+			$qry = "UPDATE signal_evening
 					   SET del_yn = 'Y'
 					 WHERE id = $_POST[$id]";
 
@@ -45,8 +45,8 @@ if($_POST['proc_fg'] == 'D') {	// 뉴스삭제처리
 		$today_pick = 'today_pick'.$_POST[$id];
 		$title      = 'title'.$_POST[$id];
 		// $writer     = 'writer'.$_POST[$id];
-		$date       = 'date'.$_POST[$id];
-		// $time       = 'time'.$_POST[$id];
+		$news_date     = 'news_date'.$_POST[$id];
+		// $news_time  = 'news_time'.$_POST[$id];
 		// $grouping   = 'grouping'.$_POST[$id];
 		// $keyword    = 'keyword'.$_POST[$id];
 		// $content    = 'content'.$_POST[$id];
@@ -59,19 +59,19 @@ if($_POST['proc_fg'] == 'D') {	// 뉴스삭제처리
 		// $content_val = str_replace("'", "\'", $_POST[$content]);
 		// $content_val = str_replace('"', '\"', $content_val);
 
-		$qry = "UPDATE rawdata_siri_report
+		$qry = "UPDATE signal_evening
 				   SET signal_grp= '$_POST[$signal_grp]'
 					 , theme     = '$_POST[$theme]'
 					 , stock     = '$_POST[$stock]'
 					 , today_pick= '$pick_yn'
 					 , title     = '$title_val'
-					 , date      = '$_POST[$date]'
+					 , news_date = '$_POST[$news_date]'
 				 WHERE id = $_POST[$id]";
 
 		// 화면단순화를 위해 미사용 항목 우선 제외처리
 		// , stocks    = '$_POST[$stocks]'
 		// , writer    = '$_POST[$writer]'
-		// , time      = '$_POST[$time]'
+		// , news_time = '$_POST[$news_time]'
 		// , grouping  = '$_POST[$grouping]'
 		// , keyword   = '$_POST[$keyword]'
 		// , content   = '$content_val'
@@ -81,7 +81,7 @@ if($_POST['proc_fg'] == 'D') {	// 뉴스삭제처리
 	}
 
 	// 코드 미등록 종목은 코드 등록하기
-	$qry = " UPDATE rawdata_siri_report A
+	$qry = " UPDATE signal_evening A
 				SET code
 			= (SELECT code
 				 FROM stock B
@@ -94,7 +94,7 @@ if($_POST['proc_fg'] == 'D') {	// 뉴스삭제처리
 	$mysqli->query($qry);
 
 	// today_pick 업데이트
-	$qry = " UPDATE rawdata_siri_report
+	$qry = " UPDATE signal_evening
 				SET today_pick = 'Y'
 			 WHERE page_date = '$_POST[page_date]'
 			   AND page_fg   = '$_POST[page_fg]'
@@ -109,10 +109,10 @@ if($_POST['proc_fg'] == 'D') {	// 뉴스삭제처리
 } else if($_POST['proc_fg'] == 'P') {// 뉴스 반영
 	if($_POST['page_fg'] == 'E') { // 시그널 이브닝 반영인 경우
 		// today_pick 이 아닌 종목은 stocks 데이터 지우기
-		$qry = " UPDATE rawdata_siri_report
+		$qry = " UPDATE signal_evening
 					SET stocks = ''
 				WHERE page_date = '$_POST[page_date]'
-					AND page_fg   = '$_POST[page_fg]'
+					AND page_fg = '$_POST[page_fg]'
 					AND today_pick = 'N'";
 
 		echo $qry."<br><br>";
@@ -122,9 +122,8 @@ if($_POST['proc_fg'] == 'D') {	// 뉴스삭제처리
 		// 같은 뉴스에 종목이 중복 등록된 경우 제일 먼저 적용된 종목이 signals 테이블에 반영되도록 수정 - 2024.06.23
 		// $qry = "INSERT INTO signals
 		// 		(
-		// 			date,
 		// 			news_date,
-		// 			time,
+		// 			news_time,
 		// 			title,
 		// 			content,
 		// 			publisher,
@@ -139,9 +138,8 @@ if($_POST['proc_fg'] == 'D') {	// 뉴스삭제처리
 		// 			create_date ,
 		// 			create_id
 		// 		)
-		// 		SELECT date,
-		// 				date,
-		// 				time,
+		// 		SELECT  news_date,
+		// 				news_time,
 		// 				title,
 		// 				content,
 		// 				publisher,
@@ -155,7 +153,7 @@ if($_POST['proc_fg'] == 'D') {	// 뉴스삭제처리
 		// 				'1',
 		// 				now(),
 		// 				now()
-		// 			FROM rawdata_siri_report A
+		// 			FROM signal_evening A
 		// 			WHERE page_date = '$_POST[page_date]'
 		// 			AND page_fg = '$_POST[page_fg]'
 		// 			AND exists_yn = 'N'
@@ -165,9 +163,8 @@ if($_POST['proc_fg'] == 'D') {	// 뉴스삭제처리
 		// 같은 뉴스에 종목이 중복 등록된 경우 제일 먼저 적용된 종목이 signals 테이블에 반영되는 쿼리 - 2024.06.23
 		$qry = "INSERT INTO signals
 				(
-					date,
 					news_date,
-					time,
+					news_time,
 					title,
 					content,
 					publisher,
@@ -183,9 +180,8 @@ if($_POST['proc_fg'] == 'D') {	// 뉴스삭제처리
 					create_id
 				)
 				SELECT
-					date,
-					date AS news_date,
-					time,
+					news_date,
+					news_time,
 					title,
 					content,
 					publisher,
@@ -199,10 +195,10 @@ if($_POST['proc_fg'] == 'D') {	// 뉴스삭제처리
 					'1' AS confirm_fg,
 					NOW() AS create_date,
 					NOW() AS create_id
-				FROM rawdata_siri_report
+				FROM signal_evening
 				WHERE id IN (
 					SELECT MIN(id)
-					FROM rawdata_siri_report
+					FROM signal_evening
 					WHERE page_date = '$_POST[page_date]'
 					AND page_fg = '$_POST[page_fg]'
 					AND exists_yn = 'N'
@@ -215,7 +211,7 @@ if($_POST['proc_fg'] == 'D') {	// 뉴스삭제처리
 		$mysqli->query($qry);
 
 		// signals 테이블 반영 정보 rawdata_siri_report에 업데이트
-		$qry = "UPDATE rawdata_siri_report A
+		$qry = "UPDATE signal_evening A
 				INNER JOIN signals B
 					ON replace(replace(B.link,'https://',''),'http://','') = replace(replace(A.link,'https://',''),'http://','')
 				SET A.exists_yn = 'Y'
@@ -266,7 +262,7 @@ if($_POST['proc_fg'] == 'D') {	// 뉴스삭제처리
 		// 				signal_id,
 		// 				'signal_evening',
 		// 				now()
-		// 		FROM	rawdata_siri_report A
+		// 		FROM	signal_evening A
 		// 		WHERE	page_date = '$_POST[page_date]'
 		// 		AND  page_fg = '$_POST[page_fg]'
 		// 		AND  today_pick = 'Y'";
@@ -295,7 +291,7 @@ if($_POST['proc_fg'] == 'D') {	// 뉴스삭제처리
 		// 		)
 		// 		SELECT	page_date,
 		// 				SUBSTRING_INDEX(SUBSTRING_INDEX(page_title,'\"',-2),'\"',1)
-		// 		FROM	rawdata_siri_report
+		// 		FROM	signal_evening
 		// 		WHERE	page_date = '$_POST[page_date]'
 		// 		AND  (page_title is not null  AND page_title <> '')";
 
@@ -306,9 +302,8 @@ if($_POST['proc_fg'] == 'D') {	// 뉴스삭제처리
 		// signals 테이블에 뉴스 데이터 반영
 		$qry = "INSERT INTO signals
 				(
-					date,
 					news_date,
-					time,
+					news_time,
 					title,
 					content,
 					publisher,
@@ -323,9 +318,8 @@ if($_POST['proc_fg'] == 'D') {	// 뉴스삭제처리
 					create_date ,
 					create_id
 				)
-				SELECT date,
-						date,
-						time,
+				SELECT  news_date,
+						news_time,
 						title,
 						content,
 						publisher,
@@ -339,7 +333,7 @@ if($_POST['proc_fg'] == 'D') {	// 뉴스삭제처리
 						'1',
 						now(),
 						now()
-					FROM rawdata_siri_report A
+					FROM signal_evening A
 					WHERE page_date = '$_POST[page_date]'
 					AND page_fg = '$_POST[page_fg]'
 					AND exists_yn = 'N'
@@ -350,7 +344,7 @@ if($_POST['proc_fg'] == 'D') {	// 뉴스삭제처리
 		$mysqli->query($qry);
 
 		// signals 테이블 반영 정보 rawdata_siri_report에 업데이트
-		$qry = "UPDATE rawdata_siri_report A
+		$qry = "UPDATE signal_evening A
 				INNER JOIN signals B
 					ON replace(replace(B.link,'https://',''),'http://','') = replace(replace(A.link,'https://',''),'http://','')
 				SET A.exists_yn = 'Y'
@@ -370,9 +364,8 @@ if($_POST['proc_fg'] == 'D') {	// 뉴스삭제처리
 	for($i=0; $i<$total_cnt; $i++){
 
 		$id = 'h_id'.$i;
-		$date      = 'date'.$_POST[$id];
 		$news_date = 'news_date'.$_POST[$id];
-		$time      = 'time'.$_POST[$id];
+		$news_time = 'news_time'.$_POST[$id];
 		$title     = 'title'.$_POST[$id];
 		$content   = 'content'.$_POST[$id];
 		$publisher = 'publisher'.$_POST[$id];
@@ -390,9 +383,8 @@ if($_POST['proc_fg'] == 'D') {	// 뉴스삭제처리
 		$content_val = str_replace('"', '\"', $content_val);
 		
 		$qry = "UPDATE  signals
-				   SET  date       = '$_POST[$date]'
-					 ,	news_date  = '$_POST[$news_date]'
-					 ,	time       = '$_POST[$time]'
+				   SET  news_date  = '$_POST[$news_date]'
+					 ,	news_time  = '$_POST[$news_time]'
 					 ,	title      = '$title_val'
 					 ,	content    = '$content_val'
 					 ,	publisher  = '$_POST[$publisher]'
@@ -417,7 +409,7 @@ if($_POST['proc_fg'] == 'D') {	// 뉴스삭제처리
 		$grouping_str   = 'grouping_str'.$i;
 		$today_rank     = 'today_rank'.$i;
 
-		$qry = "UPDATE rawdata_siri_report
+		$qry = "UPDATE signal_evening
 				   SET signal_grp = '$_POST[$signal_grp_str]'
 					 , theme      = '$_POST[$theme_str]'
 					 , grouping   = '$_POST[$grouping_str]'
@@ -431,12 +423,12 @@ if($_POST['proc_fg'] == 'D') {	// 뉴스삭제처리
 } else if($_POST['proc_fg'] == 'NM') {// 빠른뉴스수정에서 변경사항 저장
 	// 뉴스 건수만큼 돌면서 데이터 업데이트
 	for($i=0; $i<$total_cnt; $i++){
-		$id    = 'id'.$i;
-		$date  = 'date'.$i;
-		$stock = 'stock'.$i;
+		$id        = 'id'.$i;
+		$news_date = 'news_date'.$i;
+		$stock     = 'stock'.$i;
 
-		$qry = "UPDATE rawdata_siri_report
-				   SET date = '$_POST[$date]'
+		$qry = "UPDATE signal_evening
+				   SET news_date = '$_POST[$news_date]'
 					 , stock   = '$_POST[$stock]'
 				 WHERE id = '$_POST[$id]'";
 		echo $qry."<br><br>";
@@ -448,48 +440,13 @@ if($_POST['proc_fg'] == 'D') {	// 뉴스삭제처리
 	for($i=0; $i<$total_cnt; $i++){
 		$id    = 'id'.$i;
 
-		$qry = "UPDATE rawdata_siri_report
+		$qry = "UPDATE signal_evening
 				   SET confirm_fg   = '2'
 				 WHERE id = '$_POST[$id]'";
 		echo $qry."<br><br>";
 		$mysqli->query($qry);
 	}
 }
-// 임시 데이터 처리 용. 이후 삭제 예정 getSignalReport_sub6_임시일자처리_삭제예정 파일에서 처리함. 2023.11.05
-else if($_POST['proc_fg'] == 'TEMP') {// 빠른뉴스수정에서 변경사항 저장
-	// 뉴스 건수만큼 돌면서 데이터 업데이트
-	for($i=0; $i<$total_cnt; $i++){
-		$id    = 'id'.$i;
-		$date  = 'date'.$i;
-		$stock = 'stock'.$i;
-
-		$qry = "UPDATE rawdata_siri_report
-				   SET date = '$_POST[$date]',
-				       confirm_fg = '1'
-				 WHERE signal_id = '$_POST[$id]'";
-		echo $qry."<br><br>";
-		$mysqli->query($qry);
-
-		$qry = "UPDATE signals
-				   SET date = '$_POST[$date]',
-				   	   news_date = '$_POST[$date]',
-				       confirm_fg = '1'
-				 WHERE signal_id = '$_POST[$id]'";
-		echo $qry."<br><br>";
-		$mysqli->query($qry);
-	}
-}
-
-// $publisher    = $_POST['publisher'];
-// $name         = $_POST['name'];
-// $date         = $_POST['date'];
-// $time         = $_POST['time'];
-// $keyword      = $_POST['keyword'];
-// $signal_group = $_POST['signal_group'];
-// $content      = $_POST['content'];
-// $link_date    = $_POST['link_date'];
-// $link         = $_POST['link'];
-
 $mysqli->close();
 ?>
 <a href="javascript:window.parent.location='http://localhost/boot/news/news.php?link_date=<?=$link_date?>&signal_group=<?=$signal_group?>';"> 등록페이지로</a>

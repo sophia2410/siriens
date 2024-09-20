@@ -1,3 +1,5 @@
+## 뭐하는 화면인지 생각이 안난다. 코멘트 적자!!!
+
 import yfinance as yf
 from pykrx import stock
 import pymysql # MySQL 데이터베이스를 연결하고 조작하기 위한 모듈

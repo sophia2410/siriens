@@ -144,19 +144,19 @@ if($pgmId == '') {
 			$today_issue = $row['stock_comment'];
 		} else {
 			// 0일차가 아니어도 시그널이브닝에 이슈가 들어오는 경우가 있어, 수정해봄. 더 적합한 데이터로 변경 예정 24.06.29
-
 			// $query3 = "SELECT CONCAT('[',A.signal_grp
 			// 				, CASE WHEN length(A.theme) > 1 && A.theme != A.signal_grp THEN CONCAT(A.theme, ']<BR>') ELSE ']<BR>' END) today_theme
 			// 				, A.title today_issue
-			// 		FROM	rawdata_siri_report A
+			// 		FROM	signal_evening A
 			// 		WHERE	page_date = (select max(date) from calendar where date <= '$zeroday_date')
 			// 		AND  page_fg = 'E'
 			// 		AND  code =  '$code'" ;
+
 			$query3 = "SELECT CONCAT('[',A.signal_grp
 							, CASE WHEN length(A.theme) > 1 && A.theme != A.signal_grp THEN CONCAT(A.theme, ']<BR>') ELSE ']<BR>' END) today_theme
 							, A.title today_issue
-					FROM	rawdata_siri_report A
-					WHERE	page_date = (select max(date) from rawdata_siri_report where date <= '$search_date' and code = '$code')
+					FROM	signal_evening A
+					WHERE	page_date = (select max(page_date) from signal_evening where page_date <= '$search_date' and code = '$code')
 					AND  page_fg = 'E'
 					AND  code =  '$code'" ;
 
@@ -191,7 +191,7 @@ if($pgmId == '') {
 		echo "<td width=60%>$today_issue</td></tr><tr><td>";
 
 		// X-RAY 순간체결 거래량 쿼리 실행
-		$query2 = "SELECT cal.date, SUBSTR(STR_TO_DATE(cal.date, '%Y%m%d'),6) date_str, xray.close_rate, xray.high_rate, xray.low_rate, xray.tot_trade_amt, xray.amount, xray.cnt
+		$query2 = "SELECT cal.date, DATE_FORMAT(cal.date, '%m-%d') mm_dd, xray.close_rate, xray.high_rate, xray.low_rate, xray.tot_trade_amt, xray.amount, xray.cnt
 					FROM calendar cal
 					LEFT OUTER JOIN 
 						(
@@ -203,8 +203,8 @@ if($pgmId == '') {
 							WHERE xr.code = '$code'
 						) xray
 					ON xray.date = cal.date
-					WHERE cal.date >= (select max(date) from calendar where date <=(select DATE_FORMAT(DATE_ADD('$search_date', INTERVAL -30 DAY), '%Y%m%d')))
-					AND cal.date <= (select max(date) from calendar where date <=(select DATE_FORMAT(DATE_ADD('$search_date', INTERVAL 0 DAY), '%Y%m%d')))
+					WHERE cal.date >= (select max(date) from calendar where date <=(select DATE_ADD('$search_date', INTERVAL -30 DAY)))
+					AND cal.date <= (select max(date) from calendar where date <=(select DATE_ADD('$search_date', INTERVAL 0 DAY)))
 					ORDER BY cal.date desc";
 		// echo "<pre>$query2</pre>";
 		$result2 = $mysqli->query($query2);
@@ -218,7 +218,7 @@ if($pgmId == '') {
 		$xray_cnt = "";
 
 		while($row = $result2->fetch_array(MYSQLI_BOTH)) {
-			$xray_date .= "<th align=center style='width:80px; height:25px;'><a href=\"javascript:openPopupXrayTick('{$code}', '".$row['date']."')\">". $row['date_str']."</a></th>";
+			$xray_date .= "<th align=center style='width:80px; height:25px;'><a href=\"javascript:openPopupXrayTick('{$code}', '".$row['date']."')\">". $row['mm_dd']."</a></th>";
 			
 			if($row['cnt'] > 0) {
 

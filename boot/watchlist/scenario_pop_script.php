@@ -23,7 +23,7 @@ if(isset($_POST['proc_fg'])) {
 			$org_sector = $_POST['org_sector'];
 			$org_theme  = $_POST['org_theme'];
 			
-			$qry = "UPDATE daily_watchlist
+			$qry = "UPDATE 0day_stocks
 			SET sector	= '$mod_sector'
 			,	theme	= '$mod_theme'
 			WHERE sector='$org_sector' 
@@ -50,16 +50,16 @@ if(isset($_POST['proc_fg'])) {
 			$hot_theme  = isset($_POST[$hot_theme]) ? 'Y' : 'N';
 			$stock_keyword	= 'stock_keyword'.$i;
 			$theme_comment	= 'theme_comment'.$i;
-			$watchlist_date	= 'watchlist_date'.$i;
+			$0day_date	= '0day_date'.$i;
 			$code			= 'code'.$i;
 
-			$qry = "UPDATE daily_watchlist
+			$qry = "UPDATE 0day_stocks
 					SET sector		= '".$_POST[$sector]."'
 					,	theme		= '".$_POST[$theme]."'
 					,	issue		= '".$_POST[$issue]."'
 					, 	hot_theme	= '$hot_theme'
 					, 	theme_comment= '".$_POST[$theme_comment]."'
-					WHERE watchlist_date ='".$_POST[$watchlist_date]."'
+					WHERE 0day_date ='".$_POST[$0day_date]."'
 					AND code ='".$_POST[$code]."'";
 			echo $qry."<br>";
 			$mysqli->query($qry);

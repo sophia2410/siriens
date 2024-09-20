@@ -18,10 +18,10 @@ db = pymysql.connect(
 
 try:
     with db.cursor() as cursor:
-        sql = "SELECT max(date) date FROM calendar a WHERE date <= (select DATE_FORMAT(now(), '%Y%m%d'))"
-        # sql = "SELECT date FROM calendar a WHERE date = '20240902'" 
+        sql = "SELECT max(date) date FROM calendar a WHERE date <= now()"
+        # sql = "SELECT date FROM calendar a WHERE date = '2024-09-02'" 
         cursor.execute(sql)
-        date = cursor.fetchone()[0].decode('utf-8')
+        date = cursor.fetchone()[0].strftime('%Y-%m-%d')
 
     # Excel 파일 경로 설정
     file_name = f'{date}.xlsx'

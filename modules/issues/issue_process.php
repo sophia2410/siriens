@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     try {
         if ($action === 'register' || $action === 'update') {
             // 등록 및 수정 로직
-            $date = str_replace('-', '', $selected_date);
+            $date = $selected_date;
             $issue = $_POST['issue'] ?? '';
             $first_occurrence = isset($_POST['new_issue']) ? 'Y' : 'N';
             $link = $_POST['link'] ?? '';
@@ -69,12 +69,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 echo "Error: " . $e->getMessage();
             }
 
-        } elseif ($action === 'copy') {
+        } elseif ($action === 'copy_issue') {
             // 복사 로직
             $issue_id = $_POST['issue_id'];
             $new_issue_id = copyIssue($mysqli, $issue_id);
             $mysqli->commit();
-        } elseif ($action === 'delete') {
+        } elseif ($action === 'delete_issue') {
             // 삭제 로직
             $issue_id = $_POST['issue_id'];
             deleteIssue($mysqli, $issue_id);
@@ -93,6 +93,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $mysqli->rollback();
                 echo "Error: " . $e->getMessage();
             }
+        } elseif ($action === 'copy_stocks') {
+            $issue_id = $_POST['issue_id'];
+            $register_date = $_POST['register_date'];
+            $new_issue_id = copyStocks($mysqli, $issue_id, $register_date);
+            $mysqli->commit();
         }
 
         // 등록 처리 후 리다이렉트
@@ -225,8 +230,8 @@ function handleStocks($mysqli, $issue_id, $stocks, $date) {
             // Insert the data into market_issue_stocks
             $stmt = $mysqli->prepare("
                 INSERT INTO market_issue_stocks 
-                (issue_id, code, name, sector, close_rate, volume, trade_amount, stock_comment, is_leader, is_watchlist, date, create_dtime) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                (issue_id, code, name, sector, close_rate, volume, trade_amount, stock_comment, is_leader, is_watchlist, date, registration_source, create_dtime) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'manual', NOW())
             ");
             $stmt->bind_param(
                 'issssddssss', 
@@ -295,7 +300,7 @@ function copyIssue($mysqli, $issue_id) {
     $stocksResult = $stmt->get_result();
 
     while ($stock = $stocksResult->fetch_assoc()) {
-        $stmt = $mysqli->prepare("INSERT INTO market_issue_stocks (issue_id, code, name, sector, close_rate, volume, trade_amount, stock_comment, date, create_dtime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+        $stmt = $mysqli->prepare("INSERT INTO market_issue_stocks (issue_id, code, name, sector, close_rate, volume, trade_amount, stock_comment, date, registration_source, create_dtime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'manual', NOW())");
         $stmt->bind_param(
             'issssddss',
             $new_issue_id,
@@ -324,6 +329,100 @@ function deleteIssue($mysqli, $issue_id) {
     $stmt->bind_param('i', $issue_id);
     if (!$stmt->execute()) {
         throw new Exception("이슈 삭제 실패: " . $stmt->error);
+    }
+}
+
+function copyStocks($mysqli, $selected_stocks, $register_date) {
+    try {
+        foreach ($selected_stocks as $issue_id => $stock_code) {
+            // 선택한 종목의 이슈 데이터 가져오기
+            $stmt = $mysqli->prepare("SELECT * FROM market_issues WHERE issue_id = ?");
+            $stmt->bind_param('i', $issue_id);
+            $stmt->execute();
+            $issueData = $stmt->get_result()->fetch_assoc();
+
+            // 디버깅을 위한 로그 추가
+            if ($issueData) {
+                error_log("Issue Data: " . print_r($issueData, true));
+            } else {
+                throw new Exception("이슈를 찾을 수 없습니다: issue_id = {$issue_id}");
+            }
+
+            // 선택한 일자에 동일한 키워드 그룹이 있는지 확인
+            $stmt = $mysqli->prepare("SELECT issue_id FROM market_issues WHERE date = ? AND keyword_group_id = ?");
+            $stmt->bind_param('si', $register_date, $issueData['keyword_group_id']);
+            $stmt->execute();
+            $result = $stmt->get_result();
+
+            if ($row = $result->fetch_assoc()) {
+                $new_issue_id = $row['issue_id']; // 동일한 키워드 그룹이 이미 해당 일자에 있으면 그 issue_id 사용
+            } else {
+                // 없으면 새로운 issue_id로 이슈 생성
+                $stmt = $mysqli->prepare("
+                    INSERT INTO market_issues (date, issue, first_occurrence, keyword_group_id, theme, hot_theme, link, status, create_dtime) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 'registered', NOW())
+                ");
+                $stmt->bind_param(
+                    'ssssssi',
+                    $register_date,
+                    $issueData['issue'],
+                    $issueData['first_occurrence'],
+                    $issueData['keyword_group_id'],
+                    $issueData['theme'],
+                    $issueData['hot_theme'],
+                    $issueData['link']
+                );
+
+                if (!$stmt->execute()) {
+                    throw new Exception("이슈 복사 실패: " . $stmt->error);
+                }
+
+                $new_issue_id = $mysqli->insert_id; // 새로 생성된 issue_id
+                error_log("New Issue ID created: {$new_issue_id}");
+            }
+
+            // 해당 종목 복사
+            $stmt = $mysqli->prepare("SELECT * FROM market_issue_stocks WHERE issue_id = ? AND code = ?");
+            $stmt->bind_param('is', $issue_id, $stock_code);
+            $stmt->execute();
+            $stock = $stmt->get_result()->fetch_assoc();
+
+            // 디버깅을 위한 로그 추가
+            if ($stock) {
+                error_log("Stock Data: " . print_r($stock, true));
+            } else {
+                throw new Exception("종목 데이터를 찾을 수 없습니다: stock_code = {$stock_code}");
+            }
+
+            // 종목을 새 이슈로 복사
+            $stmt = $mysqli->prepare("
+                INSERT INTO market_issue_stocks (issue_id, code, name, sector, close_rate, volume, trade_amount, stock_comment, date, registration_source, create_dtime) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'copy', NOW())
+            ");
+            $stmt->bind_param(
+                'issssddss',
+                $new_issue_id,  // 새로 생성된 issue_id 또는 기존 issue_id
+                $stock['code'],
+                $stock['name'],
+                $stock['sector'],
+                $stock['close_rate'],
+                $stock['volume'],
+                $stock['trade_amount'],
+                $stock['stock_comment'],
+                $register_date
+            );
+
+            if (!$stmt->execute()) {
+                throw new Exception("종목 복사 실패: " . $stmt->error);
+            } else {
+                error_log("Stock copied successfully: {$stock['code']} for issue {$new_issue_id}");
+            }
+        }
+
+        return true;
+    } catch (Exception $e) {
+        error_log("Error: " . $e->getMessage());
+        throw $e;
     }
 }
 ?>

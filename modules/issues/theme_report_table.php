@@ -2,8 +2,8 @@
 // table_view.php
 require($_SERVER['DOCUMENT_ROOT']."/modules/common/common_header_sub.php");
 
-$endDate = date('Ymd', time());
-$startDate = date('Ymd', strtotime('-20 days', time()));
+$endDate = date('Y-m-d', time());
+$startDate = date('Y-m-d', strtotime('-20 days', time()));
 
 // Fetch themes with occurrence count and sorted by the latest date and occurrence count
 $theme_query = "
@@ -58,8 +58,7 @@ $index_result = $mysqli->query($index_query);
 $indices = [];
 while ($row = $index_result->fetch_assoc()) {
     // Convert the date from YYYYMMDD to YYYY-MM-DD for consistency
-    $formatted_date = date('Y-m-d', strtotime($row['date']));
-    $indices[$formatted_date][$row['market_fg']] = [
+    $indices[$row['date']][$row['market_fg']] = [
         'close_rate' => number_format($row['close_rate'], 2) . "%",
         'amount' => number_format($row['amount_in_trillion'], 2) . "조",
     ];

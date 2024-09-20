@@ -32,7 +32,7 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 <?php
 $code = (isset($_GET['code'])) ? $_GET['code'] : '';
 $name = (isset($_GET['name'])) ? $_GET['name'] : '';
-$watchlist_date = (isset($_GET['watchlist_date'])) ? $_GET['watchlist_date'] : '';
+$0day_date = (isset($_GET['0day_date'])) ? $_GET['0day_date'] : '';
 $scenario_date  = (isset($_GET['scenario_date']))  ? $_GET['scenario_date']  : '';
 $stock = (isset($_GET['stock'])) ? $_GET['stock'] : '';
 
@@ -43,7 +43,7 @@ echo "<h4><font color=red><b>★ 질문 ★ 눌림 주고 다시 상승할 재�
 <body>
 <form name="form1" method='POST' action='scenario_script.php'>
 <?php
-	if($watchlist_date == ''){
+	if($0day_date == ''){
 		echo "<h3></h3>";
 	} else {
 
@@ -83,7 +83,7 @@ echo "<h4><font color=red><b>★ 질문 ★ 눌림 주고 다시 상승할 재�
 						, link
 					FROM signals B
 					WHERE B.code = '$code'
-					AND B.date >= (select DATE_FORMAT(DATE_ADD('$watchlist_date', INTERVAL -5 DAY), '%Y%m%d'))
+					AND B.date >= (select DATE_FORMAT(DATE_ADD('$0day_date', INTERVAL -5 DAY), '%Y%m%d'))
 					ORDER BY date DESC" ;
 
 		// echo "<pre>$query</pre>";
@@ -102,7 +102,7 @@ echo "<h4><font color=red><b>★ 질문 ★ 눌림 주고 다시 상승할 재�
 						, A.dt_ratio
 					FROM mochaten A
 					WHERE A.code =  '$code'
-					AND A.trade_date = (SELECT MAX(trade_date) FROM mochaten WHERE code = '$code' AND trade_date <= '$watchlist_date')" ;
+					AND A.trade_date = (SELECT MAX(trade_date) FROM mochaten WHERE code = '$code' AND trade_date <= '$0day_date')" ;
 
 		// echo "<pre>$query</pre>";
 		$result = $mysqli->query($query);
@@ -223,8 +223,8 @@ echo "<h4><font color=red><b>★ 질문 ★ 눌림 주고 다시 상승할 재�
 				<tr valign=top>
 				<td width=85%'>";
 
-					$query = "	SELECT STR_TO_DATE(A.watchlist_date, '%Y%m%d') watchlist_date_str
-									, A.watchlist_date
+					$query = "	SELECT STR_TO_DATE(A.0day_date, '%Y%m%d') watchlist_date_str
+									, A.0day_date
 									, A.code
 									, A.name
 									, A.regi_reason
@@ -232,15 +232,15 @@ echo "<h4><font color=red><b>★ 질문 ★ 눌림 주고 다시 상승할 재�
 									, CASE WHEN A.tot_trade_amt >= 1000 THEN CONCAT('<font color=red><b>',A.tot_trade_amt,'억</b></font>') ELSE  CONCAT(A.tot_trade_amt,'억') END tot_trade_amt
 									, A.volume
 									, A.market_cap
-									, CASE WHEN A.sector IS NOT NULL THEN A.sector ELSE (SELECT sector FROM daily_watchlist WHERE watchlist_date < '$watchlist_date' AND code = A.code ORDER BY watchlist_date DESC LIMIT 1) END sector
-									, CASE WHEN A.theme IS NOT NULL THEN A.theme ELSE (SELECT theme FROM daily_watchlist WHERE watchlist_date < '$watchlist_date' AND code = A.code ORDER BY watchlist_date DESC LIMIT 1) END theme
-									, CASE WHEN A.issue IS NOT NULL THEN A.issue ELSE (SELECT issue FROM daily_watchlist WHERE watchlist_date < '$watchlist_date' AND code = A.code ORDER BY watchlist_date DESC LIMIT 1) END issue
-									, CASE WHEN A.stock_keyword IS NOT NULL THEN A.stock_keyword ELSE (SELECT stock_keyword FROM daily_watchlist WHERE watchlist_date < '$watchlist_date' AND code = A.code ORDER BY watchlist_date DESC LIMIT 1) END stock_keyword
+									, CASE WHEN A.sector IS NOT NULL THEN A.sector ELSE (SELECT sector FROM 0day_stocks WHERE 0day_date < '$0day_date' AND code = A.code ORDER BY 0day_date DESC LIMIT 1) END sector
+									, CASE WHEN A.theme IS NOT NULL THEN A.theme ELSE (SELECT theme FROM 0day_stocks WHERE 0day_date < '$0day_date' AND code = A.code ORDER BY 0day_date DESC LIMIT 1) END theme
+									, CASE WHEN A.issue IS NOT NULL THEN A.issue ELSE (SELECT issue FROM 0day_stocks WHERE 0day_date < '$0day_date' AND code = A.code ORDER BY 0day_date DESC LIMIT 1) END issue
+									, CASE WHEN A.stock_keyword IS NOT NULL THEN A.stock_keyword ELSE (SELECT stock_keyword FROM 0day_stocks WHERE 0day_date < '$0day_date' AND code = A.code ORDER BY 0day_date DESC LIMIT 1) END stock_keyword
 									, A.hot_stock
 									, A.tracking_yn
 									, A.tracking_reason
-								FROM daily_watchlist A
-								WHERE A.watchlist_date = '$watchlist_date'
+								FROM 0day_stocks A
+								WHERE A.0day_date = '$0day_date'
 								AND A.code = '$code'";
 
 					// echo "<pre>$query</pre>";
@@ -411,7 +411,7 @@ echo "<h4><font color=red><b>★ 질문 ★ 눌림 주고 다시 상승할 재�
 		echo "	</td>
 				<td width='15%'>
 				<div style='margin: 0; border: 0; font: inherit;vertical-align: baseline; padding: 0;width=20%; height: calc(100vh - 500px);'>
-					<iframe id='iframe' style='width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 500px);' src='scenario_RST.php?watchlist_date=$watchlist_date'>
+					<iframe id='iframe' style='width: 100%; margin: 0; border: 0; font: inherit; vertical-align: baseline; padding: 0; height: calc(100vh - 500px);' src='scenario_RST.php?0day_date=$0day_date'>
 					</iframe>
 				</td>
 			</tr>
@@ -420,7 +420,7 @@ echo "<h4><font color=red><b>★ 질문 ★ 눌림 주고 다시 상승할 재�
 
 ?>
 <input type=hidden name=proc_fg>
-<input type=hidden name=watchlist_date value=<?=$watchlist_date?>>
+<input type=hidden name=0day_date value=<?=$0day_date?>>
 <input type=hidden name=scenario_date  value=<?=$scenario_date?>>
 <input type=hidden name=stock value=<?=$stock?>>
 <input type=hidden name=code value=<?=$code?>>
@@ -442,7 +442,7 @@ function save() {
 function getWatchlist(date) {
 	form = document.form1;
 	form.proc_fg.value = 'getWatchlist';
-	form.watchlist_date.value = date;
+	form.0day_date.value = date;
 	form.target = "saveFrame";
 	form.submit();
 }
@@ -451,7 +451,7 @@ function getWatchlist(date) {
 function addWatchlist(date, stock) {
 	form = document.form1;
 	form.proc_fg.value = 'addWatchlist';
-	form.watchlist_date.value = date;
+	form.0day_date.value = date;
 	form.stock.value = stock;
 	form.target = "saveFrame";
 	form.submit();

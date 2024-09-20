@@ -76,7 +76,7 @@ if($search_date == '') {
 			FROM
 				kiwoom_xray_tick_executions
 			WHERE
-				date BETWEEN DATE_FORMAT(DATE_SUB('{$search_date}', INTERVAL 20 DAY), '%Y%m%d') AND DATE_FORMAT('{$search_date}', '%Y%m%d')
+				date BETWEEN DATE_SUB('{$search_date}', INTERVAL 20 DAY) AND '{$search_date}'
 			GROUP BY
 				date, code, name
 			) xray

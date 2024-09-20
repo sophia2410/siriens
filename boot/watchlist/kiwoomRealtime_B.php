@@ -50,7 +50,7 @@ if (isset($_GET['minute']) && $_GET['minute'] != '') {
     }
 }
 
-$specific_datetime = $date.$minute;
+$specific_datetime = str_replace('-', '', $date).$minute;
 
 // 조회 최소거래대금 기준 (기본 20억)
 $min_amount = (isset($_GET['min_amount']) && $_GET['min_amount'] != '') ? $_GET['min_amount'] * 100 : 2000;

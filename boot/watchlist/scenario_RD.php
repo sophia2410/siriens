@@ -122,13 +122,13 @@ if($search_fg == ''){
 						, B.market_cap
 						, CASE WHEN B.theme is null OR  B.theme = '' THEN B.sector ELSE B.theme END uprsn
 						, B.stock_keyword
-						, A.watchlist_date
+						, A.0day_date
 					FROM daily_watchlist_scenario A
-					INNER JOIN daily_watchlist B
-					ON A.watchlist_date = B.watchlist_date
+					INNER JOIN 0day_stocks B
+					ON A.0day_date = B.0day_date
 					AND A.code = B.code
 					WHERE A.scenario_date = '$search_date'
-					ORDER BY A.watchlist_date DESC, B.tot_trade_amt DESC";
+					ORDER BY A.0day_date DESC, B.tot_trade_amt DESC";
 
 		// echo "<pre>$query</pre>";
 		$result = $mysqli->query($query);
@@ -213,8 +213,8 @@ if($search_fg == ''){
 					,  A.issue
 					,  A.hot_theme
 					,  A.theme_comment
-				FROM daily_watchlist A
-				WHERE A.watchlist_date = '$search_date'
+				FROM 0day_stocks A
+				WHERE A.0day_date = '$search_date'
 				AND A.code != 'DAY'
 				GROUP BY A.sector
 					,  A.theme
@@ -251,18 +251,18 @@ if($search_fg == ''){
 					, B.market_cap
 					, CASE WHEN B.theme is null OR  B.theme = '' THEN B.sector ELSE B.theme END uprsn
 					, B.stock_keyword
-					, B.watchlist_date
+					, B.0day_date
 				FROM (SELECT date FROM calendar WHERE date <= '$search_date' ORDER BY date desc LIMIT 6) A
-				INNER JOIN daily_watchlist B
-				ON A.date = B.watchlist_date
-				ORDER BY B.watchlist_date DESC, B.tot_trade_amt DESC";
+				INNER JOIN 0day_stocks B
+				ON A.date = B.0day_date
+				ORDER BY B.0day_date DESC, B.tot_trade_amt DESC";
 
 	// echo "<pre>$query</pre>";
 	$result = $mysqli->query($query);
 	$j=0;
 	$pre_date = '';
 	while($row = $result->fetch_array(MYSQLI_BOTH)) {
-		if($pre_date != $row['watchlist_date']) {
+		if($pre_date != $row['0day_date']) {
 			if($pre_date != '') {
 				echo "</div>";
 				$j=0;
@@ -293,7 +293,7 @@ if($search_fg == ''){
 			echo "<div class='row'>";
 		}
 
-		$pre_date = $row['watchlist_date'];
+		$pre_date = $row['0day_date'];
 	}
 	echo "</div>";
 }

@@ -46,7 +46,7 @@ if (isset($_GET['minute']) && $_GET['minute'] != '') {
     }
 }
 
-$specific_datetime = $date.$minute;
+$specific_datetime = str_replace('-', '', $date).$minute;
 
 // 해당 일자 등록 테이블 찾기 (성능 위해 백업 테이블 이동)
 $query = "SELECT 'Y' FROM kiwoom_realtime_minute WHERE date = '$date' LIMIT 1";

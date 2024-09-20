@@ -92,7 +92,7 @@ function render_issue_list($mysqli, $criteriaType, $criteriaValue) {
                     $themeClass  = ($issue['hot_theme'] === 'Y') ? 'hot-theme' : '';
                 ?>
                 <tr id="issue_list_row_<?= $issue['issue_id'] ?>" data-issue-id="<?= $issue['issue_id'] ?>" style='background-color: #e8e8e8; font-weight: bold; <?= $statusStyle ?>'>
-                    <td><?= Utility_FormatDate($issue['date']) ?></td>
+                    <td><?= $issue['date'] ?></td>
                     <td class="<?= $themeClass; ?>" style="width:9%; display: table-cell;"><?= htmlspecialchars($issue['theme']) ?></td>
                     <td style>
                         <a href="#" onclick="IssueList_HandleKeywordClick('<?= $issue['group_name'] ?>', <?= $issue['issue_id'] ?>, '<?= $issue['date'] ?>', '<?= $criteriaType ?>'); return false;">
@@ -101,14 +101,14 @@ function render_issue_list($mysqli, $criteriaType, $criteriaValue) {
                     </td>
                     <td>
                         <form method="post" action="issue_process.php" style="display:inline;">
-                            <input type="hidden" name="action" value="copy">
+                            <input type="hidden" name="action" value="copy_issue">
                             <input type="hidden" name="issue_id" value="<?= $issue['issue_id'] ?>">
                             <input type="hidden" name="report_date" value="<?= $issue['date'] ?>">
                             <button type="submit" class="button button-yellow button-mini">복사</button>
                         </form>
                         |
                         <form method="post" action="issue_process.php" style="display:inline;">
-                            <input type="hidden" name="action" value="delete">
+                            <input type="hidden" name="action" value="delete_issue">
                             <input type="hidden" name="issue_id" value="<?= $issue['issue_id'] ?>">
                             <input type="hidden" name="report_date" value="<?= $issue['date'] ?>">
                             <button type="submit" class="button button-yellow button-mini">삭제</button>

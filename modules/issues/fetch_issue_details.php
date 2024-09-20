@@ -22,7 +22,6 @@ if ($issue_id) {
     // 날짜 형식을 Y-m-d로 변환
     if ($issueResult) {
         $date = $issueResult['date'];
-        $issueResult['date'] = Utility_FormatDate($issueResult['date']);
     }
 
     $response['issueDetails'] = $issueResult;
@@ -32,7 +31,7 @@ if ($issue_id) {
     $stocksQuery = $mysqli->prepare("
         SELECT mis.*, vdp.close_rate
         FROM market_issue_stocks mis 
-        JOIN v_daily_price vdp ON vdp.code = mis.code AND vdp.date = ? 
+        JOIN v_daily_price vdp ON vdp.code = mis.code AND vdp.date = ?
         WHERE mis.issue_id = ? 
         ORDER BY mis.is_leader DESC, vdp.close_rate DESC");
     $stocksQuery->bind_param('si', $date, $issue_id); // Bind date and issue_id

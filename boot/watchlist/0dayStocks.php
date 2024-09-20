@@ -4,7 +4,7 @@
 	require($_SERVER['DOCUMENT_ROOT']."/boot/common/top.php");
 	require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 
-$watchlist_date = (isset($_GET['watchlist_date'])   ) ? $_GET['watchlist_date'] : date('Ymd',time());
+$0day_date = (isset($_GET['0day_date'])   ) ? $_GET['0day_date'] : date('Y-m-d',time());
 ?>
 </head>
 
@@ -27,17 +27,17 @@ require($_SERVER['DOCUMENT_ROOT']."/modules/common/common_nav_menu.php");
 		<td style='width:21%'>
 			<!-- Page Heading -->
 			<div style='border: 1px;'>
-				<select id="watchlist_date" class="select">
+				<select id="0day_date" class="select">
 				<?php
 					$query = " SELECT date
-									, CASE WHEN B.watchlist_date is null THEN '' ELSE '(Y)' END regi_watchlist
+									, CASE WHEN B.0day_date is null THEN '' ELSE '(Y)' END regi_watchlist
 								FROM calendar A
-								LEFT OUTER JOIN (SELECT watchlist_date FROM daily_watchlist GROUP BY watchlist_date) B
-								ON B.watchlist_date = A.date
-								WHERE date <= (select DATE_FORMAT(now(), '%Y%m%d'))
-								AND   date >= '20230101'
+								LEFT OUTER JOIN (SELECT 0day_date FROM 0day_stocks GROUP BY 0day_date) B
+								ON B.0day_date = A.date
+								WHERE date <= now()
+								AND   date >= '2023-01-01'
 								ORDER BY date DESC
-								LIMIT 350";
+								LIMIT 150";
 
 					$result = $mysqli->query($query);
 
@@ -45,7 +45,7 @@ require($_SERVER['DOCUMENT_ROOT']."/modules/common/common_nav_menu.php");
 					$i=0;
 					while($row = $result->fetch_array(MYSQLI_BOTH)) {
 						// 관종등록일자가 없는 경우는 제일 1행 선택되도록..
-						if($watchlist_date == $row['date']) {
+						if($0day_date == $row['date']) {
 							$option .= "<option value='". $row['date']."' selected>".$row['date'].$row['regi_watchlist']."</option>";
 						} else {
 							$option .= "<option value='". $row['date']."'>".$row['date'].$row['regi_watchlist']."</option>";
@@ -99,10 +99,10 @@ require($_SERVER['DOCUMENT_ROOT']."/modules/common/common_nav_menu.php");
 <script>
 // 관종등록일자 선택후 조회 - 왼쪽 프레임에 종목 리스트업
 function search() {
-	key_val1  = document.getElementById('watchlist_date').options[document.getElementById("watchlist_date").selectedIndex].value;
+	key_val1  = document.getElementById('0day_date').options[document.getElementById("0day_date").selectedIndex].value;
 	key_val2  = document.getElementById('increase_rate').options[document.getElementById("increase_rate").selectedIndex].value;
 	brWidth = window.innerWidth;
-	iframeL.src = "0dayStocks_L.php?watchlist_date="+key_val1+"&increase_rate="+key_val2+"&brWidth="+brWidth;
+	iframeL.src = "0dayStocks_L.php?0day_date="+key_val1+"&increase_rate="+key_val2+"&brWidth="+brWidth;
 	return;
 }
 
@@ -122,7 +122,7 @@ function showC() {
 // 관종등록일자 선택후 데이터 가져오기
 function getData() {
 
-	key_val  = document.getElementById('watchlist_date').options[document.getElementById("watchlist_date").selectedIndex].value;
+	key_val  = document.getElementById('0day_date').options[document.getElementById("0day_date").selectedIndex].value;
 	if(confirm(key_val+'데이터를 가져오시겠습니까?')) {
 		// 자식프레임에 있는 함수 호출하기
 		document.getElementById("iframeR").contentWindow.getWatchlist(key_val);
@@ -131,7 +131,7 @@ function getData() {
 
 // 관종등록일자에 입력한 종목 추가
 function addData() {
-	key_val  = document.getElementById('watchlist_date').options[document.getElementById("watchlist_date").selectedIndex].value;
+	key_val  = document.getElementById('0day_date').options[document.getElementById("0day_date").selectedIndex].value;
 	stock = document.getElementById('stock').value;
 
 	// 자식프레임에 있는 함수 호출하기
@@ -142,7 +142,7 @@ function addData() {
 // 종목 선택 시 오른쪽 프레임에 내역 조회
 function viewStock(wdate, sdate, cd, nm) {
 	brWidth = window.innerWidth;
-	iframeR.src = "scenario_RS.php?watchlist_date="+wdate+"&scenario_date="+sdate+"&code="+cd+"&name="+nm+"&brWidth="+brWidth;
+	iframeR.src = "scenario_RS.php?0day_date="+wdate+"&scenario_date="+sdate+"&code="+cd+"&name="+nm+"&brWidth="+brWidth;
 	return;
 }
 

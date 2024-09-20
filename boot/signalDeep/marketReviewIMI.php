@@ -23,7 +23,7 @@ require($_SERVER['DOCUMENT_ROOT']."/modules/common/common_nav_menu.php");
 	<?php
 		$query = " SELECT date
 					FROM calendar
-				   WHERE date <= (select min(date) from calendar where date > (select DATE_FORMAT(DATE_ADD(now(), INTERVAL 0 DAY), '%Y%m%d')))
+				   WHERE date <= (select min(date) from calendar where date > (select DATE_ADD(now(), INTERVAL 0 DAY)))
 					ORDER BY date DESC
 					LIMIT 500";
 

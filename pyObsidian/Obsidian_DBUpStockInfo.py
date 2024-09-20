@@ -219,11 +219,11 @@ for filename in filenames_to_process:
                 cursor.execute(sql_query, (stock_code, link))
         
                 if cursor.fetchone() is None:  # 해당 기사가 없는 경우만 추가
-                    sql_query = "INSERT INTO signals (code, date, title, link, content) VALUES (%s, REPLACE(%s, '-',''), %s, %s, %s)"
+                    sql_query = "INSERT INTO signals (code, news_date, title, link, content) VALUES (%s, %s, %s, %s, %s)"
                     # print(f"Executing: {sql_query % (stock_code, date, title_link, link, content)}")
                     cursor.execute(sql_query, (stock_code, date, title_link, link, content))
                 else:  # 해당 기사가 있는 경우 date와 content 업데이트
-                    sql_query = "UPDATE signals SET date=REPLACE(%s, '-',''), content=REPLACE(%s, '<br>','\r\n') WHERE code=%s AND link=%s"
+                    sql_query = "UPDATE signals SET news_date=%s, content=REPLACE(%s, '<br>','\r\n') WHERE code=%s AND link=%s"
                     # print(f"Executing: {sql_query % (date, content, stock_code, link)}")
                     cursor.execute(sql_query, (date, content, stock_code, link))
             # else:

@@ -18,11 +18,11 @@ def create_db_connection():
 
 # Function to retrieve the most recent date from the calendar table
 def get_latest_date(cursor):
-    query = "SELECT MAX(date) date FROM calendar a WHERE date <= (select DATE_FORMAT(now(), '%Y%m%d'))"
-    # query = "SELECT date FROM calendar a WHERE date = '20240812'"
+    query = "SELECT MAX(date) date FROM calendar a WHERE date <= now()"
+    # query = "SELECT date AS date FROM calendar a WHERE date = '2024-08-12'"
     cursor.execute(query)
     result = cursor.fetchone()
-    return result[0].decode('utf-8') if result else None
+    return result[0].strftime('%Y-%m-%d') if result else None
 
 # Function to update the market_issue_stocks table with data from v_daily_price
 def update_market_issue_stocks(cursor, latest_date):

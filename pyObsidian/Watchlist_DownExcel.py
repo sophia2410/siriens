@@ -32,7 +32,7 @@ with open("E:/Project/202410/www/pyObsidian/vars_downExcel.txt", "r", encoding="
 
 # 관종 해당일자 구하기
 # 처리 시작
-watchlist_date = datetime.today().strftime('%Y%m%d')
+0day_date = datetime.today().strftime('%Y%m%d')
 
 # 쿼리문 실행
 sql = f"SELECT '' a, '' b, V.name, '' c, '' d, '' e, '' f, '' g, V.code "\
@@ -65,8 +65,8 @@ for r in range(len(result)):
 		else:
 			ws.write(r+1, c, result[r][c])
 # 엑셀 파일 저장
-# filename = f"C:/KiwoomHero4/today_watchlist/{filename}_{watchlist_date}.xls"
-filename = f"C:/KiwoomHero4/temp/{filename}_{watchlist_date}.xls"
+# filename = f"C:/KiwoomHero4/today_watchlist/{filename}_{0day_date}.xls"
+filename = f"C:/KiwoomHero4/temp/{filename}_{0day_date}.xls"
 
 # 기존 파일이 존재하면 삭제하기
 if os.path.exists(filename):

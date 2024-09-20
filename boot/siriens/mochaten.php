@@ -2,7 +2,7 @@
     require($_SERVER['DOCUMENT_ROOT']."/boot/common/top.php");
 	require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 
-$mochaten_date = (isset($_GET['mochaten_date'])   ) ? $_GET['mochaten_date']    : date('Ymd',time());
+$mochaten_date = (isset($_GET['mochaten_date'])   ) ? $_GET['mochaten_date'] : date('Y-m-d',time());
 $signal_group  = (isset($_GET['signal_group'])) ? $_GET['signal_group'] : "";
 
 $query = " SELECT DISTINCT mochaten_date

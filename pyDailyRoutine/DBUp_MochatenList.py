@@ -22,18 +22,18 @@ class DBUpdater:
         global mochaten_date
         global trade_date
 
-        sql = "SELECT min(date) date FROM calendar a WHERE date > (select DATE_FORMAT(now(), '%Y%m%d'))"
+        sql = "SELECT min(date) date FROM calendar a WHERE date > now()"
         df = pd.read_sql(sql, self.conn)
-        mochaten_date = df['date'][0].decode('utf-8')
+        mochaten_date = df['date'][0].strftime('%Y-%m-%d')
 
-        sql = "SELECT max(date) date FROM calendar a WHERE date <= (select DATE_FORMAT(now(), '%Y%m%d'))"
+        sql = "SELECT max(date) date FROM calendar a WHERE date <= now()"
         df = pd.read_sql(sql, self.conn)
-        trade_date = df['date'][0].decode('utf-8')
+        trade_date = df['date'][0].strftime('%Y-%m-%d')
         
 
         # 특정일자 모차십 처리
-        # mochaten_date = '20240909'
-        # trade_date = '20240906'
+        # mochaten_date = '2024-09-13'
+        # trade_date = '2024-09-12'
 
         pathExl = f'E:/Project/202410/data/_Mochaten/{mochaten_date}.xlsx'
         rdxls = pd.read_excel(pathExl, engine='openpyxl')
@@ -71,8 +71,8 @@ class DBUpdater:
 
         # 추가할 쿼리문 실행
         # 500억 이상 or 상한가+250억 이상 0일차 불러오기
-        sql = f'''INSERT IGNORE INTO daily_watchlist
-                (watchlist_date, code, name, regi_reason, close_rate, volume, tot_trade_amt, market_cap, tracking_yn, tracking_start_date, create_dtime)
+        sql = f'''INSERT IGNORE INTO 0day_stocks
+                (0day_date, code, name, regi_reason, close_rate, volume, tot_trade_amt, market_cap, tracking_yn, tracking_start_date, create_dtime)
                 SELECT A.trade_date, A.code, A.name, '0일차', A.close_rate, A.volume, A.tot_trade_amt, A.market_cap, 'Y', A.trade_date, now()
                 FROM mochaten A
                 WHERE A.trade_date = '{trade_date}'
@@ -82,9 +82,9 @@ class DBUpdater:
         self.conn.commit()
 
         # date, time, name을 signals 데이터에 업데이트
-        sql = f'''UPDATE daily_watchlist A
-                INNER JOIN daily_price B ON B.date = A.watchlist_date AND B.code = A.code
-                INNER JOIN (SELECT * FROM daily_watchlist WHERE (watchlist_date, code) IN (SELECT MAX(watchlist_date), code FROM daily_watchlist WHERE watchlist_date < '{trade_date}' GROUP BY code)) C
+        sql = f'''UPDATE 0day_stocks A
+                INNER JOIN daily_price B ON B.date = A.0day_date AND B.code = A.code
+                INNER JOIN (SELECT * FROM 0day_stocks WHERE (0day_date, code) IN (SELECT MAX(0day_date), code FROM 0day_stocks WHERE 0day_date < '{trade_date}' GROUP BY code)) C
                 ON C.code = A.code
                 SET A.close_rate = CASE WHEN A.close_rate IS NULL THEN B.close_rate ELSE A.close_rate END,
                     A.volume = CASE WHEN A.volume IS NULL THEN round(B.volume/1000,0) ELSE A.volume END,
@@ -94,8 +94,8 @@ class DBUpdater:
                     A.issue =  C.issue,
                     A.stock_keyword =  C.stock_keyword,
                     A.tracking_reason =  C.tracking_reason,
-                    A.tracking_start_date =  CASE WHEN C.tracking_yn = 'Y' THEN C.tracking_start_date ELSE A.watchlist_date END
-                WHERE A.watchlist_date = '{trade_date}' '''
+                    A.tracking_start_date =  CASE WHEN C.tracking_yn = 'Y' THEN C.tracking_start_date ELSE A.0day_date END
+                WHERE A.0day_date = '{trade_date}' '''
         self.curs.execute(sql)
         self.conn.commit()
 

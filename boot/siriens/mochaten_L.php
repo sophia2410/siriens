@@ -11,9 +11,6 @@ $query = " SELECT A.mochaten_date
 				, B.nm_sub1 cha_comment
 				, A.code
 				, A.name
-				, C.chart_grade sophia_grade
-				, D.chart_grade sister_grade
-				, F.chart_grade nomad_comment_fg
 				, E.close_rate
 				, A.market_cap
 				, A.tot_trade_amt
@@ -26,12 +23,6 @@ $query = " SELECT A.mochaten_date
 			 FROM mochaten A
 			INNER JOIN comm_cd B
 			   ON B.cd = A.cha_fg
-			 LEFT OUTER JOIN (SELECT code, case when chart_grade = '5' then '★★★★★' when chart_grade = '4' then '★★★★' when chart_grade = '3' then '★★★' when chart_grade = '2' then '★★' when chart_grade = '1' then '★' else '' end  chart_grade FROM mochaten_comment WHERE regi_id = 'sophia' AND mochaten_date = '$mochaten_date') C
-			   ON C.code = A.code
-		     LEFT OUTER JOIN (SELECT code, case when chart_grade = '5' then '★★★★★' when chart_grade = '4' then '★★★★' when chart_grade = '3' then '★★★' when chart_grade = '2' then '★★' when chart_grade = '1' then '★' else '' end  chart_grade FROM mochaten_comment WHERE regi_id = 'sister' AND mochaten_date = '$mochaten_date') D
-			   ON D.code = A.code
-			 LEFT OUTER JOIN (SELECT code, '(V)' chart_grade FROM mochaten_comment WHERE regi_id = 'nomad' AND mochaten_date = '$mochaten_date') F
-			   ON F.code = A.code
 		     LEFT OUTER JOIN daily_price E
 			   ON E.DATE = A.trade_date
 			  AND E.code = A.code
@@ -52,10 +43,8 @@ $result = $mysqli->query($query);
 				// echo "<tr class='table-danger  text-dark' align=center><th colspan=2><b>".$row['cha_fg_nm']."</b></th><td colspan=4 align=left>".$row['cha_comment']."</td></tr>";
 				echo "<tr class='table-danger  text-dark' align=left><th colspan=4><b>[".$row['cha_fg_nm']."</b>]".$row['cha_comment']."</th></tr>";
 			}
-			echo "<tr><td style='width:10px;'>".$row['nomad_comment_fg']."</td>";
+			echo "<tr>";
 			echo "<td><a href=\"javascript:callFrameR('".$mochaten_date."','".$row['code']."','".$row['name']."')\">".$row['name']."</a></td>";
-			// echo "<td>".$row['sophia_grade']."</td>" ;
-			// echo "<td>".$row['sister_grade']."</td>" ;
 			echo "<td class='text-danger' align=right>".$row['close_rate']." %</td>" ;
 			echo "<td class='text-danger' align=right>".number_format($row['tot_trade_amt'])." 억</td>" ;
 			echo "</tr>" ;

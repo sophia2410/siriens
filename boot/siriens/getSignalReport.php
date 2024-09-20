@@ -5,7 +5,7 @@
 $signal_page = (isset($_POST['signal_page'])) ? $_POST['signal_page'] : '';
 // echo "signal_page = ". $signal_page;
 $query = " SELECT CONCAT(page_date,'/',page_fg) page_seq, page_title
-			 FROM rawdata_siri_report
+			 FROM signal_evening
 			WHERE page_title != ''
 			ORDER BY page_date desc, page_fg
 			limit 300";
@@ -57,8 +57,6 @@ require($_SERVER['DOCUMENT_ROOT']."/modules/common/common_nav_menu.php");
 			
 			<input type=button value="기등록뉴스 변경사항" class="" onclick='preViewUpSignals()'>&nbsp;
 			<input type=button value="빠른 뉴스확인" class="" onclick='quickConfirmNews()'>&nbsp;
-
-			<input type=button value="옵시디언용 보기" class="" onclick='preViewReport()'>
 			
 		</div>
 	</div>
@@ -113,12 +111,6 @@ function preViewUpSignals() {
 	preViewPage = 'getSignalReport_sub2.php?signal_page='+key_val;
 	console.log('preview');
 	console.log(preViewPage);
-	window.open(preViewPage,'preView',"toolbar=no, location=no, directories=no, status=no, menubar=no, scrollbars=yes, resizable=no, copyhistory=no, width=2000, height=1500");
-}
-
-function preViewReport() {
-	key_val  = document.getElementById('signal_page').options[document.getElementById("signal_page").selectedIndex].value;
-	preViewPage = 'getSignalReport_sub3.php?signal_page='+key_val;
 	window.open(preViewPage,'preView',"toolbar=no, location=no, directories=no, status=no, menubar=no, scrollbars=yes, resizable=no, copyhistory=no, width=2000, height=1500");
 }
 

@@ -65,8 +65,8 @@ require($_SERVER['DOCUMENT_ROOT']."/modules/common/common_nav_menu.php");
 
 $query = "SELECT date
           FROM calendar
-          WHERE date <= (SELECT DATE_FORMAT(now(), '%Y%m%d'))
-          AND date >= '20240201'
+          WHERE date <= now()
+          AND date >= '2024-02-01'
           ORDER BY date DESC";
 
 $result = $mysqli->query($query);
@@ -78,12 +78,12 @@ $result = $mysqli->query($query);
         <select id="search_date" class="select">
         <?php
             $query = "SELECT date, 
-                             CASE WHEN B.watchlist_date IS NULL THEN '' ELSE '(Y)' END regi_watchlist
+                             CASE WHEN B.0day_date IS NULL THEN '' ELSE '(Y)' END regi_watchlist
                       FROM calendar A
-                      LEFT OUTER JOIN (SELECT watchlist_date FROM daily_watchlist GROUP BY watchlist_date) B
-                      ON B.watchlist_date = A.date
-                      WHERE date <= (SELECT DATE_FORMAT(now(), '%Y%m%d'))
-                      AND date >= '20230101'
+                      LEFT OUTER JOIN (SELECT 0day_date FROM 0day_stocks GROUP BY 0day_date) B
+                      ON B.0day_date = A.date
+                      WHERE date <= now()
+                      AND date >= '2023-01-01'
                       ORDER BY date DESC
                       LIMIT 350";
 

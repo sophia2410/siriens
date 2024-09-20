@@ -2,13 +2,13 @@
 require($_SERVER['DOCUMENT_ROOT']."/boot/common/top.php");
 require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 
-$watchlist_date = (isset($_GET['watchlist_date'])) ? $_GET['watchlist_date'] : date('Ymd',time());
+$0day_date = (isset($_GET['0day_date'])) ? $_GET['0day_date'] : date('Y-m-d',time());
 $increase_rate = (isset($_GET['increase_rate'])) ? $_GET['increase_rate'] : 10;
 
 $browser_width = (isset($_GET['brWidth'])) ? $_GET['brWidth'] : 2000;
 
 // 다음거래일 구하기 (시나리오일자)
-$query = "SELECT MIN(date) scenario_date FROM calendar WHERE date > ".date('Ymd',time());
+$query = "SELECT MIN(date) scenario_date FROM calendar WHERE date > ".date('Y-m-d',time());
 $result = $mysqli->query($query);
 $row = $result->fetch_array(MYSQLI_BOTH);
 $scenario_date = $row['scenario_date'];
@@ -21,7 +21,7 @@ $query = " SELECT Y.date, STR_TO_DATE(Y.date, '%Y%m%d') watchlist_date_str, Z.*
 			 LEFT OUTER JOIN 
 					(SELECT   CASE WHEN B.close_rate > 0 THEN CONCAT('<font color=red> ▲',B.close_rate,'% </font>') ELSE  CONCAT('<font color=blue> ▼',ABS(B.close_rate),'% </font>') END kospi_index
 							, CASE WHEN C.close_rate > 0 THEN CONCAT('<font color=red> ▲',C.close_rate,'% </font>') ELSE  CONCAT('<font color=blue> ▼',ABS(C.close_rate),'% </font>') END kosdaq_index
-							, A.watchlist_date
+							, A.0day_date
 							, D.code
 							, D.name
 							, A.regi_reason
@@ -32,25 +32,25 @@ $query = " SELECT Y.date, STR_TO_DATE(Y.date, '%Y%m%d') watchlist_date_str, Z.*
 							, A.tracking_yn
 							, CASE WHEN A.theme is null OR  A.theme = '' THEN A.sector ELSE A.theme END uprsn
 							, E.evening_report_title
-						FROM daily_watchlist A
+						FROM 0day_stocks A
 						LEFT OUTER JOIN market_index B
-						on B.date = A.watchlist_date
+						on B.date = A.0day_date
 						and B.market_fg = 'KOSPI'
 						LEFT OUTER JOIN market_index C
-						on C.date = A.watchlist_date
+						on C.date = A.0day_date
 						and C.market_fg = 'KOSDAQ'
 						INNER JOIN stock D
 						ON D.code = A.code
 						AND D.last_yn = 'Y'
 						LEFT OUTER JOIN market_report E
-						ON E.report_date = A.watchlist_date
-						WHERE A.watchlist_date >= (select DATE_FORMAT(DATE_ADD('$watchlist_date', INTERVAL -30 DAY), '%Y%m%d'))
-						AND   A.watchlist_date <= '$watchlist_date'
+						ON E.report_date = A.0day_date
+						WHERE A.0day_date >= (SELECT DATE_ADD('$0day_date', INTERVAL -30 DAY))
+						AND   A.0day_date <= '$0day_date'
 						AND   A.close_rate >= $increase_rate
 					) Z
-			ON Y.date = Z.watchlist_date
-			WHERE Y.date >= (select DATE_FORMAT(DATE_ADD('$watchlist_date', INTERVAL -10 DAY), '%Y%m%d'))
-			AND   Y.date <= '$watchlist_date'
+			ON Y.date = Z.0day_date
+			WHERE Y.date >= (SELECT DATE_ADD('$0day_date', INTERVAL -10 DAY))
+			AND   Y.date <= '$0day_date'
 			ORDER BY Y.date desc, Z.tot_trade_amt desc";
 // echo "<pre>$query</pre>";
 $result = $mysqli->query($query);
@@ -67,9 +67,9 @@ $result = $mysqli->query($query);
 	$printed = array();
 	
 	while($row = $result->fetch_array(MYSQLI_BOTH)) {
-		$watchlist_date = $row['date'];
+		$0day_date = $row['date'];
 		if($pre_watchlist_date != $row['date']) {
-			echo "<tr class='table-danger text-dark' align=left><th colspan=4>[+] <b>".$row['watchlist_date_str']."</b>&nbsp; ";
+			echo "<tr class='table-danger text-dark' align=left><th colspan=4>[+] <b>".$0day_date."</b>&nbsp; ";
 			echo "(코스피: ".$row['kospi_index']." , 코스닥: ".$row['kosdaq_index'].") ";
 			echo "<a href=\"javascript:callviewChart('".$row['date']."', '$increase_rate')\"><img style='width:24px; height:24px; border:solid thin' src='https://siriens.mycafe24.com/image/view_chart.png'></a> ";
 			echo "<a href=\"javascript:callxrayTick('".$row['date']."', '$increase_rate')\"><img style='width:24px; height:24px; border:solid thin' src='https://siriens.mycafe24.com/image/view_review.png'></a></th></tr>";

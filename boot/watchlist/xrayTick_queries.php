@@ -3,14 +3,14 @@
 function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $theme, $category, $buy_cnt, $buy_period, $zeroday_view, $chart_status, $frequency, $trade_qry, $trade_table, $base_date) {
 	if($pgmId == '0dayStocks') { //0dayStocks.php
 		$filename = $pgmId."_".$increase_rate;
-		$file_orderby = "ORDER BY V.watchlist_date DESC , V.tot_trade_amt DESC";
+		$file_orderby = "ORDER BY V.0day_date DESC , V.tot_trade_amt DESC";
 
 		// 0일차 관종 목록 구해오기
 		if($increase_rate == '29.5') $sub_where = "AND B.close_rate >= $increase_rate";
 		else $sub_where = "AND ( B.close_rate >= $increase_rate OR B.tot_trade_amt > $trade_amt)";
 
-		$query = "	SELECT STR_TO_DATE(A.date, '%Y%m%d') group_key
-						, CONCAT(' &nbsp; <font color=gray>',STR_TO_DATE(B.watchlist_date, '%Y%m%d'),'</font>') group_key_str
+		$query = "	SELECT A.date group_key
+						, CONCAT(' &nbsp; <font color=gray>', B.0day_date,'</font>') group_key_str
 						, A.date 0day_date
 						, B.code
 						, B.name
@@ -20,28 +20,28 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $th
 						, B.tot_trade_amt
 						, CASE WHEN B.theme is null OR  B.theme = '' THEN B.sector ELSE B.theme END uprsn
 						, B.stock_keyword
-						, B.watchlist_date
+						, B.0day_date
 						, X.sector_max_date
 						, X.sector_sum
 						, R.group_sum
 						$trade_qry
 						, M.mochaten_cnt
 					FROM (SELECT date FROM calendar WHERE date <= '$search_date' ORDER BY date desc LIMIT 15) A
-					INNER JOIN daily_watchlist B
-					ON A.date = B.watchlist_date
+					INNER JOIN 0day_stocks B
+					ON A.date = B.0day_date
 					$sub_where
-					INNER JOIN (	SELECT G.sector, G.theme, SUM(G.tot_trade_amt) AS group_sum, MAX(G.watchlist_date) AS group_max_date
-									FROM daily_watchlist G
+					INNER JOIN (	SELECT G.sector, G.theme, SUM(G.tot_trade_amt) AS group_sum, MAX(G.0day_date) AS group_max_date
+									FROM 0day_stocks G
 									INNER JOIN (SELECT date FROM calendar WHERE date <= '$search_date' ORDER BY date desc LIMIT 15) S
-									ON S.date = G.watchlist_date
+									ON S.date = G.0day_date
 									GROUP BY G.sector, G.theme
 								) R
 					ON B.sector = R.sector
 					AND B.theme  = R.theme
-					INNER JOIN (	SELECT G.sector, SUM(G.tot_trade_amt) AS sector_sum, MAX(G.watchlist_date) AS sector_max_date
-									FROM daily_watchlist G
+					INNER JOIN (	SELECT G.sector, SUM(G.tot_trade_amt) AS sector_sum, MAX(G.0day_date) AS sector_max_date
+									FROM 0day_stocks G
 									INNER JOIN (SELECT date FROM calendar WHERE date <= '$search_date' ORDER BY date desc LIMIT 15) S
-									ON S.date = G.watchlist_date
+									ON S.date = G.0day_date
 									GROUP BY G.sector
 								) X
 					ON B.sector = X.sector
@@ -50,14 +50,14 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $th
 					AND Z.date = '$base_date'
 					LEFT OUTER JOIN (SELECT code, count(*) mochaten_cnt FROM mochaten WHERE cha_fg = 'MC000' GROUP BY code) M
 					ON M.code = B.code
-					ORDER BY B.watchlist_date DESC, B.tot_trade_amt DESC";
+					ORDER BY B.0day_date DESC, B.tot_trade_amt DESC";
 	} else if($pgmId == 'mochaten') { // 모차십
 		$filename = $pgmId."_".$search_date;
 		$file_orderby = "ORDER BY V.cha_fg, V.tot_trade_amt DESC";
 
 		$query = "	SELECT CONCAT(Q.cha_fg_nm,' - ',cha_comment) group_key
-						 , CONCAT(' &nbsp; <font color=gray>',STR_TO_DATE(Q.watchlist_date, '%Y%m%d'),'</font>') group_key_str
-						 , Q.watchlist_date 0day_date
+						 , CONCAT(' &nbsp; <font color=gray>', Q.0day_date,'</font>') group_key_str
+						 , Q.0day_date 0day_date
 						 , Q.code
 						 , Q.name
 						, '' stock_comment
@@ -66,7 +66,7 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $th
 						 , Q.tot_trade_amt
 						 , Q.uprsn
 						 , Q.stock_keyword
-						 , Q.watchlist_date
+						 , Q.0day_date
 						 $trade_qry
 						 , M.mochaten_cnt
 					FROM (	SELECT A.cha_fg
@@ -78,11 +78,11 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $th
 								, CASE WHEN A.cha_fg = 'MC000' THEN A.tot_trade_amt ELSE B.tot_trade_amt end tot_trade_amt
 								, CASE WHEN B.theme is null OR  B.theme = '' THEN B.sector ELSE B.theme END uprsn
 								, B.stock_keyword
-								, B.watchlist_date
+								, B.0day_date
 							FROM mochaten A
-							LEFT OUTER JOIN (SELECT * FROM daily_watchlist 
-											WHERE (watchlist_date, code)
-											IN 	(SELECT MAX(watchlist_date), code FROM daily_watchlist WHERE watchlist_date <= '$search_date' GROUP BY code)) B
+							LEFT OUTER JOIN (SELECT * FROM 0day_stocks 
+											WHERE (0day_date, code)
+											IN 	(SELECT MAX(0day_date), code FROM 0day_stocks WHERE 0day_date <= '$search_date' GROUP BY code)) B
 							ON A.code = B.code
 							INNER JOIN comm_cd C
 							ON C.cd = A.cha_fg
@@ -117,12 +117,12 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $th
 										ELSE '미분류'
 									END group_keyword, vmi.*
 								FROM v_market_issue vmi
-								WHERE date BETWEEN DATE_FORMAT(DATE_SUB('{$search_date}', INTERVAL 1 MONTH), '%Y%m%d') AND '$search_date'
+								WHERE date BETWEEN DATE_SUB('{$search_date}', INTERVAL 1 MONTH) AND '$search_date'
 							   ) smi
 						  WHERE group_keyword LIKE '%$theme%'
 						  GROUP BY group_keyword, keyword_group_name, theme, code, name
 						 ) A
-					LEFT OUTER JOIN (SELECT * FROM daily_watchlist WHERE (watchlist_date, code) IN (SELECT MAX(watchlist_date), code FROM daily_watchlist  GROUP BY code)) B
+					LEFT OUTER JOIN (SELECT * FROM 0day_stocks WHERE (0day_date, code) IN (SELECT MAX(0day_date), code FROM 0day_stocks  GROUP BY code)) B
 					ON A.code = B.code
 					LEFT OUTER JOIN $trade_table Z
 					ON Z.code = A.code
@@ -136,7 +136,7 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $th
 
 		$query = "SELECT RTRIM(CONCAT(' [ ' , A.sector,' ] ', A.theme, '  ', A.category)) AS group_key
 						, CONCAT('[', A.theme, (CASE WHEN A.category != '' THEN CONCAT('-', A.category) ELSE '' END),']') AS group_key_str
-						, B.watchlist_date 0day_date
+						, B.0day_date 0day_date
 						, A.code 
 						, A.name
 						, '' stock_comment
@@ -148,7 +148,7 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $th
 						$trade_qry
 						, M.mochaten_cnt
 					FROM watchlist_sophia A
-					LEFT OUTER JOIN (SELECT * FROM daily_watchlist WHERE (watchlist_date, code) IN (SELECT MAX(watchlist_date), code FROM daily_watchlist  GROUP BY code)) B
+					LEFT OUTER JOIN (SELECT * FROM 0day_stocks WHERE (0day_date, code) IN (SELECT MAX(0day_date), code FROM 0day_stocks  GROUP BY code)) B
 					ON A.code = B.code
 					LEFT OUTER JOIN $trade_table Z
 					ON Z.code = A.code
@@ -165,7 +165,7 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $th
 
 		$query = "SELECT RTRIM(CONCAT(A.sector, A.theme)) AS group_key
 						, RTRIM(CONCAT(' [ ' , A.sector,' ] ', A.theme)) AS group_key_str
-						, B.watchlist_date 0day_date
+						, B.0day_date 0day_date
 						, A.code 
 						, A.name
 						, '' stock_comment
@@ -177,7 +177,7 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $th
 						$trade_qry
 						, M.mochaten_cnt
 					FROM watchlist_astar A
-					LEFT OUTER JOIN (SELECT * FROM daily_watchlist WHERE (watchlist_date, code) IN (SELECT MAX(watchlist_date), code FROM daily_watchlist  GROUP BY code)) B
+					LEFT OUTER JOIN (SELECT * FROM 0day_stocks WHERE (0day_date, code) IN (SELECT MAX(0day_date), code FROM 0day_stocks  GROUP BY code)) B
 					ON A.code = B.code
 					LEFT OUTER JOIN $trade_table Z
 					ON Z.code = A.code
@@ -192,30 +192,30 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $th
 		$file_orderby = "ORDER BY V.uprsn DESC";
 
 		$query = "	SELECT A.listing_month group_key
-						 , CONCAT(' &nbsp; <font color=gray>',DATE_FORMAT(STR_TO_DATE(A.listing_date, '%Y%m%d'), '%Y-%m'),'</font>') group_key_str
-						 , B.watchlist_date 0day_date
+						 , CONCAT(' &nbsp; <font color=gray>',DATE_FORMAT(A.listing_date, '%Y-%m'),'</font>') group_key_str
+						 , B.0day_date 0day_date
 						 , A.code
 						 , A.name
 						, '' stock_comment
 						 , CASE WHEN B.close_rate >= 0 THEN CONCAT('<font color=red> ▲',B.close_rate,'% </font>') ELSE  CONCAT('<font color=blue> ▼',B.close_rate,'% </font>') END close_rate_str
 						 , CASE WHEN B.tot_trade_amt >= 1000 THEN CONCAT('<font color=red><b>',FORMAT(B.tot_trade_amt,0),'억</b></font>') ELSE  CONCAT(B.tot_trade_amt,'억') END tot_trade_amt_str
 						 , B.tot_trade_amt
-						 , STR_TO_DATE(A.listing_date, '%Y%m%d') uprsn
+						 , A.listing_date uprsn
 						 , B.stock_keyword
-						 , B.watchlist_date
+						 , B.0day_date
 						 $trade_qry
 						 , M.mochaten_cnt
 					FROM (	SELECT listing_date
-								, SUBSTR(listing_date,1,6) AS listing_month
+								, SUBSTR(listing_date,1,7) AS listing_month
 								, code
 								, name
 								, market_fg
 							FROM stock_listing
 							WHERE listing_date >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
 						) A
-					LEFT OUTER JOIN (SELECT * FROM daily_watchlist 
-									WHERE (watchlist_date, code)
-									IN 	(SELECT MAX(watchlist_date), code FROM daily_watchlist GROUP BY code)) B
+					LEFT OUTER JOIN (SELECT * FROM 0day_stocks 
+									WHERE (0day_date, code)
+									IN 	(SELECT MAX(0day_date), code FROM 0day_stocks GROUP BY code)) B
 					ON A.code = B.code
 					LEFT OUTER JOIN $trade_table Z
 					ON Z.code = A.code
@@ -228,8 +228,8 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $th
 		$file_orderby = "ORDER BY V.amount DESC";
 
 		$query = "	SELECT A.date AS group_key
-						, CONCAT(' &nbsp; <font color=gray>',STR_TO_DATE(A.date, '%Y%m%d'),'</font>') AS group_key_str
-						, B.watchlist_date 0day_date
+						, CONCAT(' &nbsp; <font color=gray>',A.date,'</font>') AS group_key_str
+						, B.0day_date 0day_date
 						, A.code 
 						, A.name
 						, A.amount
@@ -245,9 +245,9 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $th
 						  FROM
 						  	kiwoom_xray_tick_summary
 						  WHERE
-						  	date BETWEEN DATE_FORMAT(DATE_SUB('{$search_date}', INTERVAL 20 DAY), '%Y%m%d') AND DATE_FORMAT('{$search_date}', '%Y%m%d')
+						  	date BETWEEN DATE_SUB('{$search_date}', INTERVAL 20 DAY) AND '{$search_date}'
 						 ) A
-					LEFT OUTER JOIN (SELECT * FROM daily_watchlist WHERE (watchlist_date, code) IN (SELECT MAX(watchlist_date), code FROM daily_watchlist  GROUP BY code)) B
+					LEFT OUTER JOIN (SELECT * FROM 0day_stocks WHERE (0day_date, code) IN (SELECT MAX(0day_date), code FROM 0day_stocks  GROUP BY code)) B
 					ON A.code = B.code
 					LEFT OUTER JOIN $trade_table Z
 					ON Z.code = A.code
@@ -263,11 +263,11 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $th
 		if($zeroday_view == 'true')
 			$sub_where = "";
 		else 
-			$sub_where = "WHERE (B.watchlist_date is Null OR STR_TO_DATE(B.watchlist_date, '%Y%m%d') < DATE_SUB(CURDATE(), INTERVAL 1 MONTH))";
+			$sub_where = "WHERE (B.0day_date is Null OR B.0day_date < DATE_SUB(CURDATE(), INTERVAL 1 MONTH))";
 
 		$query = "	SELECT occurrence_days  AS group_key
 						, CONCAT(' &nbsp; ', occurrence_days, '회 이상') AS group_key_str
-						, B.watchlist_date 0day_date
+						, B.0day_date 0day_date
 						, A.code 
 						, A.name
 						, '' stock_comment
@@ -297,7 +297,7 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $th
 							HAVING
 								occurrence_days >= $buy_cnt
 						) A
-					LEFT OUTER JOIN (SELECT * FROM daily_watchlist WHERE (watchlist_date, code) IN (SELECT MAX(watchlist_date), code FROM daily_watchlist  GROUP BY code)) B
+					LEFT OUTER JOIN (SELECT * FROM 0day_stocks WHERE (0day_date, code) IN (SELECT MAX(0day_date), code FROM 0day_stocks  GROUP BY code)) B
 					ON A.code = B.code
 					LEFT OUTER JOIN $trade_table Z
 					ON Z.code = A.code
@@ -313,11 +313,11 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $th
 		if($zeroday_view == 'true')
 			$sub_where = "";
 		else 
-			$sub_where = "WHERE (B.watchlist_date is Null OR STR_TO_DATE(B.watchlist_date, '%Y%m%d') < DATE_SUB(CURDATE(), INTERVAL 1 MONTH))";
+			$sub_where = "WHERE (B.0day_date is Null OR B.0day_date < DATE_SUB(CURDATE(), INTERVAL 1 MONTH))";
 
 		$query = "	SELECT status_date  AS group_key
 						, CONCAT(' &nbsp; ', status_date, '등록') AS group_key_str
-						, B.watchlist_date 0day_date
+						, B.0day_date 0day_date
 						, A.code 
 						, A.name
 						, '' stock_comment
@@ -337,7 +337,7 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $th
 								GROUP BY code
 							)
 						) A
-					LEFT OUTER JOIN (SELECT * FROM daily_watchlist WHERE (watchlist_date, code) IN (SELECT MAX(watchlist_date), code FROM daily_watchlist  GROUP BY code)) B
+					LEFT OUTER JOIN (SELECT * FROM 0day_stocks WHERE (0day_date, code) IN (SELECT MAX(0day_date), code FROM 0day_stocks  GROUP BY code)) B
 					ON A.code = B.code
 					LEFT OUTER JOIN $trade_table Z
 					ON Z.code = A.code
@@ -356,7 +356,7 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $th
 						, S.name
 						, '' talent_fg
 						, CASE WHEN B.theme is null OR  B.theme = '' THEN B.sector ELSE B.theme END uprsn
-						, CASE WHEN B.watchlist_date IS NOT NULL THEN CONCAT(' &nbsp; <font color=gray>',STR_TO_DATE(B.watchlist_date, '%Y%m%d'),'</font>') ELSE '' END watchlist_date_str
+						, CASE WHEN B.0day_date IS NOT NULL THEN CONCAT(' &nbsp; <font color=gray>',B.0day_date,'</font>') ELSE '' END watchlist_date_str
 						, CASE WHEN B.close_rate >= 0 THEN CONCAT('<font color=red> ▲',B.close_rate,'% </font>') ELSE  CONCAT('<font color=blue> ▼',ABS(B.close_rate),'% </font>') END close_rate_str
 						, CASE WHEN B.tot_trade_amt >= 1000 THEN CONCAT('<font color=red><b>',FORMAT(B.tot_trade_amt,0),'억</b></font>') ELSE  CONCAT(B.tot_trade_amt,'억') END tot_trade_amt_str
 						, B.tot_trade_amt
@@ -370,7 +370,7 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $th
 					FROM kiwoom_opt10029 A
 					INNER JOIN kiwoom_stock S
 					ON S.code = A.code
-					LEFT OUTER JOIN (SELECT * FROM daily_watchlist WHERE (watchlist_date, code) IN (SELECT MAX(watchlist_date), code FROM daily_watchlist  GROUP BY code)) B
+					LEFT OUTER JOIN (SELECT * FROM 0day_stocks WHERE (0day_date, code) IN (SELECT MAX(0day_date), code FROM 0day_stocks  GROUP BY code)) B
 					ON B.code = A.code
 					LEFT OUTER JOIN
 					(SELECT 
@@ -383,7 +383,7 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $th
 								FROM (	SELECT date
 										FROM calendar
 										WHERE date <= '$search_date'
-										AND date > (SELECT DATE_FORMAT(DATE_ADD(now(), INTERVAL IF(CURTIME() < '09:00:00', -1, 0) DAY), '%Y%m%d') - INTERVAL 2 YEAR )
+										AND date > (SELECT DATE_ADD(now(), INTERVAL IF(CURTIME() < '09:00:00', -1, 0) DAY) - INTERVAL 2 YEAR )
 										ORDER BY date DESC
 										LIMIT 224) CL)
 					GROUP BY 
@@ -415,7 +415,7 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $th
 						, CASE WHEN talent_fg != '' THEN CONCAT('<font color=violet><b>',talent_fg,'</b></font>') ELSE '' END talent_fg
 						, W.sector, W.sort_theme, W.sort_stock, W.news_title, W.news_link
 						, CASE WHEN B.theme is null OR  B.theme = '' THEN B.sector ELSE B.theme END uprsn
-						, CASE WHEN B.watchlist_date IS NOT NULL THEN CONCAT(' &nbsp; <font color=gray>',STR_TO_DATE(B.watchlist_date, '%Y%m%d'),'</font>') ELSE '' END watchlist_date_str
+						, CASE WHEN B.0day_date IS NOT NULL THEN CONCAT(' &nbsp; <font color=gray>',B.0day_date,'</font>') ELSE '' END watchlist_date_str
 						, CASE WHEN B.close_rate >= 0 THEN CONCAT('<font color=red> ▲',B.close_rate,'% </font>') ELSE  CONCAT('<font color=blue> ▼',ABS(B.close_rate),'% </font>') END close_rate_str
 						, CASE WHEN B.tot_trade_amt >= 1000 THEN CONCAT('<font color=red><b>',FORMAT(B.tot_trade_amt,0),'억</b></font>') ELSE  CONCAT(B.tot_trade_amt,'억') END tot_trade_amt_str
 						, B.tot_trade_amt
@@ -431,7 +431,7 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $th
 					ON S.code = A.code
 					LEFT OUTER JOIN watchlist_sophia W
 					ON W.code = A.code
-					LEFT OUTER JOIN (SELECT * FROM daily_watchlist WHERE (watchlist_date, code) IN (SELECT MAX(watchlist_date), code FROM daily_watchlist  GROUP BY code)) B
+					LEFT OUTER JOIN (SELECT * FROM 0day_stocks WHERE (0day_date, code) IN (SELECT MAX(0day_date), code FROM 0day_stocks  GROUP BY code)) B
 					ON B.code = A.code
 					LEFT OUTER JOIN (SELECT code, count(*) mochaten_cnt FROM mochaten WHERE cha_fg = 'MC000' GROUP BY code) M
 					ON M.code = A.code
@@ -442,26 +442,26 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $th
 	} else if($pgmId == 'watchlist') {  // 0-Day Stock // watchlist.php
 
 		if($search_date == '') { // 전체 차트 보기 클릭. 한달전 차트까지 섹터, 테마별로 보여주기
-			$search_date = date('Ymd');
+			$search_date = date('Y-m-d');
 			$orderby = "X.sector_max_date DESC, X.sector_sum DESC, R.group_sum DESC, B.tot_trade_amt DESC";
 			$group_key = "B.sector";
-			$where = "AND (B.watchlist_date, B.code) IN (SELECT MAX(watchlist_date), code FROM daily_watchlist GROUP BY code)";
+			$where = "AND (B.0day_date, B.code) IN (SELECT MAX(0day_date), code FROM 0day_stocks GROUP BY code)";
 
 			$filename = $pgmId."_monthly_theme";
 			$file_orderby = "ORDER BY V.sector_max_date DESC, V.sector_sum DESC, V.group_sum DESC, V.tot_trade_amt DESC";
 		} else {
 			if($search_date == 'today')
-				$search_date = date('Ymd');
-			$orderby = "B.watchlist_date DESC, B.tot_trade_amt DESC";
-			$group_key = "STR_TO_DATE(A.date, '%Y%m%d')";
+				$search_date = date('Y-m-d');
+			$orderby = "B.0day_date DESC, B.tot_trade_amt DESC";
+			$group_key = "A.date";
 			$where = "";
 
 			$filename = $pgmId."_0day_".$search_date;
-			$file_orderby = "ORDER BY V.watchlist_date DESC, V.tot_trade_amt DESC";
+			$file_orderby = "ORDER BY V.0day_date DESC, V.tot_trade_amt DESC";
 		}
 
 		$query = "	SELECT $group_key group_key
-						, CONCAT(' &nbsp; <font color=gray>',STR_TO_DATE(B.watchlist_date, '%Y%m%d'),'</font>') watchlist_date_str
+						, CONCAT(' &nbsp; <font color=gray>',B.0day_date,'</font>') watchlist_date_str
 						, B.code
 						, B.name
 						, '' talent_fg
@@ -470,28 +470,28 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $th
 						, B.tot_trade_amt
 						, CASE WHEN B.theme is null OR  B.theme = '' THEN B.sector ELSE B.theme END uprsn
 						, B.stock_keyword
-						, B.watchlist_date
+						, B.0day_date
 						, X.sector_max_date
 						, X.sector_sum
 						, R.group_sum
 						$trade_qry
 						, M.mochaten_cnt
 					FROM (SELECT date FROM calendar WHERE date <= '$search_date' ORDER BY date desc LIMIT 30) A
-					INNER JOIN daily_watchlist B
-					ON A.date = B.watchlist_date
+					INNER JOIN 0day_stocks B
+					ON A.date = B.0day_date
 					$where
-					INNER JOIN (	SELECT G.sector, G.theme, SUM(G.tot_trade_amt) AS group_sum, MAX(G.watchlist_date) AS group_max_date
-									FROM daily_watchlist G
+					INNER JOIN (	SELECT G.sector, G.theme, SUM(G.tot_trade_amt) AS group_sum, MAX(G.0day_date) AS group_max_date
+									FROM 0day_stocks G
 									INNER JOIN (SELECT date FROM calendar WHERE date <= '$search_date' ORDER BY date desc LIMIT 30) S
-									ON S.date = G.watchlist_date
+									ON S.date = G.0day_date
 									GROUP BY G.sector, G.theme
 								) R
 					ON B.sector = R.sector
 					AND B.theme  = R.theme
-					INNER JOIN (	SELECT G.sector, SUM(G.tot_trade_amt) AS sector_sum, MAX(G.watchlist_date) AS sector_max_date
-									FROM daily_watchlist G
+					INNER JOIN (	SELECT G.sector, SUM(G.tot_trade_amt) AS sector_sum, MAX(G.0day_date) AS sector_max_date
+									FROM 0day_stocks G
 									INNER JOIN (SELECT date FROM calendar WHERE date <= '$search_date' ORDER BY date desc LIMIT 30) S
-									ON S.date = G.watchlist_date
+									ON S.date = G.0day_date
 									GROUP BY G.sector
 								) X
 					ON B.sector = X.sector
@@ -513,27 +513,20 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $th
 // 시세 조회 기준일자 구하는 쿼리
 function getBaseDateQuery($search_date) {
 	// 시세 조회 기준일자 구해오기. 조회일자가 입력되지 않은 경우는 현재일 기준으로 구하기.
-	if (DateTime::createFromFormat('Ymd', $search_date) !== false) {
+	if (DateTime::createFromFormat('Y-m-d', $search_date) !== false) {
 		// 유효한 날짜 포맷인 경우
 		$input_date_str = "'$search_date'";
 	} else {
 		// 유효하지 않은 날짜 포맷이거나 입력되지 않은 경우
-		$input_date_str = "DATE_FORMAT(NOW(), '%Y%m%d')";
+		$input_date_str = "NOW()";
 	}
 
 	// 기준일자를 구하는 쿼리.
 	$query = "
 		SELECT MAX(date) AS base_date
 		FROM calendar 
-		WHERE date <= (
-			SELECT DATE_FORMAT(
-				DATE_ADD(
-					STR_TO_DATE($input_date_str, '%Y%m%d'), 
-					INTERVAL IF(CURTIME() < '09:00:00', -1, 0) DAY
-				), 
-				'%Y%m%d'
-			)
-		)";
+		WHERE date <= 
+			(SELECT DATE_ADD($input_date_str, INTERVAL IF(CURTIME() < '09:00:00', -1, 0) DAY))";
 
 	return $query;
 }
@@ -541,7 +534,7 @@ function getBaseDateQuery($search_date) {
 // 현재 시세 정보 구하는 쿼리
 function getTradeQuery($base_date) {
 	date_default_timezone_set('Asia/Seoul');
-	$today = date('Ymd');  // 현재 일자를 구함
+	$today = date('Y-m-d');  // 현재 일자를 구함
 	$now = date('H:i:s');  // 현재 시간을 구함
 
 	if ($today == $base_date && $now >= '09:00:0' && $now <= '19:30:00') {

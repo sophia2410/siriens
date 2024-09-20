@@ -125,7 +125,7 @@ function getData() {
 // 종목 선택 시 오른쪽 프레임에 내역 조회
 function viewStock(wdate, sdate, cd, nm) {
 	brWidth = window.innerWidth;
-	iframeR.src = "scenario_RS.php?watchlist_date="+wdate+"&scenario_date="+sdate+"&code="+cd+"&name="+nm+"&brWidth="+brWidth;
+	iframeR.src = "scenario_RS.php?0day_date="+wdate+"&scenario_date="+sdate+"&code="+cd+"&name="+nm+"&brWidth="+brWidth;
 	return;
 }
 

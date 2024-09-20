@@ -9,11 +9,10 @@ require($_SERVER['DOCUMENT_ROOT']."/modules/issues/issue_list.php");
 $dateParam  = $_GET['date'] ?? date('Y-m-d');
 $issueParam = $_GET['issue'] ?? '';
 $newIssueParam = $_GET['new_issue'] ?? '';
-$formattedDate = str_replace('-', '', $dateParam);
 
 // 마켓이슈 불러오기
 $issuesQuery = $mysqli->prepare("SELECT mi.*, kg.group_name FROM market_issues mi LEFT JOIN keyword_groups kg ON mi.keyword_group_id = kg.group_id WHERE mi.date = ? ORDER BY mi.hot_theme DESC, kg.group_name ASC");
-$issuesQuery->bind_param('s', $formattedDate);
+$issuesQuery->bind_param('s', $dateParam);
 $issuesQuery->execute();
 $issuesResult = $issuesQuery->get_result();
 
@@ -23,7 +22,7 @@ $stocksQuery = $mysqli->prepare("
     FROM market_issue_stocks
     WHERE date = ? 
     ORDER BY is_leader DESC, is_watchlist DESC, close_rate DESC");
-$stocksQuery->bind_param('s', $formattedDate); 
+$stocksQuery->bind_param('s', $dateParam); 
 $stocksQuery->execute();
 $stocksResult = $stocksQuery->get_result();
 
@@ -68,7 +67,7 @@ $query = "SELECT
               recent_keyword_group DESC, vdp.close_rate DESC";
 
 $stmt = $mysqli->prepare($query);
-$stmt->bind_param('s', $formattedDate);
+$stmt->bind_param('s', $dateParam);
 $stmt->execute();
 $result = $stmt->get_result();
 ?>
@@ -160,7 +159,7 @@ $result = $stmt->get_result();
 
     <!-- 마켓 이슈 리스트 화면 -->
     <div id="issue_list_container">
-        <?php render_issue_list($mysqli, 'date', $formattedDate); ?>
+        <?php render_issue_list($mysqli, 'date', $dateParam); ?>
     </div>
 </div>
 

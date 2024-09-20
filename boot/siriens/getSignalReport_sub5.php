@@ -31,8 +31,8 @@ $key_val = explode("/", $signal_page);
 
 	// 시그널리포트 불러오기
 	$qry  = " SELECT 	b.id,
-						b.date,
-						b.time,
+						b.news_date,
+						b.news_time,
 						b.title,
 						b.content,
 						b.publisher,
@@ -44,9 +44,9 @@ $key_val = explode("/", $signal_page);
 						b.keyword,
 						b.stocks,
 						b.confirm_fg
-				FROM rawdata_siri_report b
+				FROM signal_evening b
 				WHERE b.page_date ='$key_val[0]'
-				AND b.page_fg   ='$key_val[1]'
+				AND b.page_fg ='$key_val[1]'
 				AND b.confirm_fg is null
 				ORDER BY id";
 	// echo $qry;
@@ -59,22 +59,22 @@ $key_val = explode("/", $signal_page);
 
 	$i=0;
 	while($row = $result->fetch_array(MYSQLI_BOTH)) {
-		$id                = $row['id'];
-		$date              = $row['date'];
-		$title             = $row['title'];
-		$content           = $row['content'];
-		$publisher         = $row['publisher'];
-		$writer            = $row['writer'];
-		$link              = $row['link'];
-		$code              = $row['code'];
-		$stock             = $row['stock'];
-		$grouping          = $row['grouping'];
-		$keyword           = $row['keyword'];
-		$stocks            = $row['stocks'];
+		$id        = $row['id'];
+		$news_date = $row['news_date'];
+		$title     = $row['title'];
+		$content   = $row['content'];
+		$publisher = $row['publisher'];
+		$writer    = $row['writer'];
+		$link      = $row['link'];
+		$code      = $row['code'];
+		$stock     = $row['stock'];
+		$grouping  = $row['grouping'];
+		$keyword   = $row['keyword'];
+		$stocks    = $row['stocks'];
 
 		echo "
 		<tr> 
-		<td><input type=text name=date$i value='$date' style='width:80px'><input type=hidden name=id$i value='$id' style='width:80px'></td>
+		<td><input type=text name=news_date$i value='$news_date' style='width:80px'><input type=hidden name=id$i value='$id' style='width:80px'></td>
 		<td>$title</td>
 		<td onclick='showNews(\"$link\", this)'>$link</td>
 		<td><input type=text name=stock$i value='$stock' style='width:150px'></td>

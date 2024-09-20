@@ -172,8 +172,8 @@ else {
 				<?php
 					$query = "SELECT date
 								FROM calendar
-								WHERE date <= (select DATE_FORMAT(now(), '%Y%m%d'))
-								AND   date >= '20240226'
+								WHERE date <= now()
+								AND   date >= '2024-02-26'
 								ORDER BY date
 								LIMIT 120";
 
@@ -268,7 +268,7 @@ else {
 	</script>
 	<?php
 	//X-RAY 순간체결 거래량
-	$query = "	SELECT cal.date, SUBSTR(STR_TO_DATE(cal.date, '%Y%m%d'),6) date_str, xray.close_rate, xray.close_amt, xray.tot_trade_amt, xray.amount, xray.avg_amt, xray.cnt
+	$query = "	SELECT cal.date, DATE_FORMAT(cal.date, '%m-%d') mm_dd, xray.close_rate, xray.close_amt, xray.tot_trade_amt, xray.amount, xray.avg_amt, xray.cnt
 				FROM calendar cal
 				LEFT OUTER JOIN 
 					(
@@ -280,8 +280,8 @@ else {
 						WHERE xr.code = '$code'
 					) xray
 				ON xray.date = cal.date
-				WHERE cal.date >= (select max(date) from calendar where date <=(select DATE_FORMAT(DATE_ADD(now(), INTERVAL -5 MONTH), '%Y%m%d')))
-				AND cal.date <= (select max(date) from calendar where date <=(select DATE_FORMAT(DATE_ADD(now(), INTERVAL 0 DAY), '%Y%m%d')))
+				WHERE cal.date >= (select max(date) from calendar where date <=(select DATE_ADD(now(), INTERVAL -5 MONTH)))
+				AND cal.date <= (select max(date) from calendar where date <=(select DATE_ADD(now(), INTERVAL 0 DAY)))
 				AND cal.date >= '20240226'
 				ORDER BY cal.date desc
 				";
@@ -309,7 +309,7 @@ else {
 				$showDt = "<a href=\"javascript:openPopupXrayTick('{$code}', '".$row['date']."')\">";
 			else
 				$showDt = "<a href=\"javascript:callFrameR('".$date."', '{$code}')\">";
-			$weekly_data[$week_number][$day_of_week]['date'] = "<td align=center width=90  style='background-color:#fae4f1;'><b>$showDt". $row['date_str']."</a></b></td>";
+			$weekly_data[$week_number][$day_of_week]['date'] = "<td align=center width=90  style='background-color:#fae4f1;'><b>$showDt". $row['mm_dd']."</a></b></td>";
 			if($row['cnt'] > 0) {
 				// 등락률 따라 스타일 적용
 				if($row['close_rate'] > 29.5)

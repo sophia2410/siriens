@@ -218,7 +218,7 @@ class DBUpdater:
 
 	def update_pre_price(self):
 		"""전일종가를 찾아 등락률 구하기"""
-		sql = "SELECT date proc_date FROM calendar A WHERE proc_yn = 'N' AND date <= (SELECT DATE_FORMAT(now(), '%Y%m%d')) AND EXISTS (SELECT * FROM daily_price B WHERE B.date = A.date) ORDER BY date"
+		sql = "SELECT date proc_date FROM calendar A WHERE proc_yn = 'N' AND date <= now() AND EXISTS (SELECT * FROM daily_price B WHERE B.date = A.date) ORDER BY date"
 		print(sql)
 		df = pd.read_sql(sql, self.conn)
 		with self.conn.cursor() as curs:

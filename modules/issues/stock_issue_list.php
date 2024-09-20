@@ -133,7 +133,7 @@ if ($stockCode) {
                                 $watchListClass = ($issue['is_watchlist'] === '1') ? 'watchlist' : '';
                             ?>
                             <tr onclick="IssueRegisterForm_LoadDetails(<?= $issue['issue_id'] ?>)" style="cursor: pointer;">
-                                <td><?= Utility_FormatDate($issue['date']) ?></td>
+                                <td><?= $issue['date'] ?></td>
                                 <td><?= htmlspecialchars($issue['group_name']) ?></td>
                                 <td class="<?= $themeClass; ?>"><?= htmlspecialchars($issue['theme']) ?></td>
                                 <td class="<?= $newIssueClass; ?>"><?= htmlspecialchars($issue['issue']) ?></td>

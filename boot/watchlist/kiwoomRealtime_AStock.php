@@ -34,7 +34,7 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 $date = (isset($_GET['date']) ) ? $_GET['date'] : '';
 $minute = '1530';
 
-$specific_datetime = $date.$minute;
+$specific_datetime = str_replace('-', '', $date).$minute;
 
 // 해당 일자 등록 테이블 찾기 (성능 위해 백업 테이블 이동)
 $query = "SELECT 'Y' FROM kiwoom_realtime_minute WHERE date = '$date' LIMIT 1";
@@ -177,7 +177,7 @@ else {
 			) G
 		";
 
-	// echo "<pre>$query</pre>";
+	echo "<pre>$query</pre>";
 	$result = $mysqli->query($query);
 
 	echo "<table class='table table-sm table-bordered text-dark'>";

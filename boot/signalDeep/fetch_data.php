@@ -2,7 +2,7 @@
 require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 
 // 받은 데이터 처리
-$date = $_POST['date'] ?? date('Ymd');
+$date = $_POST['date'] ?? date('Y-m-d');
 $type = $_POST['type'];
 
 // 결과를 저장할 변수 초기화

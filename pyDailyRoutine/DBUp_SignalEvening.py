@@ -23,16 +23,16 @@ def special_char(str):
 	# pt = re.sub('[\{\}\[\]\/?.,;:|\)*~`!^\-_+<>@\#$%&\\\=\(\'\"]', '', pt)
 	return pt
 
-
 def extract_title(title):
-	"""제목에서 따옴표 내의 내용 또는 불필요한 부분을 제거한 순수 제목을 반환"""
-	# Signal Evening: 따옴표 안의 텍스트 추출
-	cleaned_title = re.findall(r'".*?"', title)
-	if cleaned_title:
-		return cleaned_title[0].strip('"')  # 따옴표 제거 후 반환
-	else:
-		# 따옴표가 없는 경우 날짜, 괄호, 불필요한 부분을 제거
-		return re.sub(r'^\d{4}\.\d{2}\.\d{2}\.\(.\)\s.*\sSignal Evening\s+|\[장 전 뉴스 Check\]\s+', '', title).strip()
+    # 불필요한 날짜, "장 전 뉴스 Check", "Signal Evening" 등의 부분을 제거
+    cleaned_title = re.sub(r'^\d{4}\.\d{2}\.\d{2}\.\(.\)\s*(\[장 전 뉴스 Check\]|Signal Evening)\s*', '', title)
+    
+    # 제일 바깥의 따옴표를 제거 (양 끝에 있을 경우)
+    if cleaned_title.startswith('"') and cleaned_title.endswith('"'):
+        cleaned_title = cleaned_title[1:-1]
+
+    # 최종적으로 정리된 제목 반환
+    return cleaned_title.strip()
 
 # 시그널리포트 가져오기
 ##---------------------------------------------------------------------- 
@@ -42,15 +42,16 @@ def main():
 	conn = pymysql.connect(host='siriens.mycafe24.com', user='siriens', password='hosting1004!', db='siriens', charset='utf8')
 	cur = conn.cursor()
 	
-	sql = "SELECT max(date) date FROM calendar a WHERE date <= (select DATE_FORMAT(now(), '%Y%m%d'))"
-	# sql = "SELECT date FROM calendar a WHERE date = '20240910'"
+	#파일명이 '20240901' 형식이라 문자형 일자 구해오기
+	sql = "SELECT MAX(date_str) AS date_str FROM calendar a WHERE date <= now()"
+	sql = "SELECT date_str AS date_str FROM calendar a WHERE date = '2024-09-12'"
 	
 	df = pd.read_sql(sql, conn)
-	date = df['date'].values[0].decode('utf-8')
+	date_str = df['date_str'].values[0].decode('utf-8')
 
 	## market_report 장전뉴스, 시그널이브닝 타이틀 넣어주기
 	# 이브닝 리포트 링크
-	evening_link = 'http://localhost/scrap/' + date + '.html'
+	evening_link = 'http://localhost/scrap/' + date_str + '.html'
 	print(f"Evening link: {evening_link}")
 	
 	evening_href = requests.get(evening_link, headers={'User-agent': 'Mozilla/5.0'})
@@ -65,7 +66,7 @@ def main():
 		print(f"Evening Report Title: {evening_cleaned_title}")
 
 	# 모닝 리포트 링크
-	morning_link = 'http://localhost/scrap/' + date + 'P.html'
+	morning_link = 'http://localhost/scrap/' + date_str + 'P.html'
 	print(f"Morning link: {morning_link}")
 	
 	morning_href = requests.get(morning_link, headers={'User-agent': 'Mozilla/5.0'})
@@ -99,10 +100,15 @@ def main():
 		first_news = 'No News'
 		first_news_link = 'No Link'
 
+	## 시그널 이브닝 크롤링 저장 처리
+	# 이브닝 일자 셋팅
+	
+	date_obj = datetime.strptime(date_str, '%Y%m%d') # 문자열을 datetime 객체로 변환
+	dt = date_obj.strftime('%Y-%m-%d') # datetime 객체를 원하는 형식의 문자열로 변환
 
 	# 데이터베이스에 이브닝 리포트 타이틀과 모닝 리포트 타이틀, 첫 번째 뉴스 저장
 	sql = '''
-		INSERT INTO market_report (report_date, morning_report_title, morning_news_title, morning_news_link, evening_report_title)
+		INSERT INTO market_report (date, morning_report_title, morning_news_title, morning_news_link, evening_report_title)
 		VALUES (%s, %s, %s, %s, %s)
 		ON DUPLICATE KEY UPDATE
 			morning_report_title=%s,
@@ -112,14 +118,11 @@ def main():
 	'''
 	# SQL 실행
 	cur.execute(sql, (
-		date, morning_cleaned_title, first_news, first_news_link, evening_cleaned_title, 
+		dt, morning_cleaned_title, first_news, first_news_link, evening_cleaned_title, 
 		morning_cleaned_title, first_news, first_news_link, evening_cleaned_title
 	))
 	conn.commit()
 
-	## 시그널 이브닝 크롤링 저장 처리
-	# 이브닝 일자 셋팅
-	dt = date
 
 	# 제목 ", ' 에 \ 붙여주기 && 특수문자 제거
 	ec_ptt = special_char(evening_title_text)
@@ -212,7 +215,7 @@ def main():
 			if 'gametoc.hankyung.com' in hf :
 				hf = hf.replace('gametoc.hankyung.com','www.gametoc.co.kr')
 
-			sql = f"REPLACE INTO rawdata_siri_report(page_date, page_fg, page_title, signal_grp, grouping, stocks, stock, link, title, date, del_yn, save_yn, today_pick,  create_date) "\
+			sql = f"REPLACE INTO signal_evening(page_date, page_fg, page_title, signal_grp, grouping, stocks, stock, link, title, news_date, del_yn, save_yn, today_pick,  create_date) "\
 				  f"VALUES ('{dt}', 'E', '{ec_ptt}', '{db_grp}', '{db_grp}', '{db_sts_v2}', '{db_st}', '{hf}', '{ec_ntt}', '{db_dt}', 'N', 'N','{lk_yn}', now())"
 			file.write(sql)
 			file.write('\n')
@@ -229,10 +232,10 @@ def main():
 			if(cnd[0] != 'NoData') :
 
 				cr_title = special_char(cnd[0])
-				sql = f"UPDATE rawdata_siri_report"\
+				sql = f"UPDATE signal_evening"\
 					f"   SET crawling_title = '{cr_title}'"\
 					f"	 , crawling_name  = '{cnd[1]}'"\
-					f"	 , crawling_date  = '{cnd[2]}'"\
+					f"	 , crawling_date = CASE WHEN LENGTH('{cnd[2]}') = 8 THEN STR_TO_DATE('{cnd[2]}', '%Y%m%d') ELSE NULL END"\
 					f"	 , crawling_time  = '{cnd[3]}'"\
 					f" WHERE page_date = '{dt}'"\
 					f"   AND link	  = '{hf}'"\
@@ -252,7 +255,7 @@ def main():
 				ctt = special_char(content.text)
 				# print(ctt)
 
-				sql = f"UPDATE rawdata_siri_report SET content = '{ctt}' WHERE page_date = '{dt}' AND link = '{hf}'"
+				sql = f"UPDATE signal_evening SET content = '{ctt}' WHERE page_date = '{dt}' AND link = '{hf}'"
 				file.write(sql)
 				file.write('\n')
 				cur.execute(sql)
@@ -263,11 +266,11 @@ def main():
 				ctt = ''
 				hf  = ''
 
-	sql = f"UPDATE rawdata_siri_report A"\
+	sql = f"UPDATE signal_evening A"\
 			f" INNER JOIN ( SELECT Y.cd, Y.nm, Y.nm_sub1, X.link "\
 			f"				FROM (SELECT SUBSTR(link_1, 1, INSTR(link_1,'/')-1) AS link_2, link "\
 			f"						FROM (SELECT link, replace(replace(link,'http://', ''),'https://', '') AS link_1 "\
-			f"								FROM rawdata_siri_report "\
+			f"								FROM signal_evening "\
 			f"							   WHERE page_date = '{dt}'"\
 			f"								 AND page_fg = 'E' "\
 			f"							 ) A "\
@@ -288,10 +291,10 @@ def main():
 	# 크롤링한 데이터 반영 안정화 되면 소스 수정. 테스트 중에는 아래 로직 잠시 주석처리. 2023.07.30
 					# # 이브닝 등록 완료 후 기등록 데이터와 비교, 보완처리
 					# # signals에 등록된 뉴스의 경우 데이터 불러오기
-					# sql = f"UPDATE rawdata_siri_report A"\
+					# sql = f"UPDATE signal_evening A"\
 					#		 f" INNER JOIN signals B"\
 					#		 f"	ON B.link	  = A.link"\
-					#		 f"   SET A.date	  = B.date"\
+					#		 f"   SET A.news_date	= B.news_date"\
 					#		 f"	 , A.time	  = B.time"\
 					#		 f"	 , A.title	 = (CASE WHEN A.title = '' THEN B.title ELSE A.title END)"\
 					#		 f"	 , A.publisher = B.publisher"\
@@ -314,10 +317,10 @@ def main():
 
 	# 크롤링한 데이터 반영 안정화 되었다 판단하여 수동처리 로직 다시 코드화. 2024.06.23
 	# 타이틀 누락건 업데이트 처리
-	sql = f"UPDATE rawdata_siri_report "\
+	sql = f"UPDATE signal_evening "\
 			f"SET title = crawling_title "\
 			f"WHERE page_fg = 'E' "\
-			f"AND page_date = (SELECT max(date) FROM calendar WHERE date <= '{dt}') "\
+			f"AND page_date = '{dt}' "\
 			f"AND title = '' "\
 			f"AND (crawling_title IS NOT NULL OR crawling_title != '')"
 
@@ -327,27 +330,65 @@ def main():
 	conn.commit()
 
 	# date, time, name을 signals 데이터에 업데이트
-	sql = f"UPDATE signals A "\
-			f"INNER JOIN (SELECT * FROM rawdata_siri_report "\
-			f"WHERE page_fg = 'E' "\
-			f"AND page_date = (SELECT max(date) FROM calendar WHERE date <= '{dt}')) B "\
-			f"ON B.link = A.link "\
-			f"SET A.date = CASE WHEN B.crawling_date != '' AND B.crawling_date IS NOT NULL THEN B.crawling_date ELSE A.date END, "\
-			f"A.news_date = CASE WHEN B.crawling_date != '' AND B.crawling_date IS NOT NULL THEN B.crawling_date ELSE A.date END, "\
-			f"A.time = CASE WHEN B.crawling_time != '' AND B.crawling_time IS NOT NULL THEN B.crawling_time ELSE A.time END, "\
-			f"A.writer = CASE WHEN B.crawling_name != '' AND B.crawling_name IS NOT NULL THEN B.crawling_name ELSE A.writer END"
-
+	sql = f"""
+			UPDATE signals A
+			INNER JOIN (
+				SELECT * FROM signal_evening
+				WHERE page_fg = 'E'
+				AND page_date = '{dt}'
+				AND crawling_date IS NOT NULL
+			) B
+			ON B.link = A.link
+			SET A.news_date = B.crawling_date
+			"""
 	file.write(sql)
 	file.write('\n')
 	cur.execute(sql)
 	conn.commit()
 
-	# signals 데이터 기준으로 rawdata_siri_report 업데이트
-	sql = f"UPDATE rawdata_siri_report A "\
+	# date, time, name을 signals 데이터에 업데이트
+	sql = f"""
+			UPDATE signals A
+			INNER JOIN (
+				SELECT * FROM signal_evening
+				WHERE page_fg = 'E'
+				AND page_date = '{dt}'
+				AND crawling_time IS NOT NULL
+				AND crawling_time != ''
+			) B
+			ON B.link = A.link
+			SET A.news_time = B.crawling_time 
+			"""
+	file.write(sql)
+	file.write('\n')
+	cur.execute(sql)
+	conn.commit()
+
+	# date, time, name을 signals 데이터에 업데이트
+	sql = f"""
+			UPDATE signals A
+			INNER JOIN (
+				SELECT * FROM signal_evening
+				WHERE page_fg = 'E'
+				AND page_date = '{dt}'
+				AND crawling_name IS NOT NULL
+				AND crawling_name != ''
+			) B
+			ON B.link = A.link
+			SET A.writer = B.crawling_name 
+			"""
+	file.write(sql)
+	file.write('\n')
+	cur.execute(sql)
+	conn.commit()
+
+
+	# signals 데이터 기준으로 signal_evening 업데이트
+	sql = f"UPDATE signal_evening A "\
 			f"INNER JOIN signals B "\
 			f"ON B.link = A.link "\
-			f"SET A.date = B.date, "\
-			f"A.time = B.time, "\
+			f"SET A.news_date = B.news_date, "\
+			f"A.news_time = B.news_time, "\
 			f"A.title = (CASE WHEN A.title = '' THEN B.title ELSE A.title END), "\
 			f"A.publisher = B.publisher, "\
 			f"A.writer = B.writer, "\
@@ -357,7 +398,7 @@ def main():
 			f"A.exists_yn = 'Y', "\
 			f"A.confirm_fg = B.confirm_fg, "\
 			f"A.signal_id = B.signal_id "\
-			f"WHERE page_date = (SELECT max(date) FROM calendar WHERE date <= '{dt}') "\
+			f"WHERE  page_date = '{dt}' "\
 			f"AND page_fg = 'E'"
 
 	file.write(sql)
@@ -366,14 +407,14 @@ def main():
 	conn.commit()
 
 	# 크롤링한 데이터는 뉴스 확인 처리 안해도 되도록 업데이트
-	sql = f"UPDATE rawdata_siri_report "\
+	sql = f"UPDATE signal_evening "\
 			f"SET confirm_fg = '2', "\
-			f"date = crawling_date, "\
-			f"time = crawling_time "\
-			f"WHERE page_date = (SELECT max(date) FROM calendar WHERE date <= '{dt}') "\
+			f"news_date = crawling_date, "\
+			f"news_time = crawling_time "\
+			f"WHERE  page_date = '{dt}' "\
 			f"AND page_fg = 'E' "\
 			f"AND (confirm_fg != '1' OR confirm_fg IS NULL) "\
-			f"AND (crawling_date IS NOT NULL AND crawling_date != '')"
+			f"AND crawling_date IS NOT NULL"
 
 	file.write(sql)
 	file.write('\n')

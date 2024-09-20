@@ -22,7 +22,7 @@ if (isset($_GET['minute']) && $_GET['minute'] != '') {
     }
 }
 
-$specific_datetime = $date.$minute;
+$specific_datetime = str_replace('-', '', $date).$minute;
 
 ?>
 
