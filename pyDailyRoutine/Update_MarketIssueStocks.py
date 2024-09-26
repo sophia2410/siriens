@@ -29,9 +29,10 @@ def update_market_issue_stocks(cursor, latest_date):
     update_query = """
         UPDATE market_issue_stocks mis
         JOIN daily_price dp ON mis.code = dp.code AND mis.date = dp.date
-        SET mis.close_rate = dp.close_rate,
+        SET mis.high_rate = dp.high_rate,
+            mis.close_rate = dp.close_rate,
             mis.volume = dp.volume,
-            mis.trade_amount = dp.amount
+            mis.trade_amount = ROUND(dp.amount/ 100000000, 2)
         WHERE mis.date = %s
     """
     cursor.execute(update_query, (latest_date,))

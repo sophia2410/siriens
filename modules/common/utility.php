@@ -28,7 +28,21 @@ function Utility_GetCloseRateClass($closeRate) {
 // 등락률에 따른 종목명 CSS 클래스 반환
 function Utility_GetStockNameClass($closeRate) {
     if ($closeRate >= 29.5) {
-        return 'stock-name-high'; // 상한가
+        return 'stock-name-high';
+    } else {
+        return 'stock-name-lowest';
+    }
+}
+// 등락률에 따른 종목명 CSS 클래스 반환
+function Utility_GetStockNameAmountClass($amountInBillion) {
+    if ($amountInBillion >= 2000) {
+        return 'stock-name-high'; // 2000억 이상
+    } elseif ($amountInBillion >= 1000) {
+        return 'stock-name-medium-high'; // 1000억 이상
+    } elseif ($amountInBillion >= 500) {
+        return 'stock-name-medium'; // 500억 이상
+    } elseif ($amountInBillion >= 100) {
+        return 'stock-name-low'; // 100억 이상
     } else {
         return 'stock-name-lowest'; // 100억 미만
     }

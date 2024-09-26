@@ -11,7 +11,7 @@ def get_market_summary(md_path, md_date, md_file, cursor, db):
 
     # 결과가 존재하면, 그 값을 date 변수에 저장합니다. 그렇지 않으면, 에러 메시지를 출력하고 프로그램을 종료합니다.
     if result:
-        date = result[0].decode('utf-8')
+        date = result[0].strftime('%Y-%m-%d')
     else:
         print("No date found for the given file name.")
         exit()

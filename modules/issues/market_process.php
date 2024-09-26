@@ -9,7 +9,7 @@ if ($_GET['action'] == 'save_report') {
         $other_market_overview = $_POST['other_market_overview'];
         $market_review = $_POST['market_review'];
     
-        $check_query = "SELECT COUNT(*) FROM market_report WHERE report_date = ?";
+        $check_query = "SELECT COUNT(*) FROM market_report WHERE date = ?";
         $stmt = $mysqli->prepare($check_query);
         $stmt->bind_param('s', $report_date);
         $stmt->execute();
@@ -19,7 +19,7 @@ if ($_GET['action'] == 'save_report') {
     
         if ($count > 0) {
             // UPDATE
-            $update_query = "UPDATE market_report SET market_overview = ?, us_market_overview = ?, other_market_overview = ?, market_review = ? WHERE report_date = ?";
+            $update_query = "UPDATE market_report SET market_overview = ?, us_market_overview = ?, other_market_overview = ?, market_review = ? WHERE date = ?";
             $stmt = $mysqli->prepare($update_query);
             if ($stmt) {
                 $stmt->bind_param('sssss', $market_overview, $us_market_overview, $other_market_overview, $market_review, $report_date);
@@ -34,7 +34,7 @@ if ($_GET['action'] == 'save_report') {
             }
         } else {
             // INSERT
-            $insert_query = "INSERT INTO market_report (report_date, market_overview, us_market_overview, other_market_overview, market_review) VALUES (?, ?, ?, ?, ?)";
+            $insert_query = "INSERT INTO market_report (date, market_overview, us_market_overview, other_market_overview, market_review) VALUES (?, ?, ?, ?, ?)";
             $stmt = $mysqli->prepare($insert_query);
             if ($stmt) {
                 $stmt->bind_param('sssss', $report_date, $market_overview, $us_market_overview, $other_market_overview, $market_review);

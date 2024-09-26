@@ -16,6 +16,11 @@ document.addEventListener('DOMContentLoaded', function() {
     if (typeof IssueRegisterPopup_Initialize === 'function') {
         IssueRegisterPopup_Initialize();
     }
+    // IssueRegisterByStock_Initialize.php
+    if (typeof IssueRegisterByStock_Initialize === 'function') {
+        IssueRegisterByStock_Initialize();
+    }
+
     // issue_list.php
     if (typeof IssueList_Initialize === 'function') {
         IssueList_Initialize();

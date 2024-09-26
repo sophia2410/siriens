@@ -21,7 +21,8 @@ class DBUpdater:
 		self.conn.close()
 
 	# pykrxMarket --------------------------------------------------------------------------------------------------------------------------------------------------
-	def get_ticker(self):
+	def get_ticker(self, date):
+		# KOSPI 및 KOSDAQ 종목 코드를 가져옴
 		kospi_tickers = stock.get_market_ticker_list(None)
 		kosdaq_tickers = stock.get_market_ticker_list(None, "KOSDAQ")
 		tickers = kospi_tickers + kosdaq_tickers
@@ -29,7 +30,19 @@ class DBUpdater:
 		# tickers = ["336370"]
 		# tickers = stock.get_market_ticker_list(None, "KOSDAQ")
 
-		return tickers
+		# 이미 데이터가 존재하는 코드를 조회
+		with self.conn.cursor() as curs:
+			sql = f"SELECT code FROM daily_pykrx WHERE date = '{date}'"
+			curs.execute(sql)
+			result = curs.fetchall()
+			
+			# 이미 반영된 코드 리스트를 문자열로 변환
+			existing_codes = [row[0].decode('utf-8') if isinstance(row[0], bytes) else row[0] for row in result]
+
+		# 이미 반영된 코드를 제외한 리스트를 반환
+		tickers_to_process = [ticker for ticker in tickers if ticker not in existing_codes]
+
+		return tickers_to_process
 
 	def get_market(self, from_date, to_date, code, adjusted=False):
 		"""시장 데이터를 가져오기"""
@@ -52,15 +65,16 @@ class DBUpdater:
 		"""DB에 데이터를 REPLACE"""
 		with self.conn.cursor() as curs:
 			for r in df.itertuples():
-				date = str(r.Index).replace('-', '')[0:8]
+				date = r.Index.strftime('%Y-%m-%d')  # Convert to DATE format
 				adjusted_int = 1 if adjusted else 0
-				sql = f"REPLACE INTO market_ohlcv(code, date, open, high, low, close, volume, amount, close_rate, is_adjusted)  "\
+				sql = f"REPLACE INTO daily_pykrx(code, date, open, high, low, close, volume, amount, close_rate, is_adjusted)  "\
 					  f"VALUES ('{code}', '{date}', {r.open}, {r.high}, {r.low}, {r.close}, {r.volume}, {r.amount}, {r.close_rate}, {adjusted_int})"
-				print(f'({idx}) {sql}')
+
+				print('('+str(idx) + ') ' + sql)
 				curs.execute(sql)
 			self.conn.commit()
 
-	def update_market_ohlcv(self, codes, from_date, to_date, adjusted=False):
+	def update_daily_price_from_pykrx(self, codes, from_date, to_date, adjusted=False):
 		"""DB에 시장 데이터 업데이트"""
 		for idx in range(len(codes)):
 			df = self.get_market(from_date, to_date, codes[idx], adjusted=adjusted)
@@ -68,15 +82,15 @@ class DBUpdater:
 				continue
 			self.replace_into_ohlcv(df, codes[idx], idx, adjusted=adjusted)
 
-			time.sleep(idx % 2 + 1)
+			time.sleep(idx%2+1)
 
-			if idx % 10 == 0:
+			if idx%10 == 0:
 				time.sleep(1)
 
 		with self.conn.cursor() as curs:
 			# 거래대금 반영
 			sql1 = f"UPDATE daily_price A"\
-				   f" INNER JOIN market_ohlcv B "\
+				   f" INNER JOIN daily_pykrx B "\
 				   f" ON B.code = A.code "\
 				   f" AND B.date = A.date "\
 				   f" SET A.amount = B.amount "\
@@ -84,11 +98,11 @@ class DBUpdater:
 			curs.execute(sql1)
 			self.conn.commit()
 
-			# daily_price VS market_ohlcv 종가등락률 다른 경우 처리 / 속도 오래 걸리는 것 같아 처리방안 고려 중
+			# daily_price VS daily_pykrx 종가등락률 다른 경우 처리 / 속도 오래 걸리는 것 같아 처리방안 고려 중
 			sql2 = f"UPDATE daily_price A"\
 				   f" INNER JOIN (SELECT X.date, X.code, X.close_rate, Y.close, "\
 				   f" CASE WHEN X.close_rate < 0 THEN Y.close + Y.diff ELSE Y.close - Y.diff END pre_close "\
-				   f" FROM (SELECT date, code, close_rate FROM market_ohlcv "\
+				   f" FROM (SELECT date, code, close_rate FROM daily_pykrx "\
 				   f" WHERE date BETWEEN {from_date} AND {to_date}) X, "\
 				   f" (SELECT date, code, close_rate, close, diff FROM daily_price "\
 				   f" WHERE date BETWEEN {from_date} AND {to_date}) Y "\
@@ -105,13 +119,11 @@ class DBUpdater:
 			# self.conn.commit()
 
 	def pykrxMarket_execute(self, from_date, to_date, adjusted=False):
-		"""시장에서 데이터를 가져와서 업데이트"""
-		# print(from_date)
-		codes = self.get_ticker()
-		# print(codes)
-		print(len(codes))
+		# from_date에 이미 반영된 종목 제외하고 티커 가져오기
+		codes = self.get_ticker(from_date)
+		print(f"{len(codes)}개의 종목이 처리됩니다.")
 
-		self.update_market_ohlcv(codes, from_date, to_date, adjusted=adjusted)
+		self.update_daily_price_from_pykrx(codes, from_date, to_date, adjusted=adjusted)
 
 	# naverPage --------------------------------------------------------------------------------------------------------------------------------------------------
 	def read_krx_code(self):
@@ -224,7 +236,8 @@ class DBUpdater:
 		with self.conn.cursor() as curs:
 			for idx in range(len(df)):
 
-				proc_date = df['proc_date'].values[idx].decode('utf-8')
+				proc_date = df['proc_date'].iloc[0]  # 첫 번째 값만 사용
+				proc_date = str(proc_date)  # 문자열로 변환
 				# print(type(proc_date))
 				print(proc_date)
 
@@ -319,6 +332,7 @@ def split_date_range(from_date, to_date):
 
 if __name__ == '__main__':
 	dbu = DBUpdater()
+
 	# dbu.execute_daily()
 
 	# 특정일은 intervals 가 안돌아서... 일단 막기.. //24.08.16
@@ -326,9 +340,21 @@ if __name__ == '__main__':
 	# for from_date, to_date in intervals:
 	# 	dbu.pykrxMarket_execute(from_date, to_date, adjusted=True)
 
-	# 특정일은 intervals 가 안돌아서... 위 일단 막고 아래 코드로.. //24.08.16
-	from_date = '20240813'
-	to_date = '20240813'
+	# 쿼리를 통해 최대 날짜를 가져오기
+	with dbu.conn.cursor() as cursor:
+		sql = "SELECT max(date) date FROM calendar a WHERE date <= now()"
+		sql = "SELECT '2024-09-25'"
+		cursor.execute(sql)
+		result = cursor.fetchone()
+
+		from_date = result[0].decode('utf-8')  # 'bytes' -> 'str' 변환
+		from_date = datetime.strptime(from_date, '%Y-%m-%d').strftime('%Y-%m-%d')
+
+		to_date = from_date  # 동일한 날짜로 설정
+
+	# # 특정일은 intervals 가 안돌아서... 위 일단 막고 아래 코드로.. //24.08.16
+	# from_date = '2024-09-25'
+	# to_date = '2024-09-25'
 	dbu.pykrxMarket_execute(from_date, to_date, adjusted=True)
 
 # 2024.07.07 

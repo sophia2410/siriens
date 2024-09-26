@@ -42,6 +42,29 @@ th {
     background-color: #f2f2f2;
 }
 
+/* 기본 강조 스타일 */
+tr.highlighted-row {
+    background-color: #e0f7fa; /* 기존 색상 */
+}
+
+/* 추가 색상 정의 */
+tr.warning-row {
+    background-color: #fff3cd; /* 경고 상태 (노란색 계열) */
+}
+
+tr.success-row {
+    background-color: #d4edda; /* 성공 상태 (초록색 계열) */
+}
+
+tr.error-row {
+    background-color: #f8d7da; /* 오류 상태 (붉은색 계열) */
+}
+
+tr.info-row {
+    background-color: #d1ecf1; /* 정보 상태 (파란색 계열) */
+}
+
+
 /* 공통 버튼 스타일 */
 button {
     font-family: 'Roboto', sans-serif; /* 메뉴와 같은 폰트 */
@@ -134,6 +157,43 @@ input[type="text"], input[type="date"], textarea {
 input[type="checkbox"] {
     margin-right: 5px;
 }
+
+/* 테두리를 진하게 하는 스타일 */
+.input-border-bold {
+    border: 2px solid #555;
+    border-radius: 4px;
+}
+
+/* 배경색을 밝게 바꾸는 스타일 */
+.input-background-light {
+    background-color: #f9f9f9;
+}
+
+/* 배경색을 파란색으로 바꾸는 스타일 */
+.input-background-blue {
+    background-color: #e0f7fa;
+}
+
+/* 배경색을 노란색으로 바꾸는 스타일 */
+.input-background-yellow {
+    background-color: #fff9c4;
+}
+
+/* 입력 박스 내 텍스트를 굵게 */
+.input-text-bold {
+    font-weight: bold;
+}
+
+/* 입력 박스 내 텍스트 색상을 파란색으로 */
+.input-text-blue {
+    color: #007bff;
+}
+
+/* 입력 박스 내 텍스트 색상을 회색으로 */
+.input-text-gray {
+    color: #6c757d;
+}
+
 
 hr {
     border: none;
@@ -244,11 +304,28 @@ hr {
 
 .stock-name-high {
     color: red !important;
-} /* 종목 등락률 29.5% 이상 */
+    font-weight: bold !important;
+} /* 종목 등락률 29.5% 이상 or 2000억 이상*/
+
+.stock-name-medium-high {
+    color: #ffa500 !important;
+    font-weight: bold !important;
+} /* 500억 이상 */
+
+.stock-name-medium {
+    color: #fcb9b2 !important;
+    font-weight: bold !important;
+} /* 150억 이상 */
+
+.stock-name-low {
+    color: #ffccd5 !important;
+    font-weight: bold !important;
+} /* 100억 이상 */
 
 .stock-name-lowest {
     color: inherit;
-} /* 종목 등락률 29.5% 이상 */
+    font-weight: bold !important;
+}
 
 /* 특이사항에 대한 스타일 */
 .issue-status-copied {

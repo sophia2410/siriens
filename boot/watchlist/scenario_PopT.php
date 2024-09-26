@@ -32,7 +32,7 @@ echo "<table class='table table-sm' border=1>
 		<th>뉴스</th>
 		</tr>";
 
-$query = "SELECT STR_TO_DATE(A.0day_date, '%Y%m%d') watchlist_date_str,
+$query = "SELECT STR_TO_DATE(A.0day_date, '%Y%m%d') 0day_date_str,
 				A.0day_date,
 				A.code,
 				A.name,
@@ -56,7 +56,7 @@ while($row = $result->fetch_array(MYSQLI_BOTH)) {
 	$checked1 = ($row['hot_theme'] == 'Y') ? " checked" : "";
 	
 	echo "<tr align=center>";
-	echo "<td>".$row['watchlist_date_str']."</td>";
+	echo "<td>".$row['0day_date_str']."</td>";
 	echo "<td>".$row['code']."</td>";
 	echo "<td align=left>".$row['name']."</td>";
 	echo "<td><input type=checkbox class=hot_theme name=hot_theme$i value='Y' $checked1></td>";

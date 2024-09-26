@@ -19,7 +19,7 @@ db = pymysql.connect(
 try:
     with db.cursor() as cursor:
         sql = "SELECT max(date) date FROM calendar a WHERE date <= now()"
-        # sql = "SELECT date FROM calendar a WHERE date = '2024-09-02'" 
+        # sql = "SELECT date FROM calendar a WHERE date = '2024-09-20'" 
         cursor.execute(sql)
         date = cursor.fetchone()[0].strftime('%Y-%m-%d')
 

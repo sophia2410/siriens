@@ -26,7 +26,7 @@ cursor = db.cursor()
 query_date = f"SELECT MAX(date) FROM daily_price WHERE date <= (select DATE_ADD(now(), INTERVAL 0 DAY))"
 
 cursor.execute(query_date)
-closest_date = cursor.fetchone()[0].decode('utf-8')
+closest_date = cursor.fetchone()[0].strftime('%Y-%m-%d')
 
 # 쿼리를 실행하고 결과를 가져옵니다.
 query = f"""

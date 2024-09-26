@@ -242,7 +242,7 @@ if($search_fg == ''){
 	echo "</table>";
 	echo "</div>";
 
-	$query = "	SELECT STR_TO_DATE(A.date, '%Y%m%d') watchlist_date_str
+	$query = "	SELECT STR_TO_DATE(A.date, '%Y%m%d') 0day_date_str
 					, B.code
 					, B.name
 					, CASE WHEN B.close_rate >= 0 THEN CONCAT('<font color=red> ▲',B.close_rate,'% </font>') ELSE  CONCAT('<font color=blue> ▼',B.close_rate,'% </font>') END close_rate
@@ -267,7 +267,7 @@ if($search_fg == ''){
 				echo "</div>";
 				$j=0;
 			}
-			echo "<div class='h5 font-weight-bold text-gray-800' style=' margin:0px; margin-top:10px; margin-bottom:10px;'>▷ ".$row['watchlist_date_str']." 일자 종목차트</div>";
+			echo "<div class='h5 font-weight-bold text-gray-800' style=' margin:0px; margin-top:10px; margin-bottom:10px;'>▷ ".$row['0day_date_str']." 일자 종목차트</div>";
 			echo "<div class='row'> ";
 		}
 

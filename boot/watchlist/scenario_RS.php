@@ -223,7 +223,7 @@ echo "<h4><font color=red><b>★ 질문 ★ 눌림 주고 다시 상승할 재�
 				<tr valign=top>
 				<td width=85%'>";
 
-					$query = "	SELECT STR_TO_DATE(A.0day_date, '%Y%m%d') watchlist_date_str
+					$query = "	SELECT STR_TO_DATE(A.0day_date, '%Y%m%d') 0day_date_str
 									, A.0day_date
 									, A.code
 									, A.name
@@ -247,7 +247,7 @@ echo "<h4><font color=red><b>★ 질문 ★ 눌림 주고 다시 상승할 재�
 					$result = $mysqli->query($query);
 					$row = $result->fetch_array(MYSQLI_BOTH);
 
-					$watchlist_date_str = $row['watchlist_date_str'];
+					$0day_date_str = $row['0day_date_str'];
 					$regi_reason         = $row['regi_reason'];
 					$close_rate     = $row['close_rate'];
 					$volume         = $row['volume'];
@@ -279,7 +279,7 @@ echo "<h4><font color=red><b>★ 질문 ★ 눌림 주고 다시 상승할 재�
 					// 종목 상승 이유 등
 					echo "<table class='table table-sm table-warning table-text-dark' border=0>";
 					echo "<tr align=left>";
-					echo "<td class='text-info' colspan=2>[관종일] <b>$watchlist_date_str</b>&nbsp;&nbsp;&nbsp;&nbsp;";
+					echo "<td class='text-info' colspan=2>[관종일] <b>$0day_date_str</b>&nbsp;&nbsp;&nbsp;&nbsp;";
 					echo "$close_rate &nbsp;&nbsp; $tot_trade_amt </td>";
 					echo "<td> 관종이유 </td>";
 					echo "<td><input type=text name=regi_reason value='$regi_reason'></td>";

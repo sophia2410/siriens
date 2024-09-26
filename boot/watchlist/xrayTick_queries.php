@@ -20,7 +20,6 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $th
 						, B.tot_trade_amt
 						, CASE WHEN B.theme is null OR  B.theme = '' THEN B.sector ELSE B.theme END uprsn
 						, B.stock_keyword
-						, B.0day_date
 						, X.sector_max_date
 						, X.sector_sum
 						, R.group_sum
@@ -57,7 +56,7 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $th
 
 		$query = "	SELECT CONCAT(Q.cha_fg_nm,' - ',cha_comment) group_key
 						 , CONCAT(' &nbsp; <font color=gray>', Q.0day_date,'</font>') group_key_str
-						 , Q.0day_date 0day_date
+						 , Q.0day_date
 						 , Q.code
 						 , Q.name
 						, '' stock_comment
@@ -66,7 +65,7 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $th
 						 , Q.tot_trade_amt
 						 , Q.uprsn
 						 , Q.stock_keyword
-						 , Q.0day_date
+						 , Q.cha_fg
 						 $trade_qry
 						 , M.mochaten_cnt
 					FROM (	SELECT A.cha_fg
@@ -96,7 +95,7 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $th
 					ORDER BY cha_fg, tot_trade_amt DESC";
 	} else if($pgmId == 'marketIssue') { // issue_register.php
 		$filename = $pgmId."_".$theme."_".$sector;
-		$file_orderby = "ORDER BY V.keyword_group_name, V.is_leader, V.is_watchlist DESC";
+		$file_orderby = "ORDER BY V.group_key, V.is_leader, V.is_watchlist DESC";
 
 		$query = "SELECT RTRIM(CONCAT(A.keyword_group_name)) AS group_key
 						, RTRIM(CONCAT(' [ ' , A.keyword_group_name,' ] ')) AS group_key_str
@@ -136,7 +135,7 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $th
 
 		$query = "SELECT RTRIM(CONCAT(' [ ' , A.sector,' ] ', A.theme, '  ', A.category)) AS group_key
 						, CONCAT('[', A.theme, (CASE WHEN A.category != '' THEN CONCAT('-', A.category) ELSE '' END),']') AS group_key_str
-						, B.0day_date 0day_date
+						, B.0day_date
 						, A.code 
 						, A.name
 						, '' stock_comment
@@ -165,7 +164,7 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $th
 
 		$query = "SELECT RTRIM(CONCAT(A.sector, A.theme)) AS group_key
 						, RTRIM(CONCAT(' [ ' , A.sector,' ] ', A.theme)) AS group_key_str
-						, B.0day_date 0day_date
+						, B.0day_date
 						, A.code 
 						, A.name
 						, '' stock_comment
@@ -193,7 +192,7 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $th
 
 		$query = "	SELECT A.listing_month group_key
 						 , CONCAT(' &nbsp; <font color=gray>',DATE_FORMAT(A.listing_date, '%Y-%m'),'</font>') group_key_str
-						 , B.0day_date 0day_date
+						 , B.0day_date
 						 , A.code
 						 , A.name
 						, '' stock_comment
@@ -202,7 +201,6 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $th
 						 , B.tot_trade_amt
 						 , A.listing_date uprsn
 						 , B.stock_keyword
-						 , B.0day_date
 						 $trade_qry
 						 , M.mochaten_cnt
 					FROM (	SELECT listing_date
@@ -229,7 +227,7 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $th
 
 		$query = "	SELECT A.date AS group_key
 						, CONCAT(' &nbsp; <font color=gray>',A.date,'</font>') AS group_key_str
-						, B.0day_date 0day_date
+						, B.0day_date
 						, A.code 
 						, A.name
 						, A.amount
@@ -267,7 +265,7 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $th
 
 		$query = "	SELECT occurrence_days  AS group_key
 						, CONCAT(' &nbsp; ', occurrence_days, '회 이상') AS group_key_str
-						, B.0day_date 0day_date
+						, B.0day_date
 						, A.code 
 						, A.name
 						, '' stock_comment
@@ -317,7 +315,7 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $th
 
 		$query = "	SELECT status_date  AS group_key
 						, CONCAT(' &nbsp; ', status_date, '등록') AS group_key_str
-						, B.0day_date 0day_date
+						, B.0day_date
 						, A.code 
 						, A.name
 						, '' stock_comment
@@ -356,7 +354,7 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $th
 						, S.name
 						, '' talent_fg
 						, CASE WHEN B.theme is null OR  B.theme = '' THEN B.sector ELSE B.theme END uprsn
-						, CASE WHEN B.0day_date IS NOT NULL THEN CONCAT(' &nbsp; <font color=gray>',B.0day_date,'</font>') ELSE '' END watchlist_date_str
+						, CASE WHEN B.0day_date IS NOT NULL THEN CONCAT(' &nbsp; <font color=gray>',B.0day_date,'</font>') ELSE '' END 0day_date_str
 						, CASE WHEN B.close_rate >= 0 THEN CONCAT('<font color=red> ▲',B.close_rate,'% </font>') ELSE  CONCAT('<font color=blue> ▼',ABS(B.close_rate),'% </font>') END close_rate_str
 						, CASE WHEN B.tot_trade_amt >= 1000 THEN CONCAT('<font color=red><b>',FORMAT(B.tot_trade_amt,0),'억</b></font>') ELSE  CONCAT(B.tot_trade_amt,'억') END tot_trade_amt_str
 						, B.tot_trade_amt
@@ -415,7 +413,7 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $th
 						, CASE WHEN talent_fg != '' THEN CONCAT('<font color=violet><b>',talent_fg,'</b></font>') ELSE '' END talent_fg
 						, W.sector, W.sort_theme, W.sort_stock, W.news_title, W.news_link
 						, CASE WHEN B.theme is null OR  B.theme = '' THEN B.sector ELSE B.theme END uprsn
-						, CASE WHEN B.0day_date IS NOT NULL THEN CONCAT(' &nbsp; <font color=gray>',B.0day_date,'</font>') ELSE '' END watchlist_date_str
+						, CASE WHEN B.0day_date IS NOT NULL THEN CONCAT(' &nbsp; <font color=gray>',B.0day_date,'</font>') ELSE '' END 0day_date_str
 						, CASE WHEN B.close_rate >= 0 THEN CONCAT('<font color=red> ▲',B.close_rate,'% </font>') ELSE  CONCAT('<font color=blue> ▼',ABS(B.close_rate),'% </font>') END close_rate_str
 						, CASE WHEN B.tot_trade_amt >= 1000 THEN CONCAT('<font color=red><b>',FORMAT(B.tot_trade_amt,0),'억</b></font>') ELSE  CONCAT(B.tot_trade_amt,'억') END tot_trade_amt_str
 						, B.tot_trade_amt
@@ -461,7 +459,7 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $th
 		}
 
 		$query = "	SELECT $group_key group_key
-						, CONCAT(' &nbsp; <font color=gray>',B.0day_date,'</font>') watchlist_date_str
+						, CONCAT(' &nbsp; <font color=gray>',B.0day_date,'</font>') 0day_date_str
 						, B.code
 						, B.name
 						, '' talent_fg

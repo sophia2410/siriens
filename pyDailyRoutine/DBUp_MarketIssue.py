@@ -115,17 +115,17 @@ def handle_stocks(cursor, issue_id, stocks, date, sector):
 
         code = result[0].decode('utf-8')
 
-        cursor.execute("SELECT close_rate, volume, amount FROM v_daily_price WHERE code = %s AND date = %s", (code, date))
+        cursor.execute("SELECT high_rate, close_rate, volume, amount FROM v_daily_price WHERE code = %s AND date = %s", (code, date))
         price_data = cursor.fetchone()
-        close_rate, volume, trade_amount = price_data if price_data else (None, None, None)
+        high_rate, close_rate, volume, trade_amount = price_data if price_data else (None, None, None)
 
         # 쿼리 및 파라미터를 출력하여 디버깅
         query = """
             INSERT INTO market_issue_stocks 
-            (issue_id, code, name, close_rate, volume, trade_amount, stock_comment, is_leader, is_watchlist, sector, date, create_dtime) 
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+            (issue_id, code, name, high_rate, close_rate, volume, trade_amount, stock_comment, is_leader, is_watchlist, sector, date, create_dtime) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
         """
-        params = (issue_id, code, name, close_rate, volume, trade_amount, stock_comment, is_leader, is_watchlist, sector, date)
+        params = (issue_id, code, name, high_rate, close_rate, volume, trade_amount, stock_comment, is_leader, is_watchlist, sector, date)
         # print(f"Executing query: {query} with params: {params}")
         
         try:

@@ -448,22 +448,25 @@ def crawling_etnews(soup):
     publisher = "전자신문"
     
     # 타이틀 공백 및 개행 처리
-    title = soup.select("div.article_title > h2")
-    title = title[0].get_text()
+    title = soup.title.string
 
     # 본문에 있는 기자 이름 패스
     name = ''
 
     # 날짜 공백으로 잘라서 구해오기
-    date = soup.find("time", class_="date")
+    date = soup.find("time")
     date = date.text.split()
     time = date[3]
     date = date[2].replace('-','')
 
     # 본문구해오기
     content = soup.find("div", class_="article_txt")
-    content = content.text.strip()
-
+    if content is not None:
+        content = content.text.strip()
+    else:
+        content = soup.find("div", class_="article_body")
+        content = content.text.strip()
+    
     rt = [publisher, title, name, date, time, content]
     return rt
 

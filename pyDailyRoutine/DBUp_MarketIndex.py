@@ -39,12 +39,12 @@ cursor = db.cursor()
 # 1주전 거래일 구해오기. 등락률을 위해 이전 데이터 필요, 주말, 연휴 등 때문에 넉넉하게 지난주 데이터를 구한다.
 query_date = f"SELECT MAX(date) FROM daily_price WHERE date <= (SELECT DATE_ADD(now(), INTERVAL -1 WEEK))"
 cursor.execute(query_date)
-start_date = cursor.fetchone()[0].decode('utf-8')
+start_date = cursor.fetchone()[0].strftime('%Y-%m-%d')
 
 # 1주전 거래일 구해오기. 등락률을 위해 이전 데이터 필요, 주말, 연휴 등 때문에 넉넉하게 지난주 데이터를 구한다.
-query_date = f"SELECT DATE_FORMAT(DATE_ADD(now(), INTERVAL +1 DAY), '%Y-%m-%d')"
+query_date = f"SELECT DATE_ADD(now(), INTERVAL +1 DAY)"
 cursor.execute(query_date)
-end_date= cursor.fetchone()[0].decode('utf-8')
+end_date= cursor.fetchone()[0].strftime('%Y-%m-%d')
 
 # start_date = '2023-12-15'
 # end_date = '2023-12-16'

@@ -52,23 +52,13 @@ $sector_query = "
 $sector_result = $mysqli->query($sector_query);
 $theme_data = [];
 
-// 오늘 날짜 확인
-$today = date("Y-m-d");
-$current_time = date("H:i");
-$cutoff_time = "19:30";
-
-// 오늘 일자인지 여부 확인
-$is_today = ($report_date == $today);
-
-// 오늘 일자이고, 19:30 이전인 경우
-if ($sector_result->num_rows > 0 && !($is_today && $current_time < $cutoff_time)) {
-    // 과거 일자 또는 19:30 이후에는 기존 v_market_issue 데이터 사용
+if ($sector_result->num_rows > 0) {
     while ($row = $sector_result->fetch_assoc()) {
         $theme_data[$row['theme']][] = $row;
     }
 }
 else {
-    // 오늘 19:30 이전에는 v_daily_price 데이터 사용
+    // 쿼리 결과가 없을 때 실행할 다른 쿼리
     $alternative_query = "
         SELECT a.code, a.name, a.close_rate AS stock_change, a.amount AS stock_amount, b.theme, 
                a.is_leader, a.is_watchlist, '' AS stock_comment

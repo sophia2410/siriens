@@ -16,7 +16,7 @@ $scenario_date = $row['scenario_date'];
 // $search_tracking_yn = (isset($_GET['tracking_yn'])) ? "AND A.tracking_yn ='".$_GET['tracking_yn'] ."'" : "AND A.tracking_yn ='Y'";
 $search_buy_pick    = (isset($_GET['buy_pick'])    && $_GET['buy_pick']    != '') ? "AND A.buy_pick    ='".$_GET['buy_pick'] ."'" :'';
 
-$query = " SELECT Y.date, STR_TO_DATE(Y.date, '%Y%m%d') watchlist_date_str, Z.*
+$query = " SELECT Y.date, STR_TO_DATE(Y.date, '%Y%m%d') 0day_date_str, Z.*
 			 FROM calendar Y
 			 LEFT OUTER JOIN 
 					(SELECT   CASE WHEN B.close_rate > 0 THEN CONCAT('<font color=red> ▲',B.close_rate,'% </font>') ELSE  CONCAT('<font color=blue> ▼',ABS(B.close_rate),'% </font>') END kospi_index

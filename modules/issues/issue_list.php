@@ -137,11 +137,12 @@ function render_issue_list($mysqli, $criteriaType, $criteriaValue) {
                                             $watchListClass = ($stock['is_watchlist'] === '1') ? 'watchlist' : '';
                                         ?>
                                         <tr>
-                                            <td class="<?= $stockNameClass; ?> <?= $watchListClass ?> <?= $leaderClass ?>" style="width:15%; display: table-cell;"><?= htmlspecialchars($stock['name']) ?></td>
+                                            <td class="<?= $stockNameClass; ?> <?= $watchListClass ?> <?= $leaderClass ?>" style="width:14%; display: table-cell;"><?= htmlspecialchars($stock['name']) ?></td>
                                             <td style="width:5%; display: table-cell;"><?= htmlspecialchars($stock['code']) ?></td>
-                                            <td class="<?= $closeRateClass; ?>" style="width:8%; display: table-cell;"><?= number_format($stock['close_rate'], 2) ?> %</td>
-                                            <td class="<?= $amountClass; ?>" style="width:9%; display: table-cell;"><?= number_format($stock['trade_amount']) ?> 억</td>
-                                            <td><?= htmlspecialchars($stock['sector']) ?></td>
+                                            <td style="width:9%; display: table-cell; text-align: right;"><small>(H)</small><?= number_format($stock['high_rate'], 2) ?> % </td>
+                                            <td class="<?= $closeRateClass; ?>" style="width:7%; display: table-cell;"><?= number_format($stock['close_rate'], 2) ?> %</td>
+                                            <td class="<?= $amountClass; ?>" style="width:8%; display: table-cell;"><?= number_format($stock['trade_amount']) ?> 억</td>
+                                            <td style="width:9%;"><?= htmlspecialchars($stock['sector']) ?></td>
                                             <td><?= htmlspecialchars($stock['stock_comment']) ?></td>
                                         </tr>
                                     <?php endforeach; ?>

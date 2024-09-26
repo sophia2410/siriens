@@ -82,7 +82,7 @@ def update_market_report(url):
 
     # Insert or update the market_report table
     sql = '''
-        INSERT INTO market_report (report_date, morning_report_title, morning_news_title, morning_news_link)
+        INSERT INTO market_report (date, morning_report_title, morning_news_title, morning_news_link)
         VALUES (%s, %s, %s, %s)
         ON DUPLICATE KEY UPDATE
             morning_report_title=%s,
