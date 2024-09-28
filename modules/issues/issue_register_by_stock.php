@@ -55,7 +55,7 @@ foreach ($stocks as $stock) {
             mi.date AS date,
             mi.issue AS issue,
             mi.first_occurrence AS first_occurrence,
-            mi.link AS link,
+            mi.group_label AS group_label,
             mi.keyword_group_id AS keyword_group_id,
             kgm.group_name AS keyword_group_name,
             mi.theme AS theme,

@@ -274,6 +274,20 @@ function handleKeywords($mysqli, $keywords_input) {
 function insertOrUpdateIssue($mysqli, $date, $issue, $first_occurrence, $link, $theme, $hot_theme, $group_id) {
 
     error_log("call insertOrUpdateIssue: date={$date} issue={$issue} first_occurrence={$first_occurrence} link={$link} theme={$theme} hot_theme={$hot_theme} group_id={$group_id}");
+
+    // group_label은 keyword_groups 테이블에서 첫 번째 키워드를 추출해 설정
+    $stmt = $mysqli->prepare("SELECT group_name FROM keyword_groups WHERE group_id = ?");
+    $stmt->bind_param('i', $group_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    if ($row = $result->fetch_assoc()) {
+        // group_name의 첫 번째 키워드에서 group_label 추출
+        $group_label = str_replace('#', '', explode(' ', $row['group_name'])[0]);
+    } else {
+        // group_label을 설정할 수 없으면 빈 값으로 처리
+        $group_label = '';
+    }
     $stmt = $mysqli->prepare("SELECT issue_id FROM market_issues WHERE date = ? AND keyword_group_id = ? AND issue = ? AND theme = ?");
     $stmt->bind_param('siss', $date, $group_id, $issue, $theme);
     $stmt->execute();
@@ -282,8 +296,11 @@ function insertOrUpdateIssue($mysqli, $date, $issue, $first_occurrence, $link, $
     if ($row = $result->fetch_assoc()) {
         return $row['issue_id'];
     } else {
-        $stmt = $mysqli->prepare("INSERT INTO market_issues (date, issue, first_occurrence, link, theme, hot_theme, keyword_group_id, status, create_dtime) VALUES (?, ?, ?, ?, ?, ?, ?, 'registered', NOW())");
-        $stmt->bind_param('ssssssi', $date, $issue, $first_occurrence, $link, $theme, $hot_theme, $group_id);
+        $stmt = $mysqli->prepare("
+            INSERT INTO market_issues (date, issue, first_occurrence, link, theme, hot_theme, keyword_group_id, group_label, status, create_dtime) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'registered', NOW())
+        ");
+        $stmt->bind_param('ssssssis', $date, $issue, $first_occurrence, $link, $theme, $hot_theme, $group_id, $group_label);
         if (!$stmt->execute()) {
             throw new Exception("market_issues 삽입 실패: " . $stmt->error);
         }
@@ -292,10 +309,27 @@ function insertOrUpdateIssue($mysqli, $date, $issue, $first_occurrence, $link, $
 }
 
 function updateIssue($mysqli, $issue_id, $date, $issue, $first_occurrence, $link, $theme, $hot_theme, $group_id) {
-
     error_log("call updateIssue: issue={$issue} date={$date} first_occurrence={$first_occurrence} link={$link} theme={$theme} hot_theme={$hot_theme} group_id={$group_id}");
-    $stmt = $mysqli->prepare("UPDATE market_issues SET date = ?, issue = ?, first_occurrence = ?, link = ?, theme = ?, hot_theme = ?, keyword_group_id = ?, status = 'registered' WHERE issue_id = ?");
-    $stmt->bind_param('ssssssii', $date, $issue, $first_occurrence, $link, $theme, $hot_theme, $group_id, $issue_id);
+
+    // group_label은 keyword_groups 테이블에서 첫 번째 키워드를 추출해 설정
+    $stmt = $mysqli->prepare("SELECT group_name FROM keyword_groups WHERE group_id = ?");
+    $stmt->bind_param('i', $group_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    if ($row = $result->fetch_assoc()) {
+        // group_name의 첫 번째 키워드에서 group_label 추출
+        $group_label = str_replace('#', '', explode(' ', $row['group_name'])[0]);
+    } else {
+        // group_label을 설정할 수 없으면 빈 값으로 처리
+        $group_label = '';
+    }
+    $stmt = $mysqli->prepare("
+        UPDATE market_issues 
+        SET date = ?, issue = ?, first_occurrence = ?, link = ?, theme = ?, hot_theme = ?, keyword_group_id = ?, group_label = ?, status = 'registered' 
+        WHERE issue_id = ?
+    ");
+    $stmt->bind_param('ssssssisi', $date, $issue, $first_occurrence, $link, $theme, $hot_theme, $group_id, $group_label, $issue_id);
     if (!$stmt->execute()) {
         throw new Exception("market_issues 업데이트 실패: " . $stmt->error);
     }
@@ -420,16 +454,34 @@ function copyIssue($mysqli, $issue_id) {
         throw new Exception("이슈를 찾을 수 없습니다.");
     }
 
-    $stmt = $mysqli->prepare("INSERT INTO market_issues (date, issue, first_occurrence, link, theme, hot_theme, status, create_dtime, keyword_group_id) VALUES (?, ?, ?, ?, ?, ?, 'copied', NOW(), ?)");
+    // group_label은 keyword_groups 테이블에서 첫 번째 키워드를 추출해 설정
+    $stmt = $mysqli->prepare("SELECT group_name FROM keyword_groups WHERE group_id = ?");
+    $stmt->bind_param('i', $issueData['keyword_group_id']);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    if ($row = $result->fetch_assoc()) {
+        // group_name의 첫 번째 키워드에서 group_label 추출
+        $group_label = str_replace('#', '', explode(' ', $row['group_name'])[0]);
+    } else {
+        // group_label을 설정할 수 없으면 빈 값으로 처리
+        $group_label = '';
+    }
+
+    $stmt = $mysqli->prepare("
+        INSERT INTO market_issues (date, issue, first_occurrence, link, theme, hot_theme, status, create_dtime, keyword_group_id, group_label) 
+        VALUES (?, ?, ?, ?, ?, ?, 'copied', NOW(), ?, ?)
+    ");
     $stmt->bind_param(
-        'ssssssi',
+        'ssssssiss',
         $issueData['date'],
         $issueData['issue'],
         $issueData['first_occurrence'],
         $issueData['link'],
         $issueData['theme'],
         $issueData['hot_theme'],
-        $issueData['keyword_group_id']
+        $issueData['keyword_group_id'],
+        $group_label
     );
 
     if (!$stmt->execute()) {

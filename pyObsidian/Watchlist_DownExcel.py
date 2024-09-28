@@ -13,11 +13,11 @@ config.read('E:/Project/202410/www/boot/common/db/database_config.ini')
 
 # MySQL 데이터베이스에 연결합니다. 연결 정보는 자신의 환경에 맞게 수정하세요.
 db = pymysql.connect(
-	host=config.get('database', 'host'),
-	user=config.get('database', 'user'),
-	password=config.get('database', 'password'),
-	db=config.get('database', 'db'),
-	charset=config.get('database', 'charset')
+    host=config.get('database', 'host'),
+    user=config.get('database', 'user'),
+    password=config.get('database', 'password'),
+    db=config.get('database', 'db'),
+    charset=config.get('database', 'charset')
 )
 
 # 커서 객체 생성
@@ -25,10 +25,10 @@ cursor = db.cursor()
 
 
 with open("E:/Project/202410/www/pyObsidian/vars_downExcel.txt", "r", encoding="utf-8") as f:
-	lines = f.readlines()
-	filename = lines[0].strip() 
-	orderby = lines[1].strip() 
-	query = "".join(lines[2:])
+    lines = f.readlines()
+    filename = lines[0].strip() 
+    orderby = lines[1].strip() 
+    query = "".join(lines[2:])
 
 # 관종 해당일자 구하기
 # 처리 시작
@@ -36,8 +36,8 @@ down_date = datetime.today().strftime('%Y%m%d')
 
 # 쿼리문 실행
 sql = f"SELECT '' a, '' b, V.name, '' c, '' d, '' e, '' f, '' g, V.code "\
-	  f"FROM ({query}) V "\
-	  f"{orderby}"
+      f"FROM ({query}) V "\
+      f"{orderby}"
 
 print(sql)
 cursor.execute(sql)
@@ -55,22 +55,22 @@ ws =  wb.add_sheet('watchlist')
 # 헤더 작성하기
 header = ['a', 'b', 'name', 'c', 'd', 'e', 'f', 'g', 'code', 'sector']
 for c in range(len(header)):
-	ws.write(0, c, header[c])
-	
+    ws.write(0, c, header[c])
+    
 # 결과를 엑셀 파일에 쓰기
 for r in range(len(result)):
-	for c in range(len(result[r])):
-		if result[r][c] is not None:
-			ws.write(r+1, c, result[r][c].decode('utf-8'))
-		else:
-			ws.write(r+1, c, result[r][c])
+    for c in range(len(result[r])):
+        if result[r][c] is not None:
+            ws.write(r+1, c, result[r][c].decode('utf-8'))
+        else:
+            ws.write(r+1, c, result[r][c])
 # 엑셀 파일 저장
 # filename = f"C:/KiwoomHero4/today_watchlist/{filename}_{down_date}.xls"
 filename = f"C:/KiwoomHero4/temp/{filename}_{down_date}.xls"
 
 # 기존 파일이 존재하면 삭제하기
 if os.path.exists(filename):
-	os.remove(filename)
+    os.remove(filename)
 
 # 새로운 파일 저장하기
 wb.save(filename)

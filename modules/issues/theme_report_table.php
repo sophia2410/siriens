@@ -3,14 +3,14 @@
 require($_SERVER['DOCUMENT_ROOT']."/modules/common/common_header_sub.php");
 
 $endDate = date('Y-m-d', time());
-$startDate = date('Y-m-d', strtotime('-20 days', time()));
+$startDate = date('Y-m-d', strtotime('-15 days', time()));
 
-// Fetch themes with occurrence count and sorted by the latest date and occurrence count
+// Fetch groups with occurrence count and sorted by the latest date and occurrence count
 $theme_query = "
     SELECT 
-        CASE WHEN mi.theme != '' THEN mi.theme WHEN mis.sector != '' THEN mis.sector ELSE '미분류' END AS theme, -- 기존 theme로 분류해서 돌아가는 로직 활용하기 위해, theme 컬럼명 활용
-        CASE WHEN mi.theme != '' THEN 'theme' ELSE 'sector' END AS group_type, 
-        mi.date AS theme_date, 
+        mi.group_label, 
+        mi.date AS issue_date, 
+        mi.theme, 
         mi.hot_theme, 
         kg.group_name AS keyword_group_name,
         mis.name AS stock_name, 
@@ -19,7 +19,9 @@ $theme_query = "
         mis.trade_amount,
         mis.is_leader,
         mis.is_watchlist,
-        COUNT(mi.date) OVER (PARTITION BY mi.theme) AS occurrence_count  -- 테마별 발생 건수 계산
+        MAX(mi.date) OVER (PARTITION BY mi.group_label) AS last_occurrence_date,  -- 최신 날짜
+        SUM(mis.trade_amount) OVER (PARTITION BY mi.group_label, mi.date) AS daily_trade_amount,  -- 일별 거래량 합계
+        COUNT(mi.date) OVER (PARTITION BY mi.group_label, mi.date) AS occurrence_count  -- 발생 건수 계산
     FROM 
         market_issues mi
     JOIN 
@@ -29,13 +31,14 @@ $theme_query = "
     WHERE 
         mi.date BETWEEN '$startDate' AND '$endDate'
     AND 
-        (mis.trade_amount > 500 or mis.close_rate > 10)
+        (mis.trade_amount > 500 OR mis.close_rate > 10)
     ORDER BY 
-        CASE WHEN mi.theme != '' THEN 'theme' ELSE 'sector' END DESC, -- 테마 우선 정렬
-        CASE WHEN mi.theme != '' THEN MAX(mi.date) OVER (PARTITION BY mi.theme) ELSE 0 END DESC,  -- 테마의 최신 날짜 순으로 정렬
+        mi.date DESC, -- 날짜를 우선 정렬, 최신 날짜가 먼저 오도록
+        daily_trade_amount DESC,  -- 일별 거래량 기준으로 강한 테마(섹터) 정렬
         occurrence_count DESC,  -- 발생 건수 순으로 정렬
-        mi.date ASC,  -- 종목이 나타난 일자 순으로 정렬
+        group_label,
         close_rate DESC;  -- 등락률 높은 순으로 정렬";
+
 $theme_result = $mysqli->query($theme_query);
 
 $index_query = "
@@ -64,14 +67,15 @@ while ($row = $index_result->fetch_assoc()) {
     ];
 }
 
-$themes = [];
+$groups = [];
 $dates = [];
 $stock_appearance_order = [];  // 종목이 날짜별로 등장하는 순서를 추적
 
 // 데이터 정렬 및 그룹화
 while ($row = $theme_result->fetch_assoc()) {
+    $group_label = $row['group_label'];
     $theme = $row['theme'];
-    $theme_date = date('Y-m-d', strtotime($row['theme_date']));
+    $issue_date = date('Y-m-d', strtotime($row['issue_date']));
     $keyword_group_name = $row['keyword_group_name'];
     $stock_code = $row['stock_code'];
     $stock_name = $row['stock_name'];
@@ -79,8 +83,8 @@ while ($row = $theme_result->fetch_assoc()) {
     $is_watchlist = $row['is_watchlist'];
 
     // Initialize the theme if not already set
-    if (!isset($themes[$theme])) {
-        $themes[$theme] = [];
+    if (!isset($groups[$group_label])) {
+        $groups[$group_label] = [];
     }
 
     // Track the appearance order of the stock
@@ -91,11 +95,12 @@ while ($row = $theme_result->fetch_assoc()) {
     }
 
     // Initialize or update the stock entry
-    if (!isset($themes[$theme][$keyword_group_name][$theme_date])) {
-        $themes[$theme][$keyword_group_name][$theme_date] = [];
+    if (!isset($groups[$group_label][$keyword_group_name][$issue_date])) {
+        $groups[$group_label][$keyword_group_name][$issue_date] = [];
     }
 
-    $themes[$theme][$keyword_group_name][$theme_date][] = [
+    $groups[$group_label][$keyword_group_name][$issue_date][] = [
+        'theme' => $theme,
         'stock_name' => $stock_name . $stock_appearance_order[$stock_code],  // Append the appearance order to the stock name
         'close_rate' => number_format($row['close_rate'], 2) . "%",
         'trade_amount' => number_format($row['trade_amount']) . "억",
@@ -106,8 +111,8 @@ while ($row = $theme_result->fetch_assoc()) {
     ];
 
     // 날짜 저장
-    if (!in_array($theme_date, $dates)) {
-        $dates[] = $theme_date;
+    if (!in_array($issue_date, $dates)) {
+        $dates[] = $issue_date;
     }
 }
 
@@ -181,11 +186,11 @@ rsort($dates);
         </tr>
     </thead>
     <tbody>
-        <?php foreach ($themes as $theme => $groups): ?>
+        <?php foreach ($groups as $group => $groups): ?>
             <?php $row_count = count($groups); ?>
             <tr class="border-top-strong">
                 <td class="theme-cell" rowspan="<?= $row_count ?>">
-                    <?= htmlspecialchars($theme) ?>
+                    <?= htmlspecialchars($group) ?>
                 </td>
                 <?php $first = true; ?>
                 <?php foreach ($groups as $keyword_group => $data): ?>

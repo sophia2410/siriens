@@ -14,10 +14,9 @@ if ($source === 'watchlist_sophia') {
 } else {
     // Default to fetching themes from market_issues
     $query = "SELECT 
-                CASE WHEN mi.theme != '' THEN mi.theme WHEN mis.sector != '' THEN mis.sector ELSE '미분류' END AS name,
+                mi.group_label AS name,
                 MAX(mi.date) AS max_date,
-                MAX(mi.hot_theme) AS hot_theme,
-                CASE  WHEN mi.theme IS NOT NULL AND mi.theme != '' THEN 'theme' ELSE 'sector' END AS type
+                MAX(mi.hot_theme) AS hot_theme
             FROM 
                 market_issues mi
             JOIN 
@@ -25,10 +24,8 @@ if ($source === 'watchlist_sophia') {
             WHERE
                 mi.date >= DATE_SUB(CURDATE(), INTERVAL 1 MONTH)
             GROUP BY 
-                CASE WHEN mi.theme != '' THEN mi.theme  ELSE mis.sector END,
-                CASE  WHEN mi.theme IS NOT NULL AND mi.theme != '' THEN 'theme' ELSE 'sector' END
+                mi.group_label
             ORDER BY 
-                type DESC,
                 hot_theme DESC,
                 max_date DESC,
                 name ASC";

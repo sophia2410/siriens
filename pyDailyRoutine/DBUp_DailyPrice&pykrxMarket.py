@@ -9,337 +9,313 @@ from threading import Timer
 import time
 import numpy as np
 from pykrx import stock
+import logging
+import traceback
+
+# 로깅 설정
+logging.basicConfig(filename='E:/Project/202410/www/pyDailyRoutine/dbupdater_log.txt', level=logging.DEBUG,
+                    format='%(asctime)s - %(levelname)s - %(message)s', filemode='w')
+
+# 로그 파일 핸들러를 직접 추가하여 즉시 플러시
+for handler in logging.getLogger().handlers:
+    handler.flush()
 
 class DBUpdater:
-	def __init__(self):
-		"""생성자: MariaDB 연결 및 종목코드 딕셔너리 생성"""
-		self.conn = pymysql.connect(host='siriens.mycafe24.com', user='siriens', password='hosting1004!', db='siriens', charset='utf8')
-		self.codes = dict()
+    def __init__(self):
+        """생성자: MariaDB 연결 및 종목코드 딕셔너리 생성"""
+        try:
+            self.conn = pymysql.connect(host='siriens.mycafe24.com', user='siriens', password='hosting1004!', db='siriens', charset='utf8')
+            self.codes = dict()
+            logging.info("DB 연결 성공")
+        except Exception as e:
+            logging.error(f"DB 연결 실패: {str(e)}")
+            logging.error(traceback.format_exc())
 
-	def __del__(self):
-		"""소멸자: MariaDB 연결 해제"""
-		self.conn.close()
+    def __del__(self):
+        """소멸자: MariaDB 연결 해제"""
+        try:
+            self.conn.close()
+            logging.info("DB 연결 해제 성공")
+        except Exception as e:
+            logging.error(f"DB 연결 해제 실패: {str(e)}")
+            logging.error(traceback.format_exc())
 
-	# pykrxMarket --------------------------------------------------------------------------------------------------------------------------------------------------
-	def get_ticker(self):
-		kospi_tickers = stock.get_market_ticker_list(None)
-		kosdaq_tickers = stock.get_market_ticker_list(None, "KOSDAQ")
-		tickers = kospi_tickers + kosdaq_tickers
+    # pykrxMarket --------------------------------------------------------------------------------------------------------------------------------------------------
+    def get_ticker(self, date):
+        try:
+            kospi_tickers = stock.get_market_ticker_list(None)
+            kosdaq_tickers = stock.get_market_ticker_list(None, "KOSDAQ")
+            tickers = kospi_tickers + kosdaq_tickers
+            logging.info("티커 목록 가져오기 성공")
 
-		return tickers
+            # 이미 데이터가 존재하는 코드를 조회
+            with self.conn.cursor() as curs:
+                sql = f"SELECT code FROM daily_pykrx WHERE date = '{date}'"
+                curs.execute(sql)
+                result = curs.fetchall()
+                
+                # 이미 반영된 코드 리스트를 문자열로 변환
+                existing_codes = [row[0].decode('utf-8') if isinstance(row[0], bytes) else row[0] for row in result]
 
-	def get_market(self, from_date, to_date, code):
-		df = stock.get_market_ohlcv(from_date, to_date, code)
-		# print(df.columns)
-		# print(df.index)
-		df = df.rename(columns={'날짜':'date', '시가':'open', '고가':'high','저가':'low','종가':'close','거래량':'volume','거래대금':'amount','등락률':'close_rate'})
-		return df
+            # 이미 반영된 코드를 제외한 리스트를 반환
+            tickers_to_process = [ticker for ticker in tickers if ticker not in existing_codes]
 
-	def replace_into_ohlcv(self, df, code, idx):
-		with self.conn.cursor() as curs:
-			for r in df.itertuples():
-				# print(type(r))
-				date = r.Index.strftime('%Y-%m-%d')  # Convert to DATE format
-				sql = f"INSERT IGNORE INTO daily_pykrx(code,date,open,high,low,close,volume,amount,close_rate)  "\
-					f"VALUES ('{code}', '{date}', {r.open}, {r.high}, {r.low}, {r.close}, {r.volume}, {r.amount}, {r.close_rate} )"
-					# f"{r.volume}, round({r.amount}/100000000,0))"
-					
-				print('('+str(idx) + ') ' + sql)
-				curs.execute(sql)
-			self.conn.commit()
+            return tickers_to_process
+        except Exception as e:
+            logging.error(f"티커 목록 가져오기 실패: {str(e)}")
+            logging.error(traceback.format_exc())
+            return []
 
-	def update_daily_price_from_pykrx(self, codes, from_date, to_date):
-		for idx in range(len(codes)):
-			df = self.get_market(from_date, to_date, codes[idx])
-			if df is None:
-				continue
-			self.replace_into_ohlcv(df, codes[idx], idx)
-			
-			time.sleep(idx%2+1)
+    def get_market(self, from_date, to_date, code):
+        try:
+            df = stock.get_market_ohlcv(from_date, to_date, code)
+            df = df.rename(columns={'날짜':'date', '시가':'open', '고가':'high','저가':'low','종가':'close','거래량':'volume','거래대금':'amount','등락률':'close_rate'})
+            logging.info(f"{code} 종목 시장 데이터 가져오기 성공")
+            return df
+        except Exception as e:
+            logging.error(f"{code} 종목 시장 데이터 가져오기 실패: {str(e)}")
+            logging.error(traceback.format_exc())
+            return None
 
-			if idx%10 == 0:
-				time.sleep(1)
+    def replace_into_ohlcv(self, df, code, idx):
+        try:
+            with self.conn.cursor() as curs:
+                for r in df.itertuples():
+                    date = r.Index.strftime('%Y-%m-%d')  # Convert to DATE format
+                    sql = f"INSERT IGNORE INTO daily_pykrx(code,date,open,high,low,close,volume,amount,close_rate)  "\
+                        f"VALUES ('{code}', '{date}', {r.open}, {r.high}, {r.low}, {r.close}, {r.volume}, {r.amount}, {r.close_rate} )"
+                    logging.debug(f'({str(idx)}) {sql}')
+                    curs.execute(sql)
+                self.conn.commit()
+                logging.info(f"{code} 종목 OHLCV 데이터 저장 성공")
+        except Exception as e:
+            logging.error(f"{code} 종목 OHLCV 데이터 저장 실패: {str(e)}")
+            logging.error(traceback.format_exc())
 
-		with self.conn.cursor() as curs:
-			# 거래대금 반영
-			sql1 = f"UPDATE daily_price A"\
-				   f" INNER JOIN daily_pykrx B "\
-				   f" ON B.code = A.code "\
-				   f" AND B.date = A.date "\
-				   f" SET A.amount = B.amount "\
-				   f" WHERE A.date BETWEEN {from_date} AND {to_date}"
+    def update_daily_price_from_pykrx(self, codes, from_date, to_date):
+        for idx in range(len(codes)):
+            try:
+                df = self.get_market(from_date, to_date, codes[idx])
+                if df is None:
+                    continue
+                self.replace_into_ohlcv(df, codes[idx], idx)
+                time.sleep(idx % 2 + 1)
 
-			curs.execute(sql1)
+                if idx % 10 == 0:
+                    time.sleep(1)
 
-			sql2 = f"UPDATE calendar SET proc_yn  = 'Y'  WHERE BETWEEN {from_date} AND {to_date}"
-			curs.execute(sql2)
-			self.conn.commit()
+            except Exception as e:
+                logging.error(f"{codes[idx]} 종목 데이터 처리 중 오류 발생: {str(e)}")
+                logging.error(traceback.format_exc())
 
-			# daily_price VS daily_pykrx 종가등락률 다른 경우 처리 / 속도 오래 걸리는 것 같아 처리방안 고려 중
-			sql2 = f"UPDATE daily_price A"\
-				   f" INNER JOIN (SELECT X.date, X.code, X.close_rate, Y.close, "\
-				   f" CASE WHEN X.close_rate < 0 THEN Y.close + Y.diff ELSE Y.close - Y.diff END pre_close "\
-				   f" FROM (SELECT date, code, close_rate FROM daily_pykrx "\
-				   f" WHERE date BETWEEN {from_date} AND {to_date}) X, "\
-				   f" (SELECT date, code, close_rate, close, diff FROM daily_price "\
-				   f" WHERE date BETWEEN {from_date} AND {to_date}) Y "\
-				   f" WHERE Y.date = X.date AND Y.code = X.code AND Y.close_rate != X.close_rate) B "\
-				   f" ON B.date = A.date "\
-				   f" AND B.code = A.code "\
-				   f" SET A.pre_close = B.pre_close, "\
-				   f" A.open_rate = round((A.open-B.pre_close)/B.pre_close*100, 2), "\
-				   f" A.high_rate = round((A.high-B.pre_close)/B.pre_close*100, 2), "\
-				   f" A.low_rate = round((A.low-B.pre_close)/B.pre_close*100, 2), "\
-				   f" A.close_rate = round((A.close-B.pre_close)/B.pre_close*100, 2)"
+        # 거래대금 반영 및 기타 쿼리 실행
+        try:
+            with self.conn.cursor() as curs:
+                sql1 = f"UPDATE daily_price A INNER JOIN daily_pykrx B ON B.code = A.code AND B.date = A.date SET A.amount = B.amount WHERE A.date BETWEEN '{from_date}' AND '{to_date}'"
+                logging.debug(f'{sql1}')
+                curs.execute(sql1)
+                sql2 = f"UPDATE calendar SET proc_yn = 'Y' WHERE date BETWEEN '{from_date}' AND '{to_date}'"
+                logging.debug(f'{sql2}')
+                curs.execute(sql2)
+                self.conn.commit()
+                logging.info("거래대금 반영 및 proc_yn 업데이트 성공")
+        except Exception as e:
+            logging.error(f"거래대금 반영 실패: {str(e)}")
+            logging.error(traceback.format_exc())
 
-			# curs.execute(sql2)
-			# self.conn.commit()
+    # naverPage --------------------------------------------------------------------------------------------------------------------------------------------------
+    def read_krx_code(self):
+        """KRX로부터 상장기업 목록 파일을 읽어와서 데이터프레임으로 반환"""
+        try:
+            url = 'http://kind.krx.co.kr/corpgeneral/corpList.do?method=download&searchType=13'
+            krx = pd.read_html(requests.get(url,
+                        headers={'referer': 'http://kind.krx.co.kr/',
+                                  'User-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36'}).text)[0]
+            krx = krx[['종목코드', '회사명']]
+            krx = krx.rename(columns={'종목코드': 'code', '회사명': 'company'})
+            krx.code = krx.code.map('{:06d}'.format)
+            logging.info("KRX 종목코드 읽기 성공")
+            return krx
+        except Exception as e:
+            logging.error(f"KRX 종목코드 읽기 실패: {str(e)}")
+            logging.error(traceback.format_exc())
+            return None
 
-	def pykrxMarket_execute(self, df):
+    def update_comp_info(self):
+        """종목코드를 company_info 테이블에 업데이트 한 후 딕셔너리에 저장"""
+        today = datetime.today().strftime('%Y-%m-%d')
 
-		codes = self.get_ticker()
-		# print(codes)
-		print(len(codes))
+        try:
+            sql = f"SELECT * FROM company_info WHERE last_update = '{today}' "
+            df = pd.read_sql(sql, self.conn)
+            for idx in range(len(df)):
+                self.codes[df['code'].values[idx].decode('utf-8')] = df['company'].values[idx].decode('utf-8')
 
-		# try:
-		#	 with open('pykrxConfig.json', 'r') as in_file:
-		#		 config = json.load(in_file)
-		#		 pages_to_fetch = config['pages_to_fetch']
-		# except FileNotFoundError:
-		#	 with open('pykrxConfig.json', 'w') as out_file:
-		#		 pages_to_fetch = 100
-		#		 config = {'pages_to_fetch': 1}
-		#		 json.dump(config, out_file)
-		
-		# from_date = '20230401'
-		# to_date   = '20230404'
+            with self.conn.cursor() as curs:
+                sql = "SELECT max(last_update) FROM company_info"
+                curs.execute(sql)
+                rs = curs.fetchone()
+                if rs[0] == None or rs[0].strftime('%Y-%m-%d') < today:
+                    krx = self.read_krx_code()
+                    for idx in range(len(krx)):
+                        code = krx.code.values[idx]
+                        company = krx.company.values[idx]
+                        sql = f"REPLACE INTO company_info (code, company, last_update) VALUES ('{code}', '{company}', '{today}')"
+                        curs.execute(sql)
+                        self.codes[code] = company
+                        tmnow = datetime.now().strftime('%Y-%m-%d %H:%M')
+                        # logging.info(f"[{tmnow}] #{idx+1:04d} REPLACE INTO company_info VALUES ({code}, {company}, {today})")
+                    self.conn.commit()
+                    logging.info("종목코드 업데이트 성공")
+        except Exception as e:
+            logging.error(f"종목코드 업데이트 실패: {str(e)}")
+            logging.error(traceback.format_exc())
 
-		from_date = df['proc_date'].iloc[0]
-		from_date = str(from_date)
-		to_date = df['proc_date'].iloc[0]
-		to_date = str(to_date)
+    def read_naver(self, code, company, pages_to_fetch):
+        """네이버에서 주식 시세를 읽어서 데이터프레임으로 반환"""
+        try:
+            url = f"https://finance.naver.com/item/sise_day.naver?code={code}&page=1"
+            logging.info(f"네이버에서 {company} ({code}) 주식 시세 가져오기 시도 중...")
+            df = pd.DataFrame()
 
-		self.update_daily_price_from_pykrx(codes, from_date, to_date)
+            response = requests.get(url, headers={
+                'referer': 'https://finance.naver.com/',
+                'User-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36'
+            })
+            html_content = response.text
+            df = pd.concat([df, pd.read_html(StringIO(html_content))[0]])
+            df = df.rename(columns={'날짜':'date','종가':'close','전일비':'diff','시가':'open','고가':'high','저가':'low','거래량':'volume'})
+            df['diff'] = df['diff'].replace('[^0-9]', '', regex=True).fillna(0).astype(int)
+            df['date'] = df['date'].replace('.', '-')
+            df.dropna(inplace=True)
+            df[['close', 'open', 'high', 'low', 'volume']] = df[['close', 'open', 'high', 'low', 'volume']].astype(int)
+            df = df[['date', 'open', 'high', 'low', 'close', 'diff', 'volume']]
+            logging.info(f"{company} ({code}) 주식 시세 가져오기 성공")
+            return df
+        except Exception as e:
+            logging.error(f"{company} ({code}) 주식 시세 가져오기 실패: {str(e)}")
+            logging.error(traceback.format_exc())
+            return None
 
-	# naverPage --------------------------------------------------------------------------------------------------------------------------------------------------
-	def read_krx_code(self):
-		"""KRX로부터 상장기업 목록 파일을 읽어와서 데이터프레임으로 반환"""
-		url = 'http://kind.krx.co.kr/corpgeneral/corpList.do?method=download&searchType=13'
-		# 데이터 읽어오는데 오류 발생. headers 추가함
-		# krx = pd.read_html(url, header=0)[0]
-		krx = pd.read_html(requests.get(url,
-					 headers={'referer': 'http://kind.krx.co.kr/',
-							  'User-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36'}).text)[0]
-		# print(krx)
-		krx = krx[['종목코드', '회사명']]
-		krx = krx.rename(columns={'종목코드': 'code', '회사명': 'company'})
-		krx.code = krx.code.map('{:06d}'.format)
-		return krx
+    def replace_into_db(self, df, num, code, company):
+        """네이버에서 읽어온 주식 시세를 DB에 REPLACE"""
+        try:
+            with self.conn.cursor() as curs:
+                for r in df.itertuples():
+                    date = str(r.date).replace('.','')
+                    sql = f"INSERT IGNORE INTO daily_price(code,date,open,high,low,close,diff,volume)  VALUES ('{code}', "\
+                        f"'{date}', {r.open}, {r.high}, {r.low}, {r.close}, "\
+                        f"{r.diff}, {r.volume})"
+                    curs.execute(sql)
+                self.conn.commit()
+                logging.info(f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}] #{num+1:04d} {company} ({code}) : {len(df)} rows REPLACE INTO daily_price [OK]")
+        except Exception as e:
+            logging.error(f"{company} ({code}) 데이터베이스 REPLACE 실패: {str(e)}")
+            logging.error(traceback.format_exc())
 
-	def update_comp_info(self):
-		today = datetime.today().strftime('%Y-%m-%d')
+    def update_daily_price(self, pages_to_fetch):
+        """KRX 상장법인의 주식 시세를 네이버로부터 읽어서 DB에 업데이트"""
+        for idx, code in enumerate(self.codes):
+            df = self.read_naver(code, self.codes[code], pages_to_fetch)
+            if df is None:
+                continue
+            self.replace_into_db(df, idx, code, self.codes[code])
 
-		"""종목코드를 company_info 테이블에 업데이트 한 후 딕셔너리에 저장"""
-		sql = f"SELECT * FROM company_info WHERE last_update = '{today}' "
+    def update_pre_price(self):
+        """일별 주식 데이터 업데이트"""
+        try:
+            sql = f"SELECT date as proc_date FROM calendar A WHERE proc_yn = 'N' AND date <= (SELECT CURDATE()) AND EXISTS (SELECT * FROM daily_price B WHERE B.date = A.date) ORDER BY date"
+            logging.info(f"{sql}")
+            df = pd.read_sql(sql, self.conn)
+            with self.conn.cursor() as curs:
+                for idx in range(len(df)):
+                    proc_date = df['proc_date'].iloc[0]
+                    proc_date = str(proc_date)
+                    logging.info(f"처리 날짜: {proc_date}")
 
-		df = pd.read_sql(sql, self.conn)
-		for idx in range(len(df)):
-			# 바이트 문자열을 일반 문자열로 변환
-			self.codes[df['code'].values[idx].decode('utf-8')] = df['company'].values[idx].decode('utf-8')
+                    sql0= f"insert into log_daily_price values (now(), '{proc_date}')"
+                    logging.debug(f'{sql0}')
+                    curs.execute(sql0)
 
-		with self.conn.cursor() as curs:
-			sql = "SELECT max(last_update) FROM company_info"
-			curs.execute(sql)
-			rs = curs.fetchone()
-			if rs[0] == None or rs[0].strftime('%Y-%m-%d') < today:
-				krx = self.read_krx_code()
-				for idx in range(len(krx)):
-					code = krx.code.values[idx]
-					company = krx.company.values[idx]
-					# 바이트 문자열을 일반 문자열로 변환 (이미 정수형 코드를 문자열로 변환할 때 처리가 되어야 하므로 여기서는 따로 변환하지 않음)
-					sql = f"REPLACE INTO company_info (code, company, last_update) VALUES ('{code}', '{company}', '{today}')"
-					curs.execute(sql)
-					self.codes[code] = company
-					tmnow = datetime.now().strftime('%Y-%m-%d %H:%M')
-					print(f"[{tmnow}] #{idx+1:04d} REPLACE INTO company_info VALUES ({code}, {company}, {today})")
-				self.conn.commit()
-				print('') 
+                    sql1 = f"UPDATE daily_price A INNER JOIN (SELECT X.code, CASE WHEN Y.close IS NULL THEN X.open ELSE Y.close END pre_close "\
+                           f" FROM daily_price X LEFT OUTER JOIN daily_price Y "\
+                           f" ON Y.code = X.code AND Y.date = (SELECT MAX(date) FROM calendar WHERE date < '{proc_date}') "\
+                           f" WHERE X.date = '{proc_date}') B ON B.code = A.code "\
+                           f" SET A.pre_close = B.pre_close, A.open_rate = ROUND((A.open-B.pre_close)/B.pre_close*100, 2), "\
+                           f" A.high_rate = ROUND((A.high-B.pre_close)/B.pre_close*100, 2), "\
+                           f" A.low_rate = ROUND((A.low-B.pre_close)/B.pre_close*100, 2), "\
+                           f" A.close_rate = ROUND((A.close-B.pre_close)/B.pre_close*100, 2) "\
+                           f" WHERE A.date = '{proc_date}'"
+                    logging.debug(f'{sql1}')
+                    curs.execute(sql1)
 
-	def read_naver(self, code, company, pages_to_fetch):
-		"""네이버에서 주식 시세를 읽어서 데이터프레임으로 반환"""
-		try:
-			# url = f"http://finance.naver.com/item/sise_day.nhn?code={code}" #URL 막힘 2023.09.01 #URL 변경 및 Header에 referer 추가
-			url = f"https://finance.naver.com/item/sise_day.naver?code={code}&page=1"
-			print(url)
+                    self.conn.commit()
+                    logging.info(f"날짜 {proc_date}의 주식 데이터 업데이트 성공")
+            self.pykrxMarket_execute(df)
+        except Exception as e:
+            logging.error(f"주식 데이터 업데이트 실패: {str(e)}")
+            logging.error(traceback.format_exc())
 
-			df = pd.DataFrame()
-			# 요청한 URL에서 HTML 내용을 가져오고
-			response = requests.get(url, headers={
-				'referer': 'https://finance.naver.com/',
-				'User-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36'
-			})
-			html_content = response.text
+    def pykrxMarket_execute(self, df):
+        try:
+            from_date = df['proc_date'].iloc[0]
+            from_date = str(from_date)
+            to_date = from_date
 
-			# StringIO를 사용하여 HTML을 pandas에 전달
-			df = pd.concat([df, pd.read_html(StringIO(html_content))[0]])
+            codes = self.get_ticker(from_date)
+            logging.info(f"PyKRX 마켓 데이터 업데이트 시작 - 총 {len(codes)} 개 종목")
 
-			# 매일 실행. 그래서 첫 페이지만 읽어오면 되기 때문에 복잡한 로직 생략... 2024.04.24
-   
-						# html = BeautifulSoup(requests.get(url,
-						#	 headers={'referer':'https://finance.naver.com/','User-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36'}).text, "lxml")
+            self.update_daily_price_from_pykrx(codes, from_date, to_date)
+        except Exception as e:
+            logging.error(f"PyKRX 마켓 데이터 실행 중 오류 발생: {str(e)}")
+            logging.error(traceback.format_exc())
 
-						# 1page 인 경우 class가 pgRR 이 아니라 on 라서 읽어오지 못하는 경우 발생. 로직 변경. 20230315
-						# pgrr = html.find("td", class_="pgRR")
-						# if pgrr is None:
-						#	 print('pgrr is None')
-						#	 pgrr2 = html.find("td", class_="on")
-						#	 if pgrr2 is None:
-						#		 return None
-						#	 else:
-						#		 s = str(pgrr2.a["href"]).split('=')
-						#		 df = pd.DataFrame()
-						#		 df = pd.concat([df, pd.read_html(requests.get(url,
-						#			 headers={'referer':'https://finance.naver.com/','User-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36'}).text)[0]])
-						#		 tmnow = datetime.now().strftime('%Y-%m-%d %H:%M')
-						#		 print('[{}] {} ({}) pages are downloading...'.
-						#			 format(tmnow, company, code), end="\r")
-						# else:
-						#	 s = str(pgrr.a["href"]).split('=')
-						#	 lastpage = s[-1]
-						#	 df = pd.DataFrame()
-						#	 pages = min(int(lastpage), pages_to_fetch)
-						#	 for page in range(1, pages + 1):
-						#		 pg_url = '{}&page={}'.format(url, page)
-						#		 df = pd.concat([df, pd.read_html(requests.get(pg_url,
-						#			 headers={'referer':'https://finance.naver.com/','User-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36'}).text)[0]])
-						#		 tmnow = datetime.now().strftime('%Y-%m-%d %H:%M')
-						#		 print('[{}] {} ({}) : {:04d}/{:04d} pages are downloading...'.
-						#			 format(tmnow, company, code, page, pages), end="\r")
+    def execute_daily(self):
+        """실행 즉시 및 매일 오후 다섯시에 daily_price 테이블 업데이트"""
+        try:
+            self.update_comp_info()
 
-	
-			df = df.rename(columns={'날짜':'date','종가':'close','전일비':'diff','시가':'open','고가':'high','저가':'low','거래량':'volume'})
+            # try:
+            #     with open('config.json', 'r') as in_file:
+            #         config = json.load(in_file)
+            #         pages_to_fetch = config['pages_to_fetch']
+            # except FileNotFoundError:
+            #     with open('config.json', 'w') as out_file:
+            #         pages_to_fetch = 100
+            #         config = {'pages_to_fetch': 1}
+            #         json.dump(config, out_file)
 
-			# 데이터 전처리
-			df['diff'] = df['diff'].replace('[^0-9]', '', regex=True).fillna(0).astype(int)
+            # self.update_daily_price(pages_to_fetch)
+            self.update_daily_price(1)
 
-			# 날짜 형식 수정 및 나머지 데이터 정리
-			df['date'] = df['date'].replace('.', '-')
-			df.dropna(inplace=True)
-			df[['close', 'open', 'high', 'low', 'volume']] = df[['close', 'open', 'high', 'low', 'volume']].astype(int)
-			
-			# print(df)
-			df = df[['date', 'open', 'high', 'low', 'close', 'diff', 'volume']]
-		except Exception as e:
-			print('Exception occured :', str(e))
-			return None
-		return df
-
-	def replace_into_db(self, df, num, code, company):
-		"""네이버에서 읽어온 주식 시세를 DB에 REPLACE"""
-		with self.conn.cursor() as curs:
-			for r in df.itertuples():
-				date = str(r.date).replace('.','')
-				sql = f"INSERT IGNORE INTO daily_price(code,date,open,high,low,close,diff,volume)  VALUES ('{code}', "\
-					f"'{date}', {r.open}, {r.high}, {r.low}, {r.close}, "\
-					f"{r.diff}, {r.volume})"
-				curs.execute(sql)
-				# print(sql)
-			self.conn.commit()
-			print('[{}] #{:04d} {} ({}) : {} rows > REPLACE INTO daily_price [OK]'.format(datetime.now().strftime('%Y-%m-%d %H:%M'), num+1, company, code, len(df)))
-			
-
-	def update_daily_price(self, pages_to_fetch):
-		"""KRX 상장법인의 주식 시세를 네이버로부터 읽어서 DB에 업데이트"""
-		for idx, code in enumerate(self.codes):
-			df = self.read_naver(code, self.codes[code], pages_to_fetch)
-			# print(df)
-			if df is None:
-				continue
-			self.replace_into_db(df, idx, code, self.codes[code])
-
-	def update_pre_price(self):
-		sql = f"SELECT date as proc_date FROM calendar A WHERE proc_yn = 'N' AND date <= (SELECT CURDATE()) AND EXISTS (SELECT * FROM daily_price B WHERE B.date = A.date) ORDER BY date"
-
-		# print(sql)
-		df = pd.read_sql(sql, self.conn)
-		with self.conn.cursor() as curs:
-			for idx in range(len(df)):
-
-				print(df['proc_date'].dtype)
-				proc_date = df['proc_date'].iloc[0]  # 첫 번째 값만 사용
-				proc_date = str(proc_date)  # 문자열로 변환
-				# print(type(proc_date))
-				print(proc_date)
-
-				sql0= f"insert into log_daily_price values (now(), '{proc_date}')"
-				curs.execute(sql0)
-
-				# 전일종가가 없을 경우 (신규주), 당일 시가를 반영하는 로직 추가
-				sql1 = f"UPDATE daily_price A"\
-					   f" INNER JOIN (SELECT X.code, CASE WHEN Y.close IS NULL THEN X.open ELSE Y.close END pre_close "\
-					   f" FROM daily_price X "\
-					   f" LEFT OUTER JOIN daily_price Y "\
-					   f" ON Y.code = X.code "\
-					   f" AND Y.date = (SELECT MAX(date) FROM calendar WHERE date < {proc_date}) "\
-					   f" WHERE X.date = {proc_date}) B "\
-					   f" ON B.code = A.code "\
-					   f" SET A.pre_close = B.pre_close "\
-					   f" , A.open_rate = ROUND((A.open-B.pre_close)/B.pre_close*100, 2) "\
-					   f" , A.high_rate = ROUND((A.high-B.pre_close)/B.pre_close*100, 2) "\
-					   f" , A.low_rate = ROUND((A.low-B.pre_close)/B.pre_close*100, 2) "\
-					   f" , A.close_rate = ROUND((A.close-B.pre_close)/B.pre_close*100, 2) "\
-					   f" WHERE A.date = {proc_date}"
-				curs.execute(sql1)
-
-				self.conn.commit()
-			self.pykrxMarket_execute(df)
-	
-	def execute_daily(self):
-		"""실행 즉시 및 매일 오후 다섯시에 daily_price 테이블 업데이트"""
-		# self.update_comp_info()25일 오류처리위해 잠시 막음
-
-		# try:
-		#	 with open('config.json', 'r') as in_file:
-		#		 config = json.load(in_file)
-		#		 pages_to_fetch = config['pages_to_fetch']
-		# except FileNotFoundError:
-		#	 with open('config.json', 'w') as out_file:
-		#		 pages_to_fetch = 100
-		#		 config = {'pages_to_fetch': 1}
-		#		 json.dump(config, out_file)
-
-		# self.update_daily_price(pages_to_fetch)
-		# self.update_daily_price(1)25일 오류처리위해 잠시 막음
-
-		self.update_pre_price()
-
-		tmnow = datetime.now()
-		lastday = calendar.monthrange(tmnow.year, tmnow.month)[1]
-		if tmnow.month == 12 and tmnow.day == lastday:
-			tmnext = tmnow.replace(year=tmnow.year+1, month=1, day=1,
-				hour=17, minute=0, second=0)
-		elif tmnow.day == lastday:
-			tmnext = tmnow.replace(month=tmnow.month+1, day=1, hour=17,
-				minute=0, second=0)
-		else:
-			tmnext = tmnow.replace(day=tmnow.day+1, hour=17, minute=0,
-				second=0)
-		tmdiff = tmnext - tmnow
-		secs = tmdiff.seconds
-		t = Timer(secs, self.execute_daily)
-		print("Waiting for next update ({}) ... ".format(tmnext.strftime
-			('%Y-%m-%d %H:%M')))
-		# t.start()
+            self.update_pre_price()
+        except Exception as e:
+            logging.error(f"일일 업데이트 실패: {str(e)}")
+            logging.error(traceback.format_exc())
 
 if __name__ == '__main__':
-	
-	# Step 1: Run DBUp_MarketIndex.py first
-	# subprocess.run(["C:/Users/elf96/AppData/Local/Programs/Python/Python39/python.exe", "E:/Project/202410/www/PyDailyRoutine/DBUp_MarketIndex.py"])25일 오류처리위해 잠시 막음
+    
+    # Step 1: Run DBUp_MarketIndex.py first
+    try:
+        subprocess.run(["C:/Users/elf96/AppData/Local/Programs/Python/Python39/python.exe", "E:/Project/202410/www/PyDailyRoutine/DBUp_MarketIndex.py"])
+        logging.info("DBUp_MarketIndex.py 실행 완료")
+    except Exception as e:
+        logging.error(f"DBUp_MarketIndex.py 실행 중 오류 발생: {str(e)}")
+        logging.error(traceback.format_exc())
 
-	# Step 2: Initialize DBUpdater and execute its daily routine
-	dbu = DBUpdater()
-	dbu.execute_daily()
+    # Step 2: Initialize DBUpdater and execute its daily routine
+    try:
+        dbu = DBUpdater()
+        dbu.execute_daily()
+    except Exception as e:
+        logging.error(f"DBUpdater 실행 중 오류 발생: {str(e)}")
+        logging.error(traceback.format_exc())
 
-	# Step 3: After DBUpdater has completed, run Update_MarketIssueStocks.py
-	print("Running Update_MarketIssueStocks.py ...")
-	subprocess.run(["C:/Users/elf96/AppData/Local/Programs/Python/Python39/python.exe", "E:/Project/202410/www/PyDailyRoutine/Update_MarketIssueStocks.py"])
+    # Step 3: After DBUpdater has completed, run Update_MarketIssueStocks.py
+    try:
+        logging.info("Running Update_MarketIssueStocks.py ...")
+        subprocess.run(["C:/Users/elf96/AppData/Local/Programs/Python/Python39/python.exe", "E:/Project/202410/www/PyDailyRoutine/Update_MarketIssueStocks.py"])
+        logging.info("Update_MarketIssueStocks.py 실행 완료")
+    except Exception as e:
+        logging.error(f"Update_MarketIssueStocks.py 실행 중 오류 발생: {str(e)}")
+        logging.error(traceback.format_exc())

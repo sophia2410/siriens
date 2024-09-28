@@ -19,10 +19,10 @@ $morning_report_title = isset($overview_row) ? $overview_row['morning_report_tit
 $morning_news_link = isset($overview_row) ? $overview_row['morning_news_link'] : '';
 $evening_report_title = isset($overview_row) ? $overview_row['evening_report_title'] : '';
 
-// Fetch sector data
-$sector_query = "
-    SELECT theme_group.theme,
-        theme_group.group_type,
+// Fetch group data
+$group_query = "
+    SELECT theme_group.group_label,
+        theme_group.theme,
         theme_group.issue,
         theme_group.hot_theme,
         theme_group.code,
@@ -32,25 +32,25 @@ $sector_query = "
         theme_group.stock_amount,
         theme_group.hot_theme,
         theme_group.is_leader,
-        theme_group.is_watchlist
+        theme_group.is_watchlist,
+        theme_group.group_theme
     FROM (
-        SELECT CASE WHEN theme != '' THEN theme WHEN sector != '' THEN sector ELSE '미분류' END AS theme,
-            CASE WHEN theme != '' THEN 'theme' ELSE 'sector' END AS group_type, 
-            issue, hot_theme, code, name, stock_comment, close_rate AS stock_change, trade_amount AS stock_amount,
-            is_leader, is_watchlist,
-            MAX(trade_amount) OVER (PARTITION BY CASE WHEN theme != '' THEN theme ELSE sector END) AS max_amount
-        FROM v_market_issue vmi
+        SELECT group_label, theme, issue, hot_theme, code, name, stock_comment, 
+            close_rate AS stock_change, trade_amount AS stock_amount, is_leader, is_watchlist,
+            MAX(trade_amount) OVER (PARTITION BY CONCAT(group_label, ' ', theme) ) AS max_amount,
+            CONCAT(group_label, ' ', theme) AS group_theme
+        FROM v_market_issue
         WHERE date = '$report_date'
     ) AS theme_group
     ORDER BY theme_group.hot_theme DESC,   -- 핫테마 우선 정렬
+            theme_group.group_theme ASC,   -- 테마 또는 섹터 이름 순서로 정렬
             theme_group.max_amount DESC,   -- 테마 또는 섹터 그룹에서 최대 거래대금 순 정렬
-            theme_group.theme ASC,         -- 테마 또는 섹터 이름 순서로 정렬
             theme_group.is_leader DESC,    -- 주도주 우선 정렬
             theme_group.is_watchlist DESC, -- 관심종목 우선 정렬
             theme_group.stock_change DESC  -- 동일한 테마 내에서 등락률 기준으로 정렬
 ";
-$sector_result = $mysqli->query($sector_query);
-$theme_data = [];
+$sector_result = $mysqli->query($group_query);
+$group_data = [];
 
 // 오늘 날짜 확인
 $today = date("Y-m-d");
@@ -64,14 +64,16 @@ $is_today = ($report_date == $today);
 if ($sector_result->num_rows > 0 && !($is_today && $current_time < $cutoff_time)) {
     // 과거 일자 또는 19:30 이후에는 기존 v_market_issue 데이터 사용
     while ($row = $sector_result->fetch_assoc()) {
-        $theme_data[$row['theme']][] = $row;
+        $group_data[$row['group_label']][] = $row;
     }
 }
 else {
     // 오늘 19:30 이전에는 v_daily_price 데이터 사용
     $alternative_query = "
-        SELECT a.code, a.name, a.close_rate AS stock_change, a.amount AS stock_amount, b.theme, 
-               a.is_leader, a.is_watchlist, '' AS stock_comment
+        SELECT a.code, a.name, a.close_rate AS stock_change, a.amount AS stock_amount,
+               a.is_leader, a.is_watchlist, '' AS stock_comment,
+               SUBSTRING_INDEX(b.group_theme, ' ', 1) AS group_label,
+               SUBSTRING_INDEX(SUBSTRING_INDEX(b.group_theme, ' ', 2), ' ', -1) AS theme, b.group_theme
         FROM 
         (   SELECT code, name, close_rate, volume, amount, source,
                    CASE WHEN amount > 1000 THEN '1' ELSE '0' END is_leader,
@@ -83,12 +85,8 @@ else {
         ) a
         LEFT JOIN 
         (   SELECT code,
-                    (SELECT 
-                        CASE 
-                            WHEN theme != '' THEN theme 
-                            WHEN sector != '' THEN sector 
-                            ELSE '' 
-                        END 
+                   (SELECT 
+                       CONCAT(group_label,' ', theme)
                     FROM 
                         market_issues mi 
                     WHERE 
@@ -96,14 +94,14 @@ else {
                     ORDER BY 
                         mi.date DESC 
                     LIMIT 1
-                    ) AS theme
+                   ) AS group_theme
             FROM 
                 market_issue_stocks mis
             GROUP BY 
             code
         ) b
         ON b.code = a.code
-        ORDER BY SUM(amount) OVER (PARTITION BY b.theme) DESC,
+        ORDER BY SUM(amount) OVER (PARTITION BY b.group_theme) DESC,
                  a.close_rate DESC
     ";
 
@@ -112,14 +110,17 @@ else {
 
     while ($row = $alternative_result->fetch_assoc()) {
         // 다른 쿼리 결과 처리
-        $theme_data[$row['theme']][] = $row;
+        $group_data[$row['group_label']][] = $row;
     }
 }
 
 // Fetch recent 5 days themes and stocks
 $recent_themes_query = "
     SELECT 
-        mi.theme, 
+        CASE 
+            WHEN mi.group_label = mi.theme THEN mi.group_label 
+            ELSE CONCAT(mi.group_label, ' ', mi.theme) 
+        END AS theme,   -- group_label 과 theme 값을 연결하여 하나의 값으로 계산
         mis.code, 
         mis.name, 
         MAX(mis.trade_amount) AS max_trade_amount,  -- 종목별 가장 높은 거래대금
@@ -286,14 +287,14 @@ while ($row = $index_result->fetch_assoc()) {
             gap: 20px;
         }
 
-        .sector-container {
+        .group-container {
             display: flex;
             flex-wrap: wrap;  /* 여러 줄을 사용할 수 있게 함 */
             gap: 10px;  /* 카드 간격 */
             justify-content: space-between;  /* 좌우 간격을 균일하게 분배 */
         }
 
-        .sector-card {
+        .group-card {
             background-color: white;
             border: 1px solid #ddd;
             padding: 10px;
@@ -303,8 +304,15 @@ while ($row = $index_result->fetch_assoc()) {
             height: auto;
         }
 
+        .theme-row h4 {
+            font-size: 1.1em;
+            margin-top: 5px;
+            margin-bottom: 5px;
+            color: #666;
+        }
+
         .stock-item {
-            padding: 10px 0;
+            padding: 7px 0;
             border-bottom: 1px solid #eaeaea;
         }
 
@@ -316,6 +324,7 @@ while ($row = $index_result->fetch_assoc()) {
             display: flex;
             justify-content: space-between; /* 좌우 정렬 */
             align-items: center; /* 세로 가운데 정렬 */
+            padding: 8px 0;
         }
 
         .stock-name {
@@ -481,11 +490,11 @@ while ($row = $index_result->fetch_assoc()) {
             <button id="add-theme-btn" class="add-theme-btn" onclick="openThemeModal()">Add Theme</button>
         </div>
         <div id="todays-themes" class="themes-container">
-            <?php if (!empty($theme_data)): ?>
+            <?php if (!empty($group_data)): ?>
                 <div class="theme-list">
-                    <?php foreach ($theme_data as $theme => $stocks): ?>
+                    <?php foreach ($group_data as $group => $stocks): ?>
                         <div class="theme-card">
-                            <h4 class="theme-title"><?= htmlspecialchars($theme) ?></h4>
+                            <h4 class="theme-title"><?= htmlspecialchars($group) ?></h4>
                             <ul class="stock-list">
                                 <?php foreach ($stocks as $stock): ?>
                                     <li class="stock-item">
@@ -506,35 +515,50 @@ while ($row = $index_result->fetch_assoc()) {
     </div>
 
 
-    <!-- Sector and Stock Issues (플렉스박스 형태로 구성) -->
+    <!-- Group and Stock Issues (플렉스박스 형태로 구성) -->
     
-    <div id="middle-content" class="sector-container">
-        <?php foreach ($theme_data as $theme => $stocks): ?>
-            <div class="sector-card">
-                <h3><?= htmlspecialchars($theme) ?></h3>
-                <?php foreach ($stocks as $stock): ?>
-                    <div class="stock-item">
-                        <div class="stock-row">
-                            <div class="stock-name <?= $stock['is_leader'] === '1' ? 'leader' : '' ?> <?= $stock['is_watchlist'] === '1' ? 'watchlist' : '' ?>">
-                                <?= htmlspecialchars($stock['name']) ?>
-                            </div>
-                            <div class="stock-change">
-                                <span class="<?= Utility_GetCloseRateClass($stock['stock_change']) ?>">
-                                    <?= number_format($stock['stock_change'], 2) ?>%
-                                </span>
-                                <span class="stock-amount <?= Utility_GetAmountClass($stock['stock_amount']) ?>">
-                                    (<?= number_format($stock['stock_amount']) ?>억)
-                                </span>
-                            </div>
+    <div id="middle-content" class="group-container">
+    <?php 
+    $current_group_label = '';  // 현재 출력 중인 group_label
+    $current_theme = '';  // 현재 출력 중인 theme
+
+    foreach ($group_data as $group => $stocks): ?>
+        <div class="group-card">
+            <!-- 그룹 라벨을 먼저 출력 -->
+            <h3><?= htmlspecialchars($group) ?></h3>
+
+            <?php foreach ($stocks as $stock): ?>
+                <?php if ($stock['theme'] !== '' && $stock['theme'] !== $current_theme && $stock['theme'] !== $stock['group_label']): ?>
+                    <!-- 테마가 바뀔 때마다 테마가 그룹 라벨과 다르면 출력 -->
+                    <div class="theme-row">
+                        <h4 style="color: #888; margin-bottom: 10px;">☆ <?= htmlspecialchars($stock['theme']) ?></h4>
+                    </div>
+                    <?php $current_theme = $stock['theme']; // 새로운 테마 저장 ?>
+                <?php endif; ?>
+
+                <!-- 종목 출력 -->
+                <div class="stock-item">
+                    <div class="stock-row">
+                        <div class="stock-name <?= $stock['is_leader'] === '1' ? 'leader' : '' ?> <?= $stock['is_watchlist'] === '1' ? 'watchlist' : '' ?>">
+                            <?= htmlspecialchars($stock['name']) ?>
                         </div>
-                        <div class="stock-comment">
-                            <?= htmlspecialchars($stock['stock_comment']) ?>
+                        <div class="stock-change">
+                            <span class="<?= Utility_GetCloseRateClass($stock['stock_change']) ?>">
+                                <?= number_format($stock['stock_change'], 2) ?>%
+                            </span>
+                            <span class="stock-amount <?= Utility_GetAmountClass($stock['stock_amount']) ?>">
+                                (<?= number_format($stock['stock_amount']) ?>억)
+                            </span>
                         </div>
                     </div>
-                <?php endforeach; ?>
-            </div>
-        <?php endforeach; ?>
-    </div>
+                    <div class="stock-comment">
+                        <?= htmlspecialchars($stock['stock_comment']) ?>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    <?php endforeach; ?>
+</div>
 
     <!-- Recent Themes and Stocks -->
     <div id="right-content">

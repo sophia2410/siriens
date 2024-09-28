@@ -22,7 +22,7 @@ bot = Bot(token=bot_token)
 # 비동기 함수 정의
 async def send_alert(bot, chat_id, message, parse_mode=None):
     await bot.send_message(chat_id=chat_id, text=message, parse_mode=parse_mode)
-	
+
 async def fetch_and_send_alerts():
     while True:
 

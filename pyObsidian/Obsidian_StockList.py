@@ -37,11 +37,11 @@ query = f"""
         AND name NOT LIKE '%%스팩%%'  -- '스팩'이라는 단어가 포함된 경우를 제외
         AND name != '대상'  -- '대상'이라는 단어와 일치하는 경우를 제외
         AND name != 'YW'
-		AND name != 'LF'
-		AND name != 'CJ'
-		AND name != '나노'
-		AND name != '테스'
-		AND name != '레이'
+        AND name != 'LF'
+        AND name != 'CJ'
+        AND name != '나노'
+        AND name != '테스'
+        AND name != '레이'
         ORDER BY name DESC
         """
 cursor.execute(query)

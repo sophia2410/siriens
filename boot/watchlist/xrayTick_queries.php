@@ -109,17 +109,12 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $th
 						, B.tot_trade_amt
 						$trade_qry
 						, M.mochaten_cnt
-					FROM (SELECT group_keyword, keyword_group_name, theme, code, name,
+					FROM (SELECT group_label, keyword_group_name, theme, code, name,
 								 MAX(sector) AS sector, MAX(date) date, MAX(is_leader) AS is_leader, MAX(is_watchlist) AS is_watchlist, MAX(stock_comment) AS stock_comment
-						  FROM (SELECT CASE WHEN theme != '' THEN theme
-										WHEN sector != '' THEN sector
-										ELSE '미분류'
-									END group_keyword, vmi.*
-								FROM v_market_issue vmi
-								WHERE date BETWEEN DATE_SUB('{$search_date}', INTERVAL 1 MONTH) AND '$search_date'
-							   ) smi
-						  WHERE group_keyword LIKE '%$theme%'
-						  GROUP BY group_keyword, keyword_group_name, theme, code, name
+						  FROM v_market_issue vmi
+						  WHERE date BETWEEN DATE_SUB('{$search_date}', INTERVAL 1 MONTH) AND '$search_date'
+						  AND group_label LIKE '%$theme%'
+						  GROUP BY group_label, keyword_group_name, theme, code, name
 						 ) A
 					LEFT OUTER JOIN (SELECT * FROM 0day_stocks WHERE (0day_date, code) IN (SELECT MAX(0day_date), code FROM 0day_stocks  GROUP BY code)) B
 					ON A.code = B.code

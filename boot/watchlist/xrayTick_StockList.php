@@ -192,20 +192,26 @@ if($pgmId == '') {
 
 		// X-RAY 순간체결 거래량 쿼리 실행
 		$query2 = "SELECT cal.date, DATE_FORMAT(cal.date, '%m-%d') mm_dd, xray.close_rate, xray.high_rate, xray.low_rate, xray.tot_trade_amt, xray.amount, xray.cnt
-					FROM calendar cal
-					LEFT OUTER JOIN 
-						(
-							SELECT xr.code, xr.name, xr.date, dp.close_rate, dp.high_rate, dp.low_rate, round(dp.amount/100000000,0) tot_trade_amt, round(xr.tot_amt/100000000,1) amount,  xr.tot_cnt cnt
-							FROM kiwoom_xray_tick_summary  xr
-							LEFT OUTER JOIN daily_price dp
-							ON dp.date = xr.date
-							AND dp.code = xr.code
-							WHERE xr.code = '$code'
-						) xray
+					FROM (
+						SELECT date
+						FROM calendar
+						WHERE date <= '$search_date'
+						ORDER BY date DESC
+						LIMIT 22
+					) cal
+					LEFT OUTER JOIN (
+						SELECT xr.code, xr.name, xr.date, dp.close_rate, dp.high_rate, dp.low_rate, 
+							ROUND(dp.amount / 100000000, 0) tot_trade_amt, 
+							ROUND(xr.tot_amt / 100000000, 1) amount,  
+							xr.tot_cnt cnt
+						FROM kiwoom_xray_tick_summary xr
+						LEFT OUTER JOIN daily_price dp
+						ON dp.date = xr.date
+						AND dp.code = xr.code
+						WHERE xr.code = '$code'
+					) xray
 					ON xray.date = cal.date
-					WHERE cal.date >= (select max(date) from calendar where date <=(select DATE_ADD('$search_date', INTERVAL -30 DAY)))
-					AND cal.date <= (select max(date) from calendar where date <=(select DATE_ADD('$search_date', INTERVAL 0 DAY)))
-					ORDER BY cal.date desc";
+					ORDER BY cal.date DESC";
 		// echo "<pre>$query2</pre>";
 		$result2 = $mysqli->query($query2);
 

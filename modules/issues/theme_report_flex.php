@@ -2,24 +2,25 @@
 require($_SERVER['DOCUMENT_ROOT']."/modules/common/common_header_sub.php");
 
 $endDate = date('Y-m-d', time());
-$startDate = date('Y-m-d', strtotime('-20 days', time()));
+$startDate = date('Y-m-d', strtotime('-15 days', time()));
 
 // Fetch themes with occurrence count and sorted by the latest date and occurrence count
 $theme_query = "
     SELECT 
-        CASE WHEN mi.theme = '' THEN mis.sector ELSE mi.theme END AS theme, 
-        CASE WHEN mi.theme = '' THEN 'sector' ELSE 'theme' END AS group_type, 
-        mi.date AS theme_date,  
+        mi.group_label, 
+        mi.theme, 
+        mi.date AS issues_date,  
         kg.group_name AS keyword_group_name,
+        SUBSTRING(kg.group_name, INSTR(kg.group_name, ' ') + 1) AS remaining_keywords,
         mis.name AS stock_name, 
         mis.code AS stock_code, 
         mis.close_rate, 
         mis.trade_amount,
 		MAX(mis.is_leader) OVER (PARTITION BY mi.theme, kg.group_name, mis.code) AS is_leader, -- leader 여부
 		MAX(mis.is_watchlist) OVER (PARTITION BY mi.theme, kg.group_name, mis.code) AS is_watchlist, -- 관심종목 여부
-        COUNT(mi.date) OVER (PARTITION BY mi.theme, mis.sector) AS occurrence_count,  -- 테마별 발생 건수 계산
-        MIN(mi.date) OVER (PARTITION BY mi.theme, kg.group_name) AS keyword_occurrence_date,  -- 키워드그룹별 최초 발생 일
-        COUNT(mi.date) OVER (PARTITION BY mi.theme, kg.group_name) AS keyword_occurrence_count  -- 키워드그룹별 종목 건수
+        COUNT(mi.date) OVER (PARTITION BY mi.group_label) AS occurrence_count,  -- 그룹별 발생 건수 계산
+        MIN(mi.date) OVER (PARTITION BY kg.group_name) AS keyword_occurrence_date,  -- 키워드그룹별 최초 발생 일
+        COUNT(mi.date) OVER (PARTITION BY kg.group_name) AS keyword_occurrence_count  -- 키워드그룹별 종목 건수
     FROM 
         market_issues mi
     JOIN 
@@ -29,41 +30,42 @@ $theme_query = "
     WHERE 
         mi.date BETWEEN '$startDate' AND '$endDate'
     AND 
-        (mis.trade_amount > 300 or mis.close_rate > 10)
+        (mis.trade_amount > 300)
     ORDER BY 
-	    CASE WHEN mi.theme = '' THEN 'sector' ELSE 'theme' END DESC, -- 테마가 없는경우에는 섹터 기준, 테마 우선 정렬
-        CASE WHEN mi.theme != '' THEN MAX(mi.date) OVER (PARTITION BY mi.theme) ELSE 0 END DESC,  -- 테마의 최신 날짜 순으로 정렬
+        CASE WHEN mi.theme != '' THEN MAX(mi.date) OVER (PARTITION BY mi.group_label) ELSE 0 END DESC,  -- 그룹의 최신 날짜 순으로 정렬
         occurrence_count DESC,  -- 발생 건수 순으로 정렬
-		MIN(mi.date) OVER (PARTITION BY mi.theme, kg.group_name), -- 키워드그룹 발생 날짜 순으로 정렬
-		COUNT(mi.date) OVER (PARTITION BY mi.theme, kg.group_name) DESC, -- 키워드그룹별 종목 건수로 정렬
+        mi.group_label,
+		keyword_occurrence_date DESC,
+		keyword_occurrence_count DESC, -- 키워드그룹별 종목 건수로 정렬
 		kg.group_name,
 		mi.date,
 		mis.close_rate";
 
-// logQuery($theme_query, [$startDate, $endDate]);
-$theme_result = $mysqli->query($theme_query);
+// Database_logQuery($theme_query, [$startDate, $endDate]);
+$group_result = $mysqli->query($theme_query);
 
-$themes = [];
+$groups = [];
 
-while ($row = $theme_result->fetch_assoc()) {
+while ($row = $group_result->fetch_assoc()) {
+    $group = $row['group_label'];
     $theme = $row['theme'];
-    $theme_date = date('m/d', strtotime($row['theme_date']));
-    $keyword_group_name = $row['keyword_group_name'];
+    $issues_date = date('m/d', strtotime($row['issues_date']));
+    $remaining_keywords = $row['remaining_keywords'];
     $stock_code = $row['stock_code'];
 
     // Initialize the theme if not already set
-    if (!isset($themes[$theme])) {
-        $themes[$theme] = ['dates' => []];
+    if (!isset($groups[$group])) {
+        $groups[$group] = ['dates' => []];
     }
 
     // Add the theme date to the list of dates if not already added
-    if (!in_array($theme_date, $themes[$theme]['dates'])) {
-        $themes[$theme]['dates'][] = $theme_date;
+    if (!in_array($issues_date, $groups[$group]['dates'])) {
+        $groups[$group]['dates'][] = $issues_date;
     }
 
     // Initialize or update the stock entry
-    if (!isset($themes[$theme][$keyword_group_name][$stock_code])) {
-        $themes[$theme][$keyword_group_name][$stock_code] = [
+    if (!isset($groups[$group][$remaining_keywords][$stock_code])) {
+        $groups[$group][$remaining_keywords][$stock_code] = [
             'stock_name' => $row['stock_name'],
             'is_leader' => $row['is_leader'],
             'is_watchlist' => $row['is_watchlist'],
@@ -87,27 +89,27 @@ while ($row = $theme_result->fetch_assoc()) {
 
     // Add symbols to the stock entry with corresponding class based on close rate
     if ($row['close_rate'] >= 30) {
-        $themes[$theme][$keyword_group_name][$stock_code]['symbols'][] = '<span class="' . $tradeAmountClass . '">' . $symbols['star'] . '</span>';
+        $groups[$group][$remaining_keywords][$stock_code]['symbols'][] = '<span class="' . $tradeAmountClass . '">' . $symbols['star'] . '</span>';
     } elseif ($row['close_rate'] >= 20) {
-        $themes[$theme][$keyword_group_name][$stock_code]['symbols'][] = '<span class="' . $tradeAmountClass . '">' . $symbols['diamond'] . '</span>';
+        $groups[$group][$remaining_keywords][$stock_code]['symbols'][] = '<span class="' . $tradeAmountClass . '">' . $symbols['diamond'] . '</span>';
     } elseif ($row['close_rate'] >= 10) {
-        $themes[$theme][$keyword_group_name][$stock_code]['symbols'][] = '<span class="' . $tradeAmountClass . '">' . $symbols['triangle'] . '</span>';
+        $groups[$group][$remaining_keywords][$stock_code]['symbols'][] = '<span class="' . $tradeAmountClass . '">' . $symbols['triangle'] . '</span>';
     }
 
     // Store the highest close rate
-    $themes[$theme][$keyword_group_name][$stock_code]['max_close_rate'] = max($themes[$theme][$keyword_group_name][$stock_code]['max_close_rate'], $row['close_rate']);
-    $themes[$theme][$keyword_group_name][$stock_code]['max_trade_amount'] = max($themes[$theme][$keyword_group_name][$stock_code]['max_trade_amount'], $row['trade_amount']);
+    $groups[$group][$remaining_keywords][$stock_code]['max_close_rate'] = max($groups[$group][$remaining_keywords][$stock_code]['max_close_rate'], $row['close_rate']);
+    $groups[$group][$remaining_keywords][$stock_code]['max_trade_amount'] = max($groups[$group][$remaining_keywords][$stock_code]['max_trade_amount'], $row['trade_amount']);
 }
 
 // Sort dates in descending order (latest dates first)
-foreach ($themes as $theme => &$data) {
+foreach ($groups as $group => &$data) {
     rsort($data['dates']); // Sort dates in descending order
 }
 unset($data); // Clear reference
 
 // Sort stocks by symbol count and individual symbol priority within each keyword group
-foreach ($themes as &$theme_data) {
-    foreach ($theme_data as $key => &$keyword_group_mappings) {
+foreach ($groups as &$group_data) {
+    foreach ($group_data as $key => &$keyword_group_mappings) {
         if ($key === 'dates') continue;  // Skip the date entry
 
         uasort($keyword_group_mappings, function($a, $b) {
@@ -143,7 +145,7 @@ foreach ($themes as &$theme_data) {
         });
     }
 }
-unset($theme_data); // Clean up reference
+unset($group_data); // Clean up reference
 unset($keyword_group_mappings);
 unset($stocks);
 ?>
@@ -190,7 +192,8 @@ unset($stocks);
         }
 
         .keyword-group-header {
-            font-size: 0.9em;
+            /* font-size: 0.9em; */
+            font-size: 1em;
             margin-bottom: 8px;
             color: #007bff;
         }
@@ -241,15 +244,15 @@ unset($stocks);
 <body>
 
 <div id="wrapper">
-    <?php foreach ($themes as $theme => $keyword_group_mappings): ?>
+    <?php foreach ($groups as $group => $keyword_group_mappings): ?>
         <div class="theme-box">
             <div class="theme-header">
-                <?= htmlspecialchars($theme) ?>
-                (<?= implode(', ', $keyword_group_mappings['dates']) ?>)
+                <?= htmlspecialchars($group) ?>
+                <small>(<?= implode(', ', $keyword_group_mappings['dates']) ?>)</small>
             </div>
             <?php unset($keyword_group_mappings['dates']); // Remove the dates key to prevent displaying it in stocks ?>
-            <?php foreach ($keyword_group_mappings as $keyword_group_name => $stocks): ?>
-                <div class="keyword-group-header"><?= htmlspecialchars($keyword_group_name) ?></div>
+            <?php foreach ($keyword_group_mappings as $remaining_keywords => $stocks): ?>
+                <div class="keyword-group-header"><?= htmlspecialchars($remaining_keywords) ?></div>
                 <ul class="stock-list">
                     <?php foreach ($stocks as $stock_code => $stock): ?>
                         <li class="stock-item">

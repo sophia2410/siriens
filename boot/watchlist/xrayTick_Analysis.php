@@ -216,7 +216,7 @@ function displayThemes(themes, source) {
     var tickType = source === 'market_issues' ? 'marketIssue' : 'sophiaWatchlist';
 
     themes.forEach(function(theme) {
-        var sector = source === 'market_issues' ? theme.type : '2 최근테마';
+        var sector = source === 'market_issues' ? '' : '2 최근테마';
 
         var themeButton = $('<button>')
             .addClass('btn btn-sm sector-item')

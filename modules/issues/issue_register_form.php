@@ -145,7 +145,7 @@ function render_issue_register_form($dateParam = null, $issueParam = null, $newI
             newStock.className = 'issue_register_stock_item';
             newStock.innerHTML = `
                 <div class="issue_register_stock_row">
-                    <input type="text" name="stocks[${stockIndex}][name]" value="${name}" onkeydown="Common_SearchStock(event, this)" placeholder="종목명/코드" required style="flex: 2; margin-right: 10px;" autocomplete="off">
+                    <input type="text" name="stocks[${stockIndex}][name]" value="${name}" onkeydown="Common_SearchStock(event, this)" placeholder="종목명/코드" required style="flex: 2; margin-right: 10px;" class="input-border-bold input-background-light input-text-bold" autocomplete="off">
                     <input type="text" name="stocks[${stockIndex}][code]" value="${code}" readonly placeholder="코드" style="flex: 1; margin-right: 10px;">
                     <input type="text" name="stocks[${stockIndex}][sector]" value="${sector}" placeholder="섹터" style="flex: 1; margin-right: 10px;" autocomplete="off">
                     <label style="margin-left: 10px;">

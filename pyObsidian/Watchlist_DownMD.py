@@ -10,21 +10,21 @@ config.read('E:/Project/202410/www/boot/common/db/database_config.ini')
 
 # MySQL 데이터베이스에 연결합니다. 연결 정보는 자신의 환경에 맞게 수정하세요.
 db = pymysql.connect(
-	host=config.get('database', 'host'),
-	user=config.get('database', 'user'),
-	password=config.get('database', 'password'),
-	db=config.get('database', 'db'),
-	charset=config.get('database', 'charset')
+    host=config.get('database', 'host'),
+    user=config.get('database', 'user'),
+    password=config.get('database', 'password'),
+    db=config.get('database', 'db'),
+    charset=config.get('database', 'charset')
 )
 
 # 커서 객체 생성
 cursor = db.cursor()
 
 with open("E:/Project/202410/www/pyObsidian/vars_downExcel.txt", "r", encoding="utf-8") as f:
-	lines = f.readlines()
-	filename = lines[0].strip() 
-	orderby = lines[1].strip() 
-	query = "".join(lines[2:])
+    lines = f.readlines()
+    filename = lines[0].strip() 
+    orderby = lines[1].strip() 
+    query = "".join(lines[2:])
 
 # 관종 해당일자 구하기
 # 처리 시작
@@ -32,8 +32,8 @@ day_date = datetime.today().strftime('%Y%m%d')
 
 # 쿼리문 실행
 sql = f"SELECT V.name, V.code, V.group_key, V.tot_trade_amt, V.close_rate_str, V.tot_trade_amt_str "\
-	  f"FROM ({query}) V "\
-	  f"{orderby}"
+      f"FROM ({query}) V "\
+      f"{orderby}"
 
 # print(sql)
 cursor.execute(sql)

@@ -160,7 +160,7 @@ input[type="checkbox"] {
 
 /* 테두리를 진하게 하는 스타일 */
 .input-border-bold {
-    border: 2px solid #555;
+    border: 2px solid #555 !important;
     border-radius: 4px;
 }
 
