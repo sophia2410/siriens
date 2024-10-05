@@ -15,7 +15,7 @@ db = pymysql.connect(
 )
 
 # Excel 파일 읽기
-excel_file = 'E:/Project/202410/data/_MarketIssue/market_issue.xlsx'
+excel_file = 'E:/Project/202410/data/_MarketEvent/market_event.xlsx'
 df = pd.read_excel(excel_file)
 
 # NaN 값을 빈 문자열로 변환
@@ -23,7 +23,7 @@ df = df.fillna('')
 
 # 마지막으로 유효한 값을 기억하는 변수를 초기화
 last_date = None
-last_issue_id = None
+last_event_id = None
 
 # 키워드 처리 함수
 def handle_keywords(cursor, keywords):
@@ -76,30 +76,30 @@ def handle_keywords(cursor, keywords):
         return group_id
 
 # 이슈 삽입 및 업데이트 함수 (섹터 제외)
-def insert_or_update_issue(cursor, date, issue, first_occurrence, link, theme, hot_theme, group_id):
+def insert_or_update_event(cursor, date, issue, first_occurrence, link, theme, hot_theme, group_id):
     # print(f"Inserting/updating issue: {issue} for date: {date}, theme: {theme}")
 
     cursor.execute("""
-        SELECT issue_id FROM market_issues 
+        SELECT event_id FROM market_events 
         WHERE date = %s AND keyword_group_id = %s AND issue = %s AND theme = %s
     """, (date, group_id, issue, theme))
     result = cursor.fetchone()
     
     if result:
-        # print(f"Existing issue found with ID: {result[0]}")
+        # print(f"Existing event found with ID: {result[0]}")
         return result[0]
     else:
         cursor.execute("""
-            INSERT INTO market_issues (date, issue, first_occurrence, link, theme, hot_theme, keyword_group_id, status, create_dtime) 
+            INSERT INTO market_events (date, issue, first_occurrence, link, theme, hot_theme, keyword_group_id, status, create_dtime) 
             VALUES (%s, %s, %s, %s, %s, %s, %s, 'registered', NOW())
         """, (date, issue, first_occurrence, link, theme, hot_theme, group_id))
-        issue_id = cursor.lastrowid
-        # print(f"Inserted new issue with ID: {issue_id}")
-        return issue_id
+        event_id = cursor.lastrowid
+        # print(f"Inserted new event with ID: {event_id}")
+        return event_id
 
 # 주식 데이터 처리 함수 (섹터 추가)
-def handle_stocks(cursor, issue_id, stocks, date, sector):
-    # print(f"Handling stocks for issue ID: {issue_id} on date: {date}")
+def handle_stocks(cursor, event_id, stocks, date):
+    # print(f"Handling stocks for event ID: {event_id} on date: {date}")
     for stock in stocks:
         name = stock['name']
         stock_comment = stock['comment']
@@ -117,15 +117,15 @@ def handle_stocks(cursor, issue_id, stocks, date, sector):
 
         cursor.execute("SELECT high_rate, close_rate, volume, amount FROM v_daily_price WHERE code = %s AND date = %s", (code, date))
         price_data = cursor.fetchone()
-        high_rate, close_rate, volume, trade_amount = price_data if price_data else (None, None, None)
+        high_rate, close_rate, volume, trade_amount = price_data if price_data else (None, None, None, None)
 
         # 쿼리 및 파라미터를 출력하여 디버깅
         query = """
-            INSERT INTO market_issue_stocks 
-            (issue_id, code, name, high_rate, close_rate, volume, trade_amount, stock_comment, is_leader, is_watchlist, sector, date, create_dtime) 
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+            INSERT INTO market_event_stocks 
+            (event_id, code, name, high_rate, close_rate, volume, trade_amount, stock_comment, is_leader, is_watchlist, date, create_dtime) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
         """
-        params = (issue_id, code, name, high_rate, close_rate, volume, trade_amount, stock_comment, is_leader, is_watchlist, sector, date)
+        params = (event_id, code, name, high_rate, close_rate, volume, trade_amount, stock_comment, is_leader, is_watchlist, date)
         # print(f"Executing query: {query} with params: {params}")
         
         try:
@@ -136,12 +136,12 @@ def handle_stocks(cursor, issue_id, stocks, date, sector):
             raise
 
 # 트랜잭션 실행 함수
-def process_issues(db, df):
+def process_events(db, df):
     cursor = db.cursor()
     db.autocommit(False)
     
     last_date = None
-    last_issue_id = None
+    last_event_id = None
 
     try:
         for index, row in df.iterrows():
@@ -157,14 +157,14 @@ def process_issues(db, df):
                 first_occurrence = 'Y' if row['신규이슈'] == 1 else 'N'
                 hot_theme = 'Y' if row['핫테마'] == 1 else 'N'
                 
-                # 새로운 그룹에 대해 issue_id 생성
+                # 새로운 그룹에 대해 event_id 생성
                 group_id = handle_keywords(cursor, keywords)
-                issue_id = insert_or_update_issue(cursor, date, issue, first_occurrence, '', theme, hot_theme, group_id)
-                last_issue_id = issue_id
+                event_id = insert_or_update_event(cursor, date, issue, first_occurrence, '', theme, hot_theme, group_id)
+                last_event_id = event_id
             else:
-                # 이전 issue_id 사용
-                issue_id = last_issue_id
-                # print(f"Using previous issue ID: {issue_id}")
+                # 이전 event_id 사용
+                event_id = last_event_id
+                # print(f"Using previous event ID: {event_id}")
 
             # 주식 데이터를 처리
             stocks = [
@@ -175,8 +175,7 @@ def process_issues(db, df):
                     'is_watchlist': row.get(f'관심종목여부')  # 관심종목여부 추가
                 }
             ]
-            sector = row.get('섹터', '')  # 섹터는 market_issue_stocks 테이블에 추가
-            handle_stocks(cursor, issue_id, stocks, date, sector)
+            handle_stocks(cursor, event_id, stocks, date)
 
             # 날짜 갱신
             last_date = date
@@ -188,5 +187,5 @@ def process_issues(db, df):
     finally:
         cursor.close()
 
-process_issues(db, df)
+process_events(db, df)
 db.close()

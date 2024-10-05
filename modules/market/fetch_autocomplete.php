@@ -9,12 +9,7 @@ if ($type === 'stocks') {
     // Fetch stock codes and names
     if ($query !== '') {
         $stmt = $mysqli->prepare("
-            SELECT s.code, s.name, 
-                (SELECT sector FROM market_issue_stocks
-                 WHERE code = s.code 
-                 GROUP BY sector 
-                 ORDER BY COUNT(*) DESC 
-                 LIMIT 1) AS sector
+            SELECT s.code, s.name
             FROM stock s
             WHERE s.name LIKE CONCAT(?, '%') OR s.code LIKE CONCAT('%', ?, '%')
         ");
@@ -41,12 +36,12 @@ if ($type === 'stocks') {
         }
         $stmt->close();
     }
-} elseif ($type === 'theme_sector') {
-    // Fetch theme and sector based on the exact keyword group
+} elseif ($type === 'theme') {
+    // Fetch theme based on the exact keyword group
     if ($stmt = $mysqli->prepare("
         SELECT DISTINCT theme
-        FROM market_issues mi
-        JOIN keyword_groups kg ON mi.keyword_group_id = kg.group_id
+        FROM market_events me
+        JOIN keyword_groups kg ON me.keyword_group_id = kg.group_id
         WHERE kg.group_name = ?
     ")) {
         $stmt->bind_param('s', $query);
@@ -67,7 +62,7 @@ if ($type === 'stocks') {
                 UNION
                 SELECT stock_comment FROM watchlist_sophia WHERE code = ? AND stock_comment != ''
                 UNION
-                SELECT stock_comment FROM market_issue_stocks WHERE code = ? AND stock_comment != ''
+                SELECT stock_comment FROM market_event_stocks WHERE code = ? AND stock_comment != ''
             ) AS combined_comments
         ");
         $stmt->bind_param('sss', $code, $code, $code);

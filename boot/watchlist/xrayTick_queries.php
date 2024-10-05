@@ -102,16 +102,16 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $sector, $th
 						, A.date 0day_date
 						, A.code 
 						, A.name
-						, A.theme, A.sector, A.is_leader, A.is_watchlist, A.stock_comment
-						, CASE WHEN A.theme is null OR  A.theme = '' THEN A.sector ELSE A.theme END uprsn
+						, A.group_label, A.theme, A.is_leader, A.is_watchlist, A.stock_comment
+						, A.group_label AS uprsn
 						, CASE WHEN B.close_rate >= 0 THEN CONCAT('<font color=red> ▲',B.close_rate,'% </font>') ELSE  CONCAT('<font color=blue> ▼',ABS(B.close_rate),'% </font>') END close_rate_str
 						, CASE WHEN B.tot_trade_amt >= 1000 THEN CONCAT('<font color=red><b>',FORMAT(B.tot_trade_amt,0),'억</b></font>') ELSE  CONCAT(B.tot_trade_amt,'억') END tot_trade_amt_str
 						, B.tot_trade_amt
 						$trade_qry
 						, M.mochaten_cnt
 					FROM (SELECT group_label, keyword_group_name, theme, code, name,
-								 MAX(sector) AS sector, MAX(date) date, MAX(is_leader) AS is_leader, MAX(is_watchlist) AS is_watchlist, MAX(stock_comment) AS stock_comment
-						  FROM v_market_issue vmi
+								 MAX(date) date, MAX(is_leader) AS is_leader, MAX(is_watchlist) AS is_watchlist, MAX(stock_comment) AS stock_comment
+						  FROM v_market_event vmi
 						  WHERE date BETWEEN DATE_SUB('{$search_date}', INTERVAL 1 MONTH) AND '$search_date'
 						  AND group_label LIKE '%$theme%'
 						  GROUP BY group_label, keyword_group_name, theme, code, name

@@ -44,7 +44,7 @@ def main():
     
     #파일명이 '20240901' 형식이라 문자형 일자 구해오기
     sql = "SELECT MAX(date_str) AS date_str FROM calendar a WHERE date <= now()"
-    # sql = "SELECT date_str AS date_str FROM calendar a WHERE date = '2024-09-24'"
+    # sql = "SELECT date_str AS date_str FROM calendar a WHERE date = '2024-09-30'"
     
     df = pd.read_sql(sql, conn)
     date_str = df['date_str'].values[0].decode('utf-8')

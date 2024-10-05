@@ -2,10 +2,30 @@
 $pageTitle = "마켓 리포트"; // 페이지별 타이틀 설정
 require($_SERVER['DOCUMENT_ROOT']."/modules/common/common_header.php");
 
-require($_SERVER['DOCUMENT_ROOT']."/modules/issues/issue_register_form.php");
-require($_SERVER['DOCUMENT_ROOT']."/modules/issues/issue_list.php");
+require($_SERVER['DOCUMENT_ROOT']."/modules/market/event_register_form.php");
+require($_SERVER['DOCUMENT_ROOT']."/modules/market/event_list.php");
 
 $report_date = isset($_GET['report_date']) ? $_GET['report_date'] : date('Y-m-d', time());
+
+// 현재 report_date 기준으로 이전 날짜와 다음 날짜 가져오기
+$previous_date_query = "
+    SELECT date FROM calendar 
+    WHERE date < '$report_date' 
+    ORDER BY date DESC 
+    LIMIT 1";
+$previous_date_result = $mysqli->query($previous_date_query);
+$previous_date_row = $previous_date_result->fetch_assoc();
+$previous_date = isset($previous_date_row['date']) ? $previous_date_row['date'] : null;
+
+$next_date_query = "
+    SELECT date FROM calendar 
+    WHERE date > '$report_date' 
+    ORDER BY date ASC 
+    LIMIT 1";
+$next_date_result = $mysqli->query($next_date_query);
+$next_date_row = $next_date_result->fetch_assoc();
+$next_date = isset($next_date_row['date']) ? $next_date_row['date'] : null;
+
 
 // Fetch market comment, overview and titles
 $overview_query = "SELECT market_review, market_overview, us_market_overview, other_market_overview, morning_report_title, morning_news_link, evening_report_title FROM market_report WHERE date = '$report_date'";
@@ -19,10 +39,10 @@ $morning_report_title = isset($overview_row) ? $overview_row['morning_report_tit
 $morning_news_link = isset($overview_row) ? $overview_row['morning_news_link'] : '';
 $evening_report_title = isset($overview_row) ? $overview_row['evening_report_title'] : '';
 
-// Fetch sector data
-$sector_query = "
-    SELECT theme_group.theme,
-        theme_group.group_type,
+// Fetch group data
+$group_query = "
+    SELECT theme_group.group_label,
+        theme_group.theme,
         theme_group.issue,
         theme_group.hot_theme,
         theme_group.code,
@@ -32,36 +52,49 @@ $sector_query = "
         theme_group.stock_amount,
         theme_group.hot_theme,
         theme_group.is_leader,
-        theme_group.is_watchlist
+        theme_group.is_watchlist,
+        theme_group.keyword_group_name,
+        theme_group.remaining_keywords
     FROM (
-        SELECT CASE WHEN theme != '' THEN theme WHEN sector != '' THEN sector ELSE '미분류' END AS theme,
-            CASE WHEN theme != '' THEN 'theme' ELSE 'sector' END AS group_type, 
-            issue, hot_theme, code, name, stock_comment, close_rate AS stock_change, trade_amount AS stock_amount,
-            is_leader, is_watchlist,
-            MAX(trade_amount) OVER (PARTITION BY CASE WHEN theme != '' THEN theme ELSE sector END) AS max_amount
-        FROM v_market_issue vmi
+        SELECT group_label, keyword_group_name, theme, issue, hot_theme, code, name, stock_comment, 
+            close_rate AS stock_change, trade_amount AS stock_amount, is_leader, is_watchlist,
+            MAX(trade_amount) OVER (PARTITION BY keyword_group_name) AS max_amount,
+            SUBSTRING(keyword_group_name, INSTR(keyword_group_name, ' ') + 1) AS remaining_keywords
+        FROM v_market_event
         WHERE date = '$report_date'
     ) AS theme_group
     ORDER BY theme_group.hot_theme DESC,   -- 핫테마 우선 정렬
-            theme_group.max_amount DESC,   -- 테마 또는 섹터 그룹에서 최대 거래대금 순 정렬
-            theme_group.theme ASC,         -- 테마 또는 섹터 이름 순서로 정렬
-            theme_group.is_leader DESC,    -- 주도주 우선 정렬
-            theme_group.is_watchlist DESC, -- 관심종목 우선 정렬
-            theme_group.stock_change DESC  -- 동일한 테마 내에서 등락률 기준으로 정렬
+            theme_group.keyword_group_name ASC,   -- 키워드 이름 순서로 정렬
+            theme_group.max_amount DESC,   -- 키워드에서 최대 거래대금 키워드순 정렬
+            theme_group.is_leader DESC,    -- 주도주 종목 우선 정렬
+            theme_group.is_watchlist DESC, -- 관심종목 종목 우선 정렬
+            theme_group.stock_change DESC  -- 동일한 키워드 내에서 등락률 기준으로 종목 정렬
 ";
-$sector_result = $mysqli->query($sector_query);
-$theme_data = [];
+$sector_result = $mysqli->query($group_query);
+$group_data = [];
 
-if ($sector_result->num_rows > 0) {
+// 오늘 날짜 확인
+$today = date("Y-m-d");
+$current_time = date("H:i");
+$cutoff_time = "19:30";
+
+// 오늘 일자인지 여부 확인
+$is_today = ($report_date == $today);
+
+// 오늘 일자이고, 19:30 이전인 경우
+if ($sector_result->num_rows > 0 && !($is_today && $current_time < $cutoff_time)) {
+    // 과거 일자 또는 19:30 이후에는 기존 v_market_event 데이터 사용
     while ($row = $sector_result->fetch_assoc()) {
-        $theme_data[$row['theme']][] = $row;
+        $group_data[$row['group_label']][] = $row;
     }
 }
 else {
-    // 쿼리 결과가 없을 때 실행할 다른 쿼리
+    // 오늘 19:30 이전에는 v_daily_price 데이터 사용
     $alternative_query = "
-        SELECT a.code, a.name, a.close_rate AS stock_change, a.amount AS stock_amount, b.theme, 
-               a.is_leader, a.is_watchlist, '' AS stock_comment
+        SELECT a.code, a.name, a.close_rate AS stock_change, a.amount AS stock_amount,
+               a.is_leader, a.is_watchlist, '' AS stock_comment,
+               REPLACE(SUBSTRING_INDEX(c.group_name, ' ', 1), '#', '') AS group_label,
+               SUBSTRING(c.group_name, INSTR(c.group_name, ' ') + 1) AS remaining_keywords
         FROM 
         (   SELECT code, name, close_rate, volume, amount, source,
                    CASE WHEN amount > 1000 THEN '1' ELSE '0' END is_leader,
@@ -73,67 +106,67 @@ else {
         ) a
         LEFT JOIN 
         (   SELECT code,
-                    (SELECT 
-                        CASE 
-                            WHEN theme != '' THEN theme 
-                            WHEN sector != '' THEN sector 
-                            ELSE '' 
-                        END 
+                   (SELECT 
+                       keyword_group_id
                     FROM 
-                        market_issues mi 
+                        market_events me 
                     WHERE 
-                        mi.issue_id = mis.issue_id 
+                        me.event_id = mes.event_id 
                     ORDER BY 
-                        mi.date DESC 
+                        me.date DESC 
                     LIMIT 1
-                    ) AS theme
+                   ) AS group_id
             FROM 
-                market_issue_stocks mis
+                market_event_stocks mes
             GROUP BY 
-            code
+                code
         ) b
         ON b.code = a.code
-        ORDER BY SUM(amount) OVER (PARTITION BY b.theme) DESC,
-                 a.close_rate DESC
+        LEFT JOIN keyword_groups c
+        ON c.group_id = b.group_id
+        ORDER BY SUM(amount) OVER (PARTITION BY c.group_name) DESC, a.close_rate DESC
     ";
 
-    Database_logQuery($alternative_query,[]);
+    // Database_logQuery($alternative_query,[]);
     $alternative_result = $mysqli->query($alternative_query);
 
     while ($row = $alternative_result->fetch_assoc()) {
         // 다른 쿼리 결과 처리
-        $theme_data[$row['theme']][] = $row;
+        $group_data[$row['group_label']][] = $row;
     }
 }
 
 // Fetch recent 5 days themes and stocks
 $recent_themes_query = "
     SELECT 
-        mi.theme, 
-        mis.code, 
-        mis.name, 
-        MAX(mis.trade_amount) AS max_trade_amount,  -- 종목별 가장 높은 거래대금
-        MAX(mis.close_rate) AS max_close_rate,       -- 종목별 가장 높은 등락률
-        MAX(mis.stock_comment) AS stock_comment
+        CASE 
+            WHEN me.group_label = me.theme THEN me.group_label 
+            ELSE CONCAT(me.group_label, ' ', me.theme) 
+        END AS theme,   -- group_label 과 theme 값을 연결하여 하나의 값으로 계산
+        mes.code, 
+        mes.name, 
+        MAX(mes.trade_amount) AS max_trade_amount,  -- 종목별 가장 높은 거래대금
+        MAX(mes.close_rate) AS max_close_rate,       -- 종목별 가장 높은 등락률
+        MAX(mes.stock_comment) AS stock_comment
     FROM 
-        market_issues mi
+        market_events me
     JOIN 
-        market_issue_stocks mis 
-        ON mis.issue_id = mi.issue_id
+        market_event_stocks mes 
+        ON mes.event_id = me.event_id
     JOIN 
         (SELECT date
          FROM calendar
          WHERE date <= '$report_date'
 		 ORDER BY date DESC
          LIMIT 7) c
-        ON c.date = mi.date 
-    WHERE (mis.is_leader = '1' OR mis.is_watchlist = '1')
+        ON c.date = me.date 
+    WHERE (mes.is_leader = '1' OR mes.is_watchlist = '1')
     GROUP BY 
-        mi.theme, mis.code, mis.name
+        me.theme, mes.code, mes.name
     ORDER BY 
-        MAX(mi.date) OVER (PARTITION BY theme) DESC,        -- 가장 최근 테마 기준 정렬
-        mi.theme,                 -- 테마 순
-        MAX(mis.close_rate) DESC  -- 테마 내에서 등락률 기준 역순 정렬
+        MAX(me.date) OVER (PARTITION BY theme) DESC,        -- 가장 최근 테마 기준 정렬
+        me.theme,                 -- 테마 순
+        MAX(mes.close_rate) DESC  -- 테마 내에서 등락률 기준 역순 정렬
     ";
 
 // Database_logQuery($recent_themes_query, [$report_date]);
@@ -146,9 +179,9 @@ while($row = $recent_themes_result->fetch_assoc()) {
 // Fetch stocks with more than 20% change
 $stocks_20_query = "
     SELECT name, dp.close_rate stock_change
-    FROM v_market_issue vmi
-	JOIN daily_price dp ON dp.date = vmi.date AND dp.code = vmi.code AND dp.close_rate > 20
-    WHERE vmi.date BETWEEN DATE_ADD('$report_date', INTERVAL -5 DAY) AND '$report_date'
+    FROM v_market_event vme
+	JOIN daily_price dp ON dp.date = vme.date AND dp.code = vme.code AND dp.close_rate > 20
+    WHERE vme.date BETWEEN DATE_ADD('$report_date', INTERVAL -5 DAY) AND '$report_date'
     ORDER BY dp.close_rate DESC";
 $stocks_20_result = $mysqli->query($stocks_20_query);
 $stocks_20 = [];
@@ -183,6 +216,20 @@ while ($row = $index_result->fetch_assoc()) {
     ];
 }
 
+
+// Fetch Market Issues
+$issueQuery = $mysqli->prepare("
+    SELECT mi.*, kg.group_name 
+    FROM market_issues mi 
+    LEFT JOIN keyword_groups kg 
+    ON mi.issue_id = kg.group_id 
+    WHERE mi.date = ?
+    ORDER BY kg.group_name ASC
+");
+$issueQuery->bind_param('s', $report_date);
+$issueQuery->execute();
+$issueResult = $issueQuery->get_result();
+
 ?>
 
 <head>
@@ -204,14 +251,37 @@ while ($row = $index_result->fetch_assoc()) {
             margin-bottom: 10px;
         }
 
+        #date-controls {
+            display: flex;
+            flex-direction: column; /* 달력과 버튼이 위아래로 정렬 */
+            align-items: center;
+        }
+
+        #date-navigation {
+            display: flex;
+            gap: 10px; /* 버튼 간 간격 */
+            margin-top: 5px;
+        }
+
+        .nav-button {
+            padding: 5px 10px;
+            font-size: 12px; /* 버튼을 작게 설정 */
+            background-color: #ff5f5f;
+            border: none;
+            color: white;
+            cursor: pointer;
+        }
+
         #report_date {
-            font-size: 18px;
-            font-weight: bold;
-            padding: 10px; /* 내부 여백 */
-            width: 200px; /* 너비 설정 */
-            height: 40px; /* 높이 설정 */
-            border-radius: 5px; /* 모서리 둥글게 */
-            border: 1px solid #ccc; /* 테두리 설정 */
+            width: 150px;
+            padding: 5px;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        #save-controls {
+            display: flex;
+            align-items: center;
         }
 
         #index-section {
@@ -254,20 +324,20 @@ while ($row = $index_result->fetch_assoc()) {
         }
 
         textarea {
-            height: 100px; /* 텍스트 입력 영역의 높이를 크게 조정 */
-            margin-bottom: 20px;
+            height: 80px; /* 텍스트 입력 영역의 높이를 크게 조정 */
+            margin-bottom: 15px;
         }
 
         textarea.large {
-            height: 200px; /* 텍스트 입력 영역의 높이를 크게 조정 */
-        }
-
-        textarea.middle {
             height: 150px; /* 텍스트 입력 영역의 높이를 크게 조정 */
         }
 
+        textarea.middle {
+            height: 100px; /* 텍스트 입력 영역의 높이를 크게 조정 */
+        }
+
         textarea.small {
-            height: 70px; /* 텍스트 입력 영역의 높이를 크게 조정 */
+            height: 50px; /* 텍스트 입력 영역의 높이를 크게 조정 */
         }
 
         #middle-content {
@@ -276,14 +346,14 @@ while ($row = $index_result->fetch_assoc()) {
             gap: 20px;
         }
 
-        .sector-container {
+        .group-container {
             display: flex;
             flex-wrap: wrap;  /* 여러 줄을 사용할 수 있게 함 */
             gap: 10px;  /* 카드 간격 */
             justify-content: space-between;  /* 좌우 간격을 균일하게 분배 */
         }
 
-        .sector-card {
+        .group-card {
             background-color: white;
             border: 1px solid #ddd;
             padding: 10px;
@@ -291,6 +361,12 @@ while ($row = $index_result->fetch_assoc()) {
             flex: 1 1 calc(33.33% - 20px);  /* 3열이 나오도록 설정 (100%를 3으로 나눈 값) */
             min-width: 280px;  /* 최소 너비 설정 */
             height: auto;
+        }
+
+        .keyword-row h4 {
+            font-size: 1em;
+            margin-top: 10px;
+            color: #007bff !important;
         }
 
         .stock-item {
@@ -306,6 +382,7 @@ while ($row = $index_result->fetch_assoc()) {
             display: flex;
             justify-content: space-between; /* 좌우 정렬 */
             align-items: center; /* 세로 가운데 정렬 */
+            padding: 3px 0;
         }
 
         .stock-name {
@@ -375,27 +452,52 @@ while ($row = $index_result->fetch_assoc()) {
             margin: 20px 20px; /* 수평선 위아래 간격 */
         }
 
-        /* Container for the Today's Themes title and Add Theme button */
-        .themes-header {
+        /* Container for the Today's Issue title and Add Theme button */
+        .issues-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
+            margin-bottom: 10px;
         }
 
-        /* Add Theme button styling */
-        .add-theme-btn {
-            background-color: #f44336;
-            color: white;
-            padding: 8px 16px;
-            border: none;
+        /* 이슈 리스트 */
+        #issue_list_container {
+            padding: 10px;
+            overflow-y: auto;
+        }
+
+        .issue-card {
+            padding: 10px;
+            background-color: #f8f8f8;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+        }
+
+        .issue-title {
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+
+        .issue-link {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 400px;
+            display: inline-block;
+        }
+
+        .issue-keywords {
+            color: #333;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .issue-keywords span {
+            background-color: #e0e7ff;
+            padding: 5px;
             border-radius: 4px;
-            cursor: pointer;
-            font-size: 1em;
-        }
-
-        .add-theme-btn:hover {
-            background-color: #e53935;
+            margin-right: 5px;
+            display: inline-block;
         }
     </style>
 
@@ -407,10 +509,29 @@ while ($row = $index_result->fetch_assoc()) {
 <div id="wrapper">
     <!-- Date and Save Controls -->
     <div id="controls">
-        <div>
+        <div id="date-controls">
             <input type="date" id="report_date" value="<?= $report_date ?>" onchange="search()">
+            <div id="date-navigation">
+                <!-- 이전 날짜 버튼 -->
+                <?php if ($previous_date): ?>
+                    <button class="nav-button" onclick="window.location.href='market_report.php?report_date=<?= $previous_date ?>'">
+                        &lt;&lt; 이전
+                    </button>
+                <?php endif; ?>
+
+                <!-- 다음 날짜 버튼 -->
+                <?php if ($next_date): ?>
+                    <button class="nav-button" onclick="window.location.href='market_report.php?report_date=<?= $next_date ?>'">
+                        다음 &gt;&gt;
+                    </button>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <div id="save-controls">
             <button onclick="saveReport()">Save Report</button>
         </div>
+
         <div id="index-section">
             <?php
             // 각 마켓의 이름과 관련된 정보를 배열로 설정
@@ -441,7 +562,7 @@ while ($row = $index_result->fetch_assoc()) {
     <!-- Morning Report 제목 -->
     <div id="left-content">
         <p class="report-content">
-            <a href="<?= htmlspecialchars($morning_news_link) ?>" target="_blank" style="text-decoration: none; color: inherit;">
+            <a href="<?= htmlspecialchars($morning_news_link) ?>" target="_blank" class="no-underline">
                 <?= htmlspecialchars($morning_report_title) ?>
             </a>
         </p>
@@ -466,65 +587,79 @@ while ($row = $index_result->fetch_assoc()) {
         <hr>
 
         <!-- Today's Themes Section -->
-        <div class="themes-header">
-            <h3>Today's Themes</h3>
-            <button id="add-theme-btn" class="add-theme-btn" onclick="openThemeModal()">Add Theme</button>
+        <div class="issues-header">
+            <h3>Today's Issues</h3>
+            <button id="add-theme-btn" class="button-green" onclick="window.open('issue_register.php?date=<?= htmlspecialchars($report_date) ?>', '_blank')">Add Issues</button>
         </div>
-        <div id="todays-themes" class="themes-container">
-            <?php if (!empty($theme_data)): ?>
-                <div class="theme-list">
-                    <?php foreach ($theme_data as $theme => $stocks): ?>
-                        <div class="theme-card">
-                            <h4 class="theme-title"><?= htmlspecialchars($theme) ?></h4>
-                            <ul class="stock-list">
-                                <?php foreach ($stocks as $stock): ?>
-                                    <li class="stock-item">
-                                        <span class="stock-name"><?= htmlspecialchars($stock['name']) ?> (<?= htmlspecialchars($stock['code']) ?>)</span>
-                                        <span class="stock-change"><?= number_format($stock['stock_change'], 2) ?>%</span>
-                                        <span class="stock-amount"><?= number_format($stock['stock_amount']) ?>억</span>
-                                    </li>
-                                <?php endforeach; ?>
-                            </ul>
-                        </div>
+        <!-- 이슈 리스트 -->
+        <div id="issue_list_container">
+            <?php while ($issue = $issueResult->fetch_assoc()): ?>
+                <div class="issue-card">
+                <div class="issue-title"><?= htmlspecialchars($issue['issue_title'], ENT_QUOTES | ENT_HTML401); ?></div>
+                <p>링크: <a href="<?= htmlspecialchars($issue['issue_link'], ENT_QUOTES | ENT_HTML401); ?>" target="_blank" class="issue-link">
+                    <?= htmlspecialchars($issue['issue_link'], ENT_QUOTES | ENT_HTML401); ?>
+                </a></p>
+                <p class="issue-keywords">
+                    <?php foreach (Utility_GgetIssueKeywords($report_date, $issue['issue_id']) as $keyword): ?>
+                        <span>
+                            <a href="javascript:void(0);" class="no-underline"
+                            onclick="openKeywordPopup('<?= htmlspecialchars($keyword['keyword'], ENT_QUOTES | ENT_HTML401); ?>');">
+                            #<?= htmlspecialchars($keyword['keyword'], ENT_QUOTES | ENT_HTML401); ?>
+                            <?= $keyword['stock_cnt']; ?>
+                        </a>
+                        </span>
                     <?php endforeach; ?>
-                </div>
-            <?php else: ?>
-                <p>No themes registered for today.</p>
-            <?php endif; ?>
+                </p>
+            </div>
+            <?php endwhile; ?>
         </div>
-
     </div>
 
 
-    <!-- Sector and Stock Issues (플렉스박스 형태로 구성) -->
+    <!-- Group and Stock Events (플렉스박스 형태로 구성) -->
     
-    <div id="middle-content" class="sector-container">
-        <?php foreach ($theme_data as $theme => $stocks): ?>
-            <div class="sector-card">
-                <h3><?= htmlspecialchars($theme) ?></h3>
-                <?php foreach ($stocks as $stock): ?>
-                    <div class="stock-item">
-                        <div class="stock-row">
-                            <div class="stock-name <?= $stock['is_leader'] === '1' ? 'leader' : '' ?> <?= $stock['is_watchlist'] === '1' ? 'watchlist' : '' ?>">
-                                <?= htmlspecialchars($stock['name']) ?>
-                            </div>
-                            <div class="stock-change">
-                                <span class="<?= Utility_GetCloseRateClass($stock['stock_change']) ?>">
-                                    <?= number_format($stock['stock_change'], 2) ?>%
-                                </span>
-                                <span class="stock-amount <?= Utility_GetAmountClass($stock['stock_amount']) ?>">
-                                    (<?= number_format($stock['stock_amount']) ?>억)
-                                </span>
-                            </div>
+    <div id="middle-content" class="group-container">
+    <?php 
+    $current_group_label = '';  // 현재 출력 중인 group_label
+    $current_keyword = '';  // 현재 출력 중인 theme
+
+    foreach ($group_data as $group => $stocks): ?>
+        <div class="group-card">
+            <!-- 그룹 라벨을 먼저 출력 -->
+            <h3><?= htmlspecialchars($group) ?></h3>
+
+            <?php foreach ($stocks as $stock): ?>
+                <?php if ($stock['remaining_keywords'] !== $current_keyword): ?>
+                    <!-- 테마가 바뀔 때마다 테마가 그룹 라벨과 다르면 출력 -->
+                    <div class="keyword-row">
+                        <h4 style="color: #888; margin-bottom: 10px;"><?= htmlspecialchars($stock['remaining_keywords']) ?></h4>
+                    </div>
+                    <?php $current_keyword = $stock['remaining_keywords']; // 새로운 테마 저장 ?>
+                <?php endif; ?>
+
+                <!-- 종목 출력 -->
+                <div class="stock-item">
+                    <div class="stock-row">
+                        <div class="stock-name <?= $stock['is_leader'] === '1' ? 'leader' : '' ?> <?= $stock['is_watchlist'] === '1' ? 'watchlist' : '' ?>">
+                            <?= htmlspecialchars($stock['name']) ?>
                         </div>
-                        <div class="stock-comment">
-                            <?= htmlspecialchars($stock['stock_comment']) ?>
+                        <div class="stock-change">
+                            <span class="<?= Utility_GetCloseRateClass($stock['stock_change']) ?>">
+                                <?= number_format($stock['stock_change'], 2) ?>%
+                            </span>
+                            <span class="stock-amount <?= Utility_GetAmountClass($stock['stock_amount']) ?>">
+                                (<?= number_format($stock['stock_amount']) ?>억)
+                            </span>
                         </div>
                     </div>
-                <?php endforeach; ?>
-            </div>
-        <?php endforeach; ?>
-    </div>
+                    <div class="stock-comment">
+                        <?= htmlspecialchars($stock['stock_comment']) ?>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    <?php endforeach; ?>
+</div>
 
     <!-- Recent Themes and Stocks -->
     <div id="right-content">
@@ -636,7 +771,11 @@ while ($row = $index_result->fetch_assoc()) {
             }
         }
     }
-
+    
+    function openKeywordPopup(keyword) {
+        const url = `keyword_group_list.php?keyword=${encodeURIComponent(keyword)}`;
+        window.open(url, '_blank');
+    }
 </script>
 </body>
 </html>

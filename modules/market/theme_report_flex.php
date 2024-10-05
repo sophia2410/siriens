@@ -1,45 +1,71 @@
 <?php
 require($_SERVER['DOCUMENT_ROOT']."/modules/common/common_header_sub.php");
 
-$endDate = date('Y-m-d', time());
-$startDate = date('Y-m-d', strtotime('-15 days', time()));
+// $_GET['date']에서 받은 값 처리 (기본값은 오늘 날짜)
+$date = isset($_GET['date']) ? $_GET['date'] : date('Y-m-d');
+$criteria = isset($_GET['criteria']) ? $_GET['criteria'] : 'all';
+
+// 조회기준일자 구히가
+$query = "
+    SELECT MIN(c.date) AS start_date, MAX(c.date) AS end_date
+    FROM (
+        SELECT date
+        FROM calendar
+        WHERE date <= '$date'
+        ORDER BY date DESC
+        LIMIT 8
+    ) AS c;
+";
+
+$result = $mysqli->query($query);
+$row = $result->fetch_assoc();
+$startDate = $row['start_date'];
+$endDate = $row['end_date'];
+
+
+// 조회기준에 따른 조건문
+if ($criteria == 'all') {
+    $whereCriteria = "(mes.trade_amount > 500 OR mes.close_rate > 10)";
+} else {
+    $whereCriteria = "(mes.trade_amount > 1000 OR mes.is_leader = '1' OR mes.is_watchlist = '1')";
+}
 
 // Fetch themes with occurrence count and sorted by the latest date and occurrence count
 $theme_query = "
     SELECT 
-        mi.group_label, 
-        mi.theme, 
-        mi.date AS issues_date,  
+        me.group_label, 
+        me.theme, 
+        me.date AS events_date,  
         kg.group_name AS keyword_group_name,
         SUBSTRING(kg.group_name, INSTR(kg.group_name, ' ') + 1) AS remaining_keywords,
-        mis.name AS stock_name, 
-        mis.code AS stock_code, 
-        mis.close_rate, 
-        mis.trade_amount,
-		MAX(mis.is_leader) OVER (PARTITION BY mi.theme, kg.group_name, mis.code) AS is_leader, -- leader 여부
-		MAX(mis.is_watchlist) OVER (PARTITION BY mi.theme, kg.group_name, mis.code) AS is_watchlist, -- 관심종목 여부
-        COUNT(mi.date) OVER (PARTITION BY mi.group_label) AS occurrence_count,  -- 그룹별 발생 건수 계산
-        MIN(mi.date) OVER (PARTITION BY kg.group_name) AS keyword_occurrence_date,  -- 키워드그룹별 최초 발생 일
-        COUNT(mi.date) OVER (PARTITION BY kg.group_name) AS keyword_occurrence_count  -- 키워드그룹별 종목 건수
+        mes.name AS stock_name, 
+        mes.code AS stock_code, 
+        mes.close_rate, 
+        mes.trade_amount,
+		MAX(mes.is_leader) OVER (PARTITION BY me.theme, kg.group_name, mes.code) AS is_leader, -- leader 여부
+		MAX(mes.is_watchlist) OVER (PARTITION BY me.theme, kg.group_name, mes.code) AS is_watchlist, -- 관심종목 여부
+        COUNT(me.date) OVER (PARTITION BY me.group_label) AS occurrence_count,  -- 그룹별 발생 건수 계산
+        MIN(me.date) OVER (PARTITION BY kg.group_name) AS keyword_occurrence_date,  -- 키워드그룹별 최초 발생 일
+        COUNT(me.date) OVER (PARTITION BY kg.group_name) AS keyword_occurrence_count  -- 키워드그룹별 종목 건수
     FROM 
-        market_issues mi
+        market_events me
     JOIN 
-        market_issue_stocks mis ON mis.issue_id = mi.issue_id
+        market_event_stocks mes ON mes.event_id = me.event_id
     LEFT JOIN 
-        keyword_groups kg ON mi.keyword_group_id = kg.group_id
+        keyword_groups kg ON me.keyword_group_id = kg.group_id
     WHERE 
-        mi.date BETWEEN '$startDate' AND '$endDate'
+        me.date BETWEEN '$startDate' AND '$endDate'
     AND 
-        (mis.trade_amount > 300)
+        $whereCriteria
     ORDER BY 
-        CASE WHEN mi.theme != '' THEN MAX(mi.date) OVER (PARTITION BY mi.group_label) ELSE 0 END DESC,  -- 그룹의 최신 날짜 순으로 정렬
+        CASE WHEN me.theme != '' THEN MAX(me.date) OVER (PARTITION BY me.group_label) ELSE 0 END DESC,  -- 그룹의 최신 날짜 순으로 정렬
         occurrence_count DESC,  -- 발생 건수 순으로 정렬
-        mi.group_label,
+        me.group_label,
 		keyword_occurrence_date DESC,
 		keyword_occurrence_count DESC, -- 키워드그룹별 종목 건수로 정렬
 		kg.group_name,
-		mi.date,
-		mis.close_rate";
+		me.date,
+		mes.close_rate";
 
 // Database_logQuery($theme_query, [$startDate, $endDate]);
 $group_result = $mysqli->query($theme_query);
@@ -49,7 +75,7 @@ $groups = [];
 while ($row = $group_result->fetch_assoc()) {
     $group = $row['group_label'];
     $theme = $row['theme'];
-    $issues_date = date('m/d', strtotime($row['issues_date']));
+    $events_date = date('m/d', strtotime($row['events_date']));
     $remaining_keywords = $row['remaining_keywords'];
     $stock_code = $row['stock_code'];
 
@@ -59,8 +85,8 @@ while ($row = $group_result->fetch_assoc()) {
     }
 
     // Add the theme date to the list of dates if not already added
-    if (!in_array($issues_date, $groups[$group]['dates'])) {
-        $groups[$group]['dates'][] = $issues_date;
+    if (!in_array($events_date, $groups[$group]['dates'])) {
+        $groups[$group]['dates'][] = $events_date;
     }
 
     // Initialize or update the stock entry
@@ -74,7 +100,6 @@ while ($row = $group_result->fetch_assoc()) {
             'symbols' => [],
         ];
     }
-
 
     // Define symbols based on close rate
     $symbols = [

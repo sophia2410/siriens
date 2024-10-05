@@ -1,14 +1,14 @@
 <?php
-require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
+require($_SERVER['DOCUMENT_ROOT']."/modules/common/database.php");
 
 error_log(print_r($_POST, true));
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     $action = $_POST['action'];
     $selected_date = $_POST['report_date'] ?? date('Y-m-d');
-    $issue_id = isset($issue_id) ?? '';
+    $event_id = isset($event_id) ?? '';
     
     // 리다이렉트 URL 설정
-    $redirectUrl = $_SERVER['HTTP_REFERER'] ?? "issue_register.php";
+    $redirectUrl = $_SERVER['HTTP_REFERER'] ?? "event_register.php";
 
     // HTTP_REFERER에 쿼리스트링이 있는지 확인
     $parsedUrl = parse_url($redirectUrl);
@@ -31,31 +31,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $group_id = handleKeywords($mysqli, $_POST['keyword'] ?? '');
 
             if ($action === 'register') {
-                // 오늘의 market_issues 테이블에 이미 해당 키워드 그룹이 등록되어 있는지 확인
-                $stmt = $mysqli->prepare("SELECT issue_id FROM market_issues WHERE date = ? AND keyword_group_id = ?");
+                // 오늘의 market_events 테이블에 이미 해당 키워드 그룹이 등록되어 있는지 확인
+                $stmt = $mysqli->prepare("SELECT min(event_id) event_id FROM market_events WHERE date = ? AND keyword_group_id = ?");
                 $stmt->bind_param('si', $date, $group_id);
                 $stmt->execute();
                 $result = $stmt->get_result();
         
                 if ($row = $result->fetch_assoc()) {
-                    // 이미 등록된 키워드 그룹이 있으면 해당 issue_id 사용
-                    $issue_id = $row['issue_id'];
+                    // 이미 등록된 키워드 그룹이 있으면 해당 event_id 사용
+                    $event_id = $row['event_id'];
                 } else {
-                    // 등록된 키워드 그룹이 없으면 새로 market_issues에 등록
-                    $issue_id = insertOrUpdateIssue($mysqli, $date, $issue, $first_occurrence, $link, $theme, $hot_theme, $group_id);
+                    // 등록된 키워드 그룹이 없으면 새로 market_events에 등록
+                    $event_id = insertOrUpdateEvent($mysqli, $date, $issue, $first_occurrence, $link, $theme, $hot_theme, $group_id);
                 }
             } elseif ($action === 'update') {
-                $issue_id = $_POST['issue_id'];
-                updateIssue($mysqli, $issue_id, $date, $issue, $first_occurrence, $link, $theme, $hot_theme, $group_id);
-                deleteStocks($mysqli, $issue_id); // 기존 종목 삭제
+                $event_id = $_POST['event_id'];
+                updateEvent($mysqli, $event_id, $date, $issue, $first_occurrence, $link, $theme, $hot_theme, $group_id);
+                deleteStocks($mysqli, $event_id); // 기존 종목 삭제
             }
 
-            handleStocks($mysqli, $issue_id, $_POST['stocks'] ?? [], $date);
+            handleStocks($mysqli, $event_id, $_POST['stocks'] ?? [], $date);
             $mysqli->commit();
 
             // 미사용 키워드 삭제
             try {
-                // 저장 프로시저 호출
                 $mysqli->query("CALL p_cleanup_unused_keywords();");
             
                 // 커밋
@@ -67,15 +66,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 echo "Error: " . $e->getMessage();
             }
 
-        } elseif ($action === 'copy_issue') {
+        } elseif ($action === 'copy_event') {
             // 복사 로직
-            $issue_id = $_POST['issue_id'];
-            $new_issue_id = copyIssue($mysqli, $issue_id);
+            $event_id = $_POST['event_id'];
+            $new_event_id = copyEvent($mysqli, $event_id);
             $mysqli->commit();
-        } elseif ($action === 'delete_issue') {
+        } elseif ($action === 'delete_event') {
             // 삭제 로직
-            $issue_id = $_POST['issue_id'];
-            deleteIssue($mysqli, $issue_id);
+            $event_id = $_POST['event_id'];
+            deleteEvent($mysqli, $event_id);
             $mysqli->commit();
 
             // 미사용 키워드 삭제
@@ -92,40 +91,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 echo "Error: " . $e->getMessage();
             }
         } elseif ($action === 'register_by_stock') {
-            $issues = $_POST['issues'] ?? [];  // 종목별로 등록 또는 수정할 데이터
+            $events = $_POST['events'] ?? [];  // 종목별로 등록 또는 수정할 데이터
             $selectedStocks = $_POST['selected_stocks'] ?? [];
 
             // 선택된 종목만 처리하도록 필터링
-            foreach ($issues as $group_code => $issue_data) {
+            foreach ($events as $group_code => $event_data) {
                 // 선택된 종목인지 확인
-                if (!in_array($issue_data['code'], $selectedStocks)) {
+                if (!in_array($event_data['code'], $selectedStocks)) {
                     continue; // 선택되지 않은 종목은 처리하지 않음
                 }
-                error_log("selectedStocks code={$issue_data['code']} name={$issue_data['name']}");
+                error_log("selectedStocks code={$event_data['code']} name={$event_data['name']}");
 
-                $isExisting = $issue_data['is_existing'] ?? '0';  // 등록 여부 확인
-                $issue_id = null;
+                $isExisting = $event_data['is_existing'] ?? '0';  // 등록 여부 확인
+                $event_id = null;
         
                 // 키워드 그룹 처리 (새로운 키워드 그룹 ID 구함)
-                $new_group_id = handleKeywords($mysqli, $issue_data['keyword'] ?? '');
-                // error_log("Result handleKeywords: keyword={$issue_data['keyword']} new_group_id={$new_group_id}");
+                $new_group_id = handleKeywords($mysqli, $event_data['keyword'] ?? '');
+                // error_log("Result handleKeywords: keyword={$event_data['keyword']} new_group_id={$new_group_id}");
         
                 // 기존 종목 데이터 확인
                 if ($isExisting === '1') {
                     // 기존 데이터 가져오기
-                    $issue_id = $issue_data['issue_id'];
-                    // error_log("Checking existing issue, issue_id={$issue_id}");
+                    $event_id = $event_data['event_id'];
+                    // error_log("Checking existing event, event_id={$event_id}");
         
                     $stmt = $mysqli->prepare("
-                        SELECT mi.keyword_group_id 
-                        FROM market_issues mi 
-                        WHERE mi.issue_id = ?
+                        SELECT me.keyword_group_id 
+                        FROM market_events me 
+                        WHERE me.event_id = ?
                     ");
-                    $stmt->bind_param('i', $issue_id);
+                    $stmt->bind_param('i', $event_id);
                     $stmt->execute();
                     $result = $stmt->get_result();
-                    $existingIssue = $result->fetch_assoc();
-                    $existing_group_id = $existingIssue['keyword_group_id'] ?? null;
+                    $existingEvent = $result->fetch_assoc();
+                    $existing_group_id = $existingEvent['keyword_group_id'] ?? null;
                     // error_log("Existing group ID: {$existing_group_id}, new group ID: {$new_group_id}");
         
                     // 기존 키워드 그룹과 새로운 그룹이 다른지 확인
@@ -135,46 +134,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     if ($isKeywordGroupChanged) {
                         // 키워드 그룹이 변경된 경우, 기존 키워드 그룹에서 해당 종목만 삭제
                         $stmt = $mysqli->prepare("
-                            DELETE FROM market_issue_stocks 
-                            WHERE issue_id = ? AND code = ?
+                            DELETE FROM market_event_stocks 
+                            WHERE event_id = ? AND code = ?
                         ");
-                        $stmt->bind_param('is', $issue_id, $issue_data['code']);
+                        $stmt->bind_param('is', $event_id, $event_data['code']);
                         $stmt->execute();
-                        // error_log("Deleted stock for issue_id={$issue_id} and code={$issue_data['code']}");
+                        // error_log("Deleted stock for event_id={$event_id} and code={$event_data['code']}");
         
                         // 새로운 키워드 그룹으로 이슈 업데이트
-                        $issue_id = insertOrUpdateIssue(
-                            $mysqli, $selected_date, '', 'N', '', $issue_data['theme'], 'N', $new_group_id
+                        $event_id = insertOrUpdateEvent(
+                            $mysqli, $selected_date, '', 'N', '', $event_data['theme'], 'N', $new_group_id
                         );
-                        // error_log("Inserted/Updated issue with new keyword group, issue_id={$issue_id}");
+                        // error_log("Inserted/Updated event with new keyword group, event_id={$event_id}");
                     } else {
                         // 키워드 그룹이 변경되지 않은 경우 기존 이슈 업데이트
-                        updateIssue(
-                            $mysqli, $issue_id, $selected_date, '', 'N', '', $issue_data['theme'], 'N', $existing_group_id
+                        updateEvent(
+                            $mysqli, $event_id, $selected_date, '', 'N', '', $event_data['theme'], 'N', $existing_group_id
                         );
-                        // error_log("Updated issue with existing keyword group, issue_id={$issue_id}");
+                        // error_log("Updated event with existing keyword group, event_id={$event_id}");
                     }
 
-                    // 기존 데이터 삭제 -- issue_register 처리루틴과 동일하게
-                    $stmt = $mysqli->prepare("DELETE FROM market_issue_stocks WHERE issue_id = ? AND code = ?");
-                    $stmt->bind_param('is', $issue_id, $issue_data['code']);
+                    // 기존 데이터 삭제 -- event_register 처리루틴과 동일하게
+                    $stmt = $mysqli->prepare("DELETE FROM market_event_stocks WHERE event_id = ? AND code = ?");
+                    $stmt->bind_param('is', $event_id, $event_data['code']);
                     $stmt->execute();
-                    // error_log("Delete stock, issue_id={$issue_id}, code={$issue_data['code']}");
+                    // error_log("Delete stock, event_id={$event_id}, code={$event_data['code']}");
         
                     // 종목 정보 업데이트
-                    handleStocks($mysqli, $issue_id, [$issue_data], $selected_date);
-                    // error_log("Handled stocks for issue_id={$issue_id}");
+                    handleStocks($mysqli, $event_id, [$event_data], $selected_date);
+                    // error_log("Handled stocks for event_id={$event_id}");
         
                 } else {
                     // 새로 등록해야 하는 경우
-                    $issue_id = insertOrUpdateIssue(
-                        $mysqli, $selected_date, '', 'N', '', $issue_data['theme'], 'N', $new_group_id
+                    $event_id = insertOrUpdateEvent(
+                        $mysqli, $selected_date, '', 'N', '', $event_data['theme'], 'N', $new_group_id
                     );
-                    // error_log("Inserted new issue, issue_id={$issue_id}");
+                    // error_log("Inserted new event, event_id={$event_id}");
         
                     // 종목 처리
-                    handleStocks($mysqli, $issue_id, [$issue_data], $selected_date);
-                    // error_log("Handled stocks for new issue_id={$issue_id}");
+                    handleStocks($mysqli, $event_id, [$event_data], $selected_date);
+                    // error_log("Handled stocks for new event_id={$event_id}");
                 }
             }
         
@@ -271,9 +270,9 @@ function handleKeywords($mysqli, $keywords_input) {
     return $group_id;
 }
 
-function insertOrUpdateIssue($mysqli, $date, $issue, $first_occurrence, $link, $theme, $hot_theme, $group_id) {
+function insertOrUpdateEvent($mysqli, $date, $issue, $first_occurrence, $link, $theme, $hot_theme, $group_id) {
 
-    error_log("call insertOrUpdateIssue: date={$date} issue={$issue} first_occurrence={$first_occurrence} link={$link} theme={$theme} hot_theme={$hot_theme} group_id={$group_id}");
+    error_log("call insertOrUpdateEvent: date={$date} issue={$issue} first_occurrence={$first_occurrence} link={$link} theme={$theme} hot_theme={$hot_theme} group_id={$group_id}");
 
     // group_label은 keyword_groups 테이블에서 첫 번째 키워드를 추출해 설정
     $stmt = $mysqli->prepare("SELECT group_name FROM keyword_groups WHERE group_id = ?");
@@ -288,28 +287,39 @@ function insertOrUpdateIssue($mysqli, $date, $issue, $first_occurrence, $link, $
         // group_label을 설정할 수 없으면 빈 값으로 처리
         $group_label = '';
     }
-    $stmt = $mysqli->prepare("SELECT issue_id FROM market_issues WHERE date = ? AND keyword_group_id = ? AND issue = ? AND theme = ?");
-    $stmt->bind_param('siss', $date, $group_id, $issue, $theme);
+    $stmt = $mysqli->prepare("SELECT event_id FROM market_events WHERE date = ? AND keyword_group_id = ?");
+    $stmt->bind_param('si', $date, $group_id);
     $stmt->execute();
     $result = $stmt->get_result();
 
     if ($row = $result->fetch_assoc()) {
-        return $row['issue_id'];
+
+        $stmt = $mysqli->prepare("
+            UPDATE market_events 
+            SET date = ?, issue = ?, first_occurrence = ?, link = ?, theme = ?, hot_theme = ?, keyword_group_id = ?, group_label = ?, status = 'registered' 
+            WHERE event_id = ?
+        ");
+
+        $stmt->bind_param('ssssssisi', $date, $issue, $first_occurrence, $link, $theme, $hot_theme, $group_id, $group_label, $row['event_id']);
+        if (!$stmt->execute()) {
+            throw new Exception("market_events 업데이트 실패: " . $stmt->error);
+        }
+        return $row['event_id'];
     } else {
         $stmt = $mysqli->prepare("
-            INSERT INTO market_issues (date, issue, first_occurrence, link, theme, hot_theme, keyword_group_id, group_label, status, create_dtime) 
+            INSERT INTO market_events (date, issue, first_occurrence, link, theme, hot_theme, keyword_group_id, group_label, status, create_dtime) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'registered', NOW())
         ");
         $stmt->bind_param('ssssssis', $date, $issue, $first_occurrence, $link, $theme, $hot_theme, $group_id, $group_label);
         if (!$stmt->execute()) {
-            throw new Exception("market_issues 삽입 실패: " . $stmt->error);
+            throw new Exception("market_events 삽입 실패: " . $stmt->error);
         }
         return $mysqli->insert_id;
     }
 }
 
-function updateIssue($mysqli, $issue_id, $date, $issue, $first_occurrence, $link, $theme, $hot_theme, $group_id) {
-    error_log("call updateIssue: issue={$issue} date={$date} first_occurrence={$first_occurrence} link={$link} theme={$theme} hot_theme={$hot_theme} group_id={$group_id}");
+function updateEvent($mysqli, $event_id, $date, $issue, $first_occurrence, $link, $theme, $hot_theme, $group_id) {
+    error_log("call updateEvent: issue={$issue} date={$date} first_occurrence={$first_occurrence} link={$link} theme={$theme} hot_theme={$hot_theme} group_id={$group_id}");
 
     // group_label은 keyword_groups 테이블에서 첫 번째 키워드를 추출해 설정
     $stmt = $mysqli->prepare("SELECT group_name FROM keyword_groups WHERE group_id = ?");
@@ -325,30 +335,29 @@ function updateIssue($mysqli, $issue_id, $date, $issue, $first_occurrence, $link
         $group_label = '';
     }
     $stmt = $mysqli->prepare("
-        UPDATE market_issues 
+        UPDATE market_events 
         SET date = ?, issue = ?, first_occurrence = ?, link = ?, theme = ?, hot_theme = ?, keyword_group_id = ?, group_label = ?, status = 'registered' 
-        WHERE issue_id = ?
+        WHERE event_id = ?
     ");
-    $stmt->bind_param('ssssssisi', $date, $issue, $first_occurrence, $link, $theme, $hot_theme, $group_id, $group_label, $issue_id);
+    $stmt->bind_param('ssssssisi', $date, $issue, $first_occurrence, $link, $theme, $hot_theme, $group_id, $group_label, $event_id);
     if (!$stmt->execute()) {
-        throw new Exception("market_issues 업데이트 실패: " . $stmt->error);
+        throw new Exception("market_events 업데이트 실패: " . $stmt->error);
     }
 }
 
-function handleStocks($mysqli, $issue_id, $stocks, $date) {
+function handleStocks($mysqli, $event_id, $stocks, $date) {
     foreach ($stocks as $stock) {
-        error_log("call handleStocks: Processing stock: issue_id={$issue_id}, code={$stock['code']}, name={$stock['name']}");
+        error_log("call handleStocks: Processing stock: event_id={$event_id}, code={$stock['code']}, name={$stock['name']}");
 
         $code = $stock['code'] ?? '';
         $name = $stock['name'] ?? '';
-        $sector = $stock['sector'] ?? ''; 
         $stock_comment = $stock['comment'] ?? '';
         $isLeader = isset($stock['is_leader']) ? '1' : '0'; 
         $isWatchlist = isset($stock['is_watchlist']) ? '1' : '0'; 
 
         // Ensure we have the necessary stock data
         if ($code !== '' && $name !== '') {
-            error_log("Stock data is valid: code={$code}, name={$name}, sector={$sector}, comment={$stock_comment}");
+            error_log("Stock data is valid: code={$code}, name={$name}, comment={$stock_comment}");
 
             // Retrieve high_rate, close_rate, volume, and amount from v_daily_price
             $priceQuery = "
@@ -376,18 +385,17 @@ function handleStocks($mysqli, $issue_id, $stocks, $date) {
                 $trade_amount = null;
             }
 
-            // Insert the data into market_issue_stocks
+            // Insert the data into market_event_stocks
             $stmt = $mysqli->prepare("
-                INSERT INTO market_issue_stocks 
-                (issue_id, code, name, sector, high_rate, close_rate, volume, trade_amount, stock_comment, is_leader, is_watchlist, date, registration_source, create_dtime) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'manual', NOW())
+                INSERT INTO market_event_stocks 
+                (event_id, code, name, high_rate, close_rate, volume, trade_amount, stock_comment, is_leader, is_watchlist, date, registration_source, create_dtime) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'manual', NOW())
             ");
             $stmt->bind_param(
-                'isssssddssss', 
-                $issue_id, 
+                'issssddssss', 
+                $event_id, 
                 $code, 
                 $name, 
-                $sector,
                 $high_rate, 
                 $close_rate, 
                 $volume, 
@@ -399,13 +407,12 @@ function handleStocks($mysqli, $issue_id, $stocks, $date) {
             );
 
             // Convert parameters to a string for logging
-            $params = sprintf("INSERT INTO market_issue_stocks 
-                (issue_id, code, name, sector, high_rate, close_rate, volume, trade_amount, stock_comment, is_leader, is_watchlist, date, registration_source, create_dtime) 
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'manual', NOW())",
-                $issue_id, 
+            $params = sprintf("INSERT INTO market_event_stocks 
+                (event_id, code, name, high_rate, close_rate, volume, trade_amount, stock_comment, is_leader, is_watchlist, date, registration_source, create_dtime) 
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'manual', NOW())",
+                $event_id, 
                 $code, 
                 $name, 
-                $sector,
                 $high_rate, 
                 $close_rate, 
                 $volume, 
@@ -420,8 +427,8 @@ function handleStocks($mysqli, $issue_id, $stocks, $date) {
             error_log("Prepared statement parameters: " . $params);
 
             if (!$stmt->execute()) {
-                error_log("Error inserting into market_issue_stocks: " . $stmt->error);
-                throw new Exception("market_issue_stocks 삽입 실패: " . $stmt->error);
+                error_log("Error inserting into market_event_stocks: " . $stmt->error);
+                throw new Exception("market_event_stocks 삽입 실패: " . $stmt->error);
             } else {
                 error_log("Stock successfully inserted: Code - {$code}");
             }
@@ -431,32 +438,32 @@ function handleStocks($mysqli, $issue_id, $stocks, $date) {
     }
 }
 
-function deleteStocks($mysqli, $issue_id) {
+function deleteStocks($mysqli, $event_id) {
 
-    error_log("call deleteStocks: issue_id={$issue_id}");
-    $stmt = $mysqli->prepare("DELETE FROM market_issue_stocks WHERE issue_id = ?");
-    $stmt->bind_param('i', $issue_id);
+    error_log("call deleteStocks: event_id={$event_id}");
+    $stmt = $mysqli->prepare("DELETE FROM market_event_stocks WHERE event_id = ?");
+    $stmt->bind_param('i', $event_id);
     if (!$stmt->execute()) {
-        throw new Exception("market_issue_stocks 삭제 실패: " . $stmt->error);
+        throw new Exception("market_event_stocks 삭제 실패: " . $stmt->error);
     }
 }
 
-function copyIssue($mysqli, $issue_id) {
+function copyEvent($mysqli, $event_id) {
 
-    error_log("call copyIssue: issue_id={$issue_id}");
-    $stmt = $mysqli->prepare("SELECT * FROM market_issues WHERE issue_id = ?");
-    $stmt->bind_param('i', $issue_id);
+    error_log("call copyEvent: event_id={$event_id}");
+    $stmt = $mysqli->prepare("SELECT * FROM market_events WHERE event_id = ?");
+    $stmt->bind_param('i', $event_id);
     $stmt->execute();
     $result = $stmt->get_result();
-    $issueData = $result->fetch_assoc();
+    $eventData = $result->fetch_assoc();
 
-    if (!$issueData) {
+    if (!$eventData) {
         throw new Exception("이슈를 찾을 수 없습니다.");
     }
 
     // group_label은 keyword_groups 테이블에서 첫 번째 키워드를 추출해 설정
     $stmt = $mysqli->prepare("SELECT group_name FROM keyword_groups WHERE group_id = ?");
-    $stmt->bind_param('i', $issueData['keyword_group_id']);
+    $stmt->bind_param('i', $eventData['keyword_group_id']);
     $stmt->execute();
     $result = $stmt->get_result();
 
@@ -469,18 +476,18 @@ function copyIssue($mysqli, $issue_id) {
     }
 
     $stmt = $mysqli->prepare("
-        INSERT INTO market_issues (date, issue, first_occurrence, link, theme, hot_theme, status, create_dtime, keyword_group_id, group_label) 
+        INSERT INTO market_events (date, issue, first_occurrence, link, theme, hot_theme, status, create_dtime, keyword_group_id, group_label) 
         VALUES (?, ?, ?, ?, ?, ?, 'copied', NOW(), ?, ?)
     ");
     $stmt->bind_param(
         'ssssssiss',
-        $issueData['date'],
-        $issueData['issue'],
-        $issueData['first_occurrence'],
-        $issueData['link'],
-        $issueData['theme'],
-        $issueData['hot_theme'],
-        $issueData['keyword_group_id'],
+        $eventData['date'],
+        $eventData['issue'],
+        $eventData['first_occurrence'],
+        $eventData['link'],
+        $eventData['theme'],
+        $eventData['hot_theme'],
+        $eventData['keyword_group_id'],
         $group_label
     );
 
@@ -488,21 +495,20 @@ function copyIssue($mysqli, $issue_id) {
         throw new Exception("이슈 복사 실패: " . $stmt->error);
     }
 
-    $new_issue_id = $mysqli->insert_id;
+    $new_event_id = $mysqli->insert_id;
 
-    $stmt = $mysqli->prepare("SELECT * FROM market_issue_stocks WHERE issue_id = ?");
-    $stmt->bind_param('i', $issue_id);
+    $stmt = $mysqli->prepare("SELECT * FROM market_event_stocks WHERE event_id = ?");
+    $stmt->bind_param('i', $event_id);
     $stmt->execute();
     $stocksResult = $stmt->get_result();
 
     while ($stock = $stocksResult->fetch_assoc()) {
-        $stmt = $mysqli->prepare("INSERT INTO market_issue_stocks (issue_id, code, name, sector, high_rate, close_rate, volume, trade_amount, stock_comment, date, registration_source, create_dtime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'manual', NOW())");
+        $stmt = $mysqli->prepare("INSERT INTO market_event_stocks (event_id, code, name, high_rate, close_rate, volume, trade_amount, stock_comment, date, registration_source, create_dtime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'manual', NOW())");
         $stmt->bind_param(
-            'isssssddss',
-            $new_issue_id,
+            'issssddss',
+            $new_event_id,
             $stock['code'],
             $stock['name'],
-            $stock['sector'],
             $stock['high_rate'],
             $stock['close_rate'],
             $stock['volume'],
@@ -516,16 +522,16 @@ function copyIssue($mysqli, $issue_id) {
         }
     }
 
-    return $new_issue_id;
+    return $new_event_id;
 }
 
-function deleteIssue($mysqli, $issue_id) {
+function deleteEvent($mysqli, $event_id) {
 
-    error_log("call copyIssue: issue_id={$issue_id}");
-    deleteStocks($mysqli, $issue_id);
+    error_log("call copyEvent: event_id={$event_id}");
+    deleteStocks($mysqli, $event_id);
 
-    $stmt = $mysqli->prepare("DELETE FROM market_issues WHERE issue_id = ?");
-    $stmt->bind_param('i', $issue_id);
+    $stmt = $mysqli->prepare("DELETE FROM market_events WHERE event_id = ?");
+    $stmt->bind_param('i', $event_id);
     if (!$stmt->execute()) {
         throw new Exception("이슈 삭제 실패: " . $stmt->error);
     }

@@ -194,6 +194,15 @@ input[type="checkbox"] {
     color: #6c757d;
 }
 
+a.no-underline {
+    text-decoration: none !important; /* 밑줄 제거 */
+    color: inherit !important; /* 부모 요소의 색상 상속 */
+    cursor: pointer !important; /* 커서를 포인터 모양으로 */
+}
+
+a.no-underline:hover {
+    text-decoration: underline; /* 마우스를 올렸을 때만 밑줄 표시 (필요 시) */
+}
 
 hr {
     border: none;
@@ -256,31 +265,31 @@ hr {
 
 /* 금액에 따른 스타일 */
 .amount-highest {
-    color: #ff0000 !important;
+    color: #d32f2f !important;
     font-weight: bold !important;
     text-align: right !important;
 } /* 2000억 이상 */
 
 .amount-high {
-    color: #ff7f00 !important;
+    color: #fb8c00 !important;
     font-weight: bold !important;
     text-align: right !important;
 } /* 1000억 이상 */
 
 .amount-medium-high {
-    color: #ffa500 !important;
+    color: #ffb300 !important;
     font-weight: bold !important;
     text-align: right !important;
 } /* 500억 이상 */
 
 .amount-medium {
-    color: #fcb9b2 !important;
+    color: #ef9a9a !important;
     font-weight: bold !important;
     text-align: right !important;
 } /* 150억 이상 */
 
 .amount-low {
-    color: #ffccd5 !important;
+    color: #ff8a80 !important;
     font-weight: bold !important;
     text-align: right !important;
 } /* 100억 이상 */
@@ -293,7 +302,7 @@ hr {
 
 /* 등락률에 따른 스타일 */
 .close-rate-high {
-    color: red !important;
+    color: #e53935 !important;
     text-align: right !important;
 } /* 종목 등락률 29.5% 이상 */
 
@@ -302,23 +311,24 @@ hr {
     text-align: right !important;
 } /* 종목 등락률 29.5% 이상 */
 
+/* 종목명에 따른 스타일 */
 .stock-name-high {
-    color: red !important;
+    color: #c62828 !important;
     font-weight: bold !important;
 } /* 종목 등락률 29.5% 이상 or 2000억 이상*/
 
 .stock-name-medium-high {
-    color: #ffa500 !important;
+    color: #fb8c00 !important;
     font-weight: bold !important;
 } /* 500억 이상 */
 
 .stock-name-medium {
-    color: #fcb9b2 !important;
+    color: #ef9a9a !important;
     font-weight: bold !important;
 } /* 150억 이상 */
 
 .stock-name-low {
-    color: #ffccd5 !important;
+    color: #ff8a80 !important;
     font-weight: bold !important;
 } /* 100억 이상 */
 

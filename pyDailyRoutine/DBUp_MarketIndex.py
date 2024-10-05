@@ -46,8 +46,8 @@ query_date = f"SELECT DATE_ADD(now(), INTERVAL +1 DAY)"
 cursor.execute(query_date)
 end_date= cursor.fetchone()[0].strftime('%Y-%m-%d')
 
-# start_date = '2023-12-15'
-# end_date = '2023-12-16'
+# start_date = '2024-10-02'
+# end_date = '2024-10-02'
 
 # 지수 코드와 티커를 딕셔너리로 저장
 index_dict = {
@@ -87,12 +87,22 @@ for index, ticker in index_dict.items():
             # index_korean 값을 사용하여 행을 선택함
             amount = trading_value.loc[index_korean]
 
-        # 'yyyymmdd' 형식의 문자열로 삽입
-        # insert 문에 trading_value 컬럼을 추가하고, row 변수를 삽입함
-        sql = f"INSERT IGNORE INTO market_index (market_fg, date, open, high, low, close, volume, close_rate, amount) VALUES ('{index}', '{date}', {row.Open}, {row.High}, {row.Low}, {row.Close}, {row.Volume}, {row.close_rate}, {amount})"
-        print(sql)
         # SQL 쿼리 실행
+        sql = f"""
+            INSERT INTO market_index (market_fg, date, open, high, low, close, volume, close_rate, amount)
+            VALUES ('{index}', '{date}', {row.Open}, {row.High}, {row.Low}, {row.Close}, {row.Volume}, {row.close_rate}, {amount})
+            ON DUPLICATE KEY UPDATE
+                open = VALUES(open),
+                high = VALUES(high),
+                low = VALUES(low),
+                close = VALUES(close),
+                volume = VALUES(volume),
+                close_rate = VALUES(close_rate),
+                amount = VALUES(amount)
+        """
+        print(sql)
         cursor.execute(sql)
+
     # DB에 반영
     db.commit()
 

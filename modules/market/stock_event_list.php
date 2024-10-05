@@ -1,33 +1,33 @@
 <?php
 $pageTitle = "종목별 이슈 조회"; // 페이지별 타이틀 설정
 require($_SERVER['DOCUMENT_ROOT']."/modules/common/common_header.php");
-require($_SERVER['DOCUMENT_ROOT']."/modules/issues/issue_register_form.php");
+require($_SERVER['DOCUMENT_ROOT']."/modules/market/event_register_form.php");
 
 // GET 파라미터로 넘어온 값 처리
 $stockName = $_GET['stock_name'] ?? '';
 $stockCode = $_GET['stock_code'] ?? '';
 
 // 종목명과 코드가 설정되어 있을 때만 이슈 조회 실행
-$issuesResult = [];
+$eventsResult = [];
 if ($stockCode) {
-    $issuesQuery = $mysqli->prepare("
-        SELECT mi.*, kg.group_name, mis.*
-        FROM market_issues mi 
-        LEFT JOIN keyword_groups kg ON mi.keyword_group_id = kg.group_id 
-        LEFT JOIN market_issue_stocks mis ON mi.issue_id = mis.issue_id 
-        WHERE mis.code = ? 
-        ORDER BY mi.date DESC, mi.hot_theme DESC, kg.group_name ASC
+    $eventsQuery = $mysqli->prepare("
+        SELECT me.*, kg.group_name, mes.*
+        FROM market_events me 
+        LEFT JOIN keyword_groups kg ON me.keyword_group_id = kg.group_id 
+        LEFT JOIN market_event_stocks mes ON me.event_id = mes.event_id 
+        WHERE mes.code = ? 
+        ORDER BY me.date DESC, me.hot_theme DESC, kg.group_name ASC
     ");
-    $issuesQuery->bind_param('s', $stockCode);
-    $issuesQuery->execute();
-    $issuesResult = $issuesQuery->get_result();
+    $eventsQuery->bind_param('s', $stockCode);
+    $eventsQuery->execute();
+    $eventsResult = $eventsQuery->get_result();
 }
 ?>
 
 <head>
     <!-- 페이지 전용 스타일 -->
     <style>
-        #issue_list_panel {
+        #event_list_panel {
             flex: 2;
             background-color: #f8f8f8;
             border-right: 1px solid #ddd;
@@ -35,7 +35,7 @@ if ($stockCode) {
             padding: 20px;
         }
 
-        #issue_details_panel {
+        #event_details_panel {
             flex: 1;
             background-color: #fff;
             padding: 20px;
@@ -55,19 +55,19 @@ if ($stockCode) {
             border-radius: 4px 0 0 4px;
         }
         
-        table.issue_list_table {
+        table.event_list_table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 15px;
         }
 
-        table.issue_list_table th, table.issue_list_table td {
+        table.event_list_table th, table.event_list_table td {
             border: 1px solid #ddd;
             padding: 8px;
             text-align: left;
         }
 
-        table.issue_list_table th {
+        table.event_list_table th {
             background-color: #f2f2f2;
         }
 
@@ -89,9 +89,9 @@ if ($stockCode) {
 <body>
     <div id="container">
         <!-- 종목 검색 및 이슈 리스트 -->
-        <div id="issue_list_panel">
+        <div id="event_list_panel">
             <h2>종목 이슈 조회</h2>
-            <form id="stock_search_form" method="get" action="stock_issue_list.php">
+            <form id="stock_search_form" method="get" action="stock_event_list.php">
                 <div class="search-bar">
                     <input type="text" id="stock_search_input" name="stock_name" value="<?= htmlspecialchars($stockName) ?>" placeholder="종목명/코드 입력" required autocomplete="off">
                     <input type="hidden" id="stock_code_input" name="stock_code" value="<?= htmlspecialchars($stockCode) ?>">
@@ -99,9 +99,9 @@ if ($stockCode) {
                 </div>
             </form>
 
-            <?php if ($stockCode && $issuesResult->num_rows > 0): ?>
+            <?php if ($stockCode && $eventsResult->num_rows > 0): ?>
                 <h3>이슈 리스트</h3>
-                <table class="issue_list_table">
+                <table class="event_list_table">
                     <thead>
                         <tr>
                             <th>날짜</th>
@@ -116,32 +116,32 @@ if ($stockCode) {
                         </tr>
                     </thead>
                     <tbody>
-                        <?php while ($issue = $issuesResult->fetch_assoc()): ?>
+                        <?php while ($event = $eventsResult->fetch_assoc()): ?>
                             <?php 
-                                $themeClass    = ($issue['hot_theme'] === 'Y') ? 'hot-theme' : '';
-                                $newIssueClass = ($issue['first_occurrence'] === 'Y') ? 'first-occurrence' : '';
+                                $themeClass    = ($event['hot_theme'] === 'Y') ? 'hot-theme' : '';
+                                $newEventClass = ($event['first_occurrence'] === 'Y') ? 'first-occurrence' : '';
 
                                 // 등락률 따른 스타일 클래스
-                                $closeRateClass = Utility_GetCloseRateClass($issue['close_rate']);
+                                $closeRateClass = Utility_GetCloseRateClass($event['close_rate']);
                                 // 금액에 따른 스타일 클래스
-                                $amountClass = Utility_GetAmountClass($issue['trade_amount']);
+                                $amountClass = Utility_GetAmountClass($event['trade_amount']);
 
-                                $isLeader = ($issue['is_leader'] === '1') ? 'Y' : '';
-                                $leaderClass = ($issue['is_leader'] === '1') ? 'leader' : '';
+                                $isLeader = ($event['is_leader'] === '1') ? 'Y' : '';
+                                $leaderClass = ($event['is_leader'] === '1') ? 'leader' : '';
 
-                                $isWatchlist = ($issue['is_watchlist'] === '1') ? 'Y' : '';
-                                $watchListClass = ($issue['is_watchlist'] === '1') ? 'watchlist' : '';
+                                $isWatchlist = ($event['is_watchlist'] === '1') ? 'Y' : '';
+                                $watchListClass = ($event['is_watchlist'] === '1') ? 'watchlist' : '';
                             ?>
-                            <tr onclick="IssueRegisterForm_LoadDetails(<?= $issue['issue_id'] ?>)" style="cursor: pointer;">
-                                <td><?= $issue['date'] ?></td>
-                                <td><?= htmlspecialchars($issue['group_name']) ?></td>
-                                <td class="<?= $themeClass; ?>"><?= htmlspecialchars($issue['theme']) ?></td>
-                                <td class="<?= $newIssueClass; ?>"><?= htmlspecialchars($issue['issue']) ?></td>
-                                <td class="<?= $closeRateClass; ?>"><?= number_format($issue['close_rate'], 2) ?>%</td>
-                                <td class="<?= $amountClass; ?>"><?= number_format($issue['trade_amount']) ?>억</td>
+                            <tr onclick="EventRegisterForm_LoadDetails(<?= $event['event_id'] ?>)" style="cursor: pointer;">
+                                <td><?= $event['date'] ?></td>
+                                <td><?= htmlspecialchars($event['group_name']) ?></td>
+                                <td class="<?= $themeClass; ?>"><?= htmlspecialchars($event['theme']) ?></td>
+                                <td class="<?= $newEventClass; ?>"><?= htmlspecialchars($event['issue']) ?></td>
+                                <td class="<?= $closeRateClass; ?>"><?= number_format($event['close_rate'], 2) ?>%</td>
+                                <td class="<?= $amountClass; ?>"><?= number_format($event['trade_amount']) ?>억</td>
                                 <td class="<?= $leaderClass; ?>"><?= $isLeader ?></td>
                                 <td class="<?= $watchListClass; ?>"><?= $isWatchlist ?></td>
-                                <td><?= htmlspecialchars($issue['stock_comment']) ?></td>
+                                <td><?= htmlspecialchars($event['stock_comment']) ?></td>
                             </tr>
                         <?php endwhile; ?>
                     </tbody>
@@ -152,13 +152,13 @@ if ($stockCode) {
         </div>
 
         <!-- 이슈 및 테마 등록 화면 -->
-        <div id="issue_details_panel">
-            <?php render_issue_register_form(); ?>
+        <div id="event_details_panel">
+            <?php render_event_register_form(); ?>
         </div>
     </div>
 
     <script>
-        function StockIssueList_Initialize() {
+        function StockEventList_Initialize() {
             console.log("상품 이슈 조회 초기화");
 
             document.getElementById('stock_search_input').addEventListener('input', function() {

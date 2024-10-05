@@ -18,11 +18,11 @@ if ($groupId && $newKeywords) {
     $result = $stmt->get_result();
 
     if ($row = $result->fetch_assoc()) {
-        // 동일한 그룹 이름이 존재하면 그 group_id로 기존 market_issues 업데이트
+        // 동일한 그룹 이름이 존재하면 그 group_id로 기존 market_events 업데이트
         $existingGroupId = $row['group_id'];
 
-        // market_issues의 keyword_group_id를 기존 그룹 ID로 업데이트
-        $stmt = $mysqli->prepare("UPDATE market_issues SET keyword_group_id = ? WHERE keyword_group_id = ?");
+        // market_events의 keyword_group_id를 기존 그룹 ID로 업데이트
+        $stmt = $mysqli->prepare("UPDATE market_events SET keyword_group_id = ? WHERE keyword_group_id = ?");
         $stmt->bind_param('ii', $existingGroupId, $groupId);
         $stmt->execute();
 

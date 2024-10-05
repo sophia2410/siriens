@@ -24,10 +24,10 @@ def get_latest_date(cursor):
     result = cursor.fetchone()
     return result[0].strftime('%Y-%m-%d') if result else None
 
-# Function to update the market_issue_stocks table with data from v_daily_price
-def update_market_issue_stocks(cursor, latest_date):
+# Function to update the market_event_stocks table with data from v_daily_price
+def update_market_event_stocks(cursor, latest_date):
     update_query = """
-        UPDATE market_issue_stocks mis
+        UPDATE market_event_stocks mis
         JOIN daily_price dp ON mis.code = dp.code AND mis.date = dp.date
         SET mis.high_rate = dp.high_rate,
             mis.close_rate = dp.close_rate,
@@ -48,9 +48,9 @@ def main():
         # Get the latest date from the calendar table
         latest_date = get_latest_date(cursor)
         if latest_date:
-            rows_updated = update_market_issue_stocks(cursor, latest_date)
+            rows_updated = update_market_event_stocks(cursor, latest_date)
             connection.commit()
-            print(f"Successfully updated {rows_updated} rows in market_issue_stocks for date {latest_date}.")
+            print(f"Successfully updated {rows_updated} rows in market_event_stocks for date {latest_date}.")
         else:
             print("No valid date found in calendar table.")
 

@@ -89,13 +89,13 @@ if($_SERVER["HTTP_HOST"] == 'localhost') {
         <!-- Sidebar Heading -->
         <div class="sidebar-heading">Market</div>
 
-        <li><a href="<?=$PATH?>modules/issues/market_report.php"><i class="fas fa-edit"></i> <span>마켓리포트</span></a></li>
-        <li><a href="<?=$PATH?>modules/issues/issue_register_by_stock.php"><i class="fas fa-edit"></i> <span>이슈 등록 by Stock</span></a></li>
-        <li><a href="<?=$PATH?>modules/issues/issue_register.php"><i class="fas fa-edit"></i> <span>이슈 등록</span></a></li>
-        <!-- <li><a href="<?=$PATH?>modules/issues/issue_list.php"><i class="fas fa-list"></i> <span>이슈 조회</span></a></li> -->
-        <li><a href="<?=$PATH?>modules/issues/stock_issue_list.php"><i class="fas fa-search"></i> <span>종목 이슈</span></a></li>
-        <li><a href="<?=$PATH?>modules/issues/keyword_group_list.php"><i class="fas fa-search"></i> <span>키워드 그룹</span></a></li>
-        <li><a href="<?=$PATH?>modules/issues/theme_report.php"><i class="fas fa-tags"></i> <span>테마 조회</span></a></li>
+        <li><a href="<?=$PATH?>modules/market/market_report.php"><i class="fas fa-edit"></i> <span>마켓리포트</span></a></li>
+        <li><a href="<?=$PATH?>modules/market/theme_report.php"><i class="fas fa-tags"></i> <span>테마 조회</span></a></li>
+        <li><a href="<?=$PATH?>modules/market/event_register_by_stock.php"><i class="fas fa-edit"></i> <span>이벤트 등록<br>(by Stock)</span></a></li>
+        <li><a href="<?=$PATH?>modules/market/event_register.php"><i class="fas fa-edit"></i> <span>이벤트 등록</span></a></li>
+        <li><a href="<?=$PATH?>modules/market/stock_event_list.php"><i class="fas fa-search"></i> <span>종목 조회</span></a></li>
+        <li><a href="<?=$PATH?>modules/market/issue_register.php"><i class="fas fa-edit"></i> <span>이슈 등록</span></a></li>
+        <li><a href="<?=$PATH?>modules/market/keyword_group_list.php"><i class="fas fa-search"></i> <span>키워드 그룹</span></a></li>
 
         <!-- Sidebar Divider -->
         <hr class="sidebar-divider">
@@ -121,6 +121,7 @@ if($_SERVER["HTTP_HOST"] == 'localhost') {
         <!-- Sidebar Heading -->
         <div class="sidebar-heading">Get Data</div>
 
+        <li><a href="<?=$PATH?>modules/market/trade_journal.php"><i class="fas fa-tags"></i> <span>매매일지 등록</span></a></li>
         <li><a href="<?=$PATH?>boot/siriens/getSignalReport.php"><i class="fas fa-tags"></i> <span>이브닝 등록</span></a></li>
     </ul>
 </div>

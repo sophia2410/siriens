@@ -4,34 +4,34 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 페이지별 초기화 함수 호출
 
-    // issue_register.php
-    if (typeof IssueRegister_Initialize === 'function') {
-        IssueRegister_Initialize();
+    // event_register.php
+    if (typeof EventRegister_Initialize === 'function') {
+        EventRegister_Initialize();
     }
-    // issue_register_form.php
-    if (typeof IssueRegisterForm_Initialize === 'function') {
-        IssueRegisterForm_Initialize();
+    // event_register_form.php
+    if (typeof EventRegisterForm_Initialize === 'function') {
+        EventRegisterForm_Initialize();
     }
-    // issue_register_popup.php
-    if (typeof IssueRegisterPopup_Initialize === 'function') {
-        IssueRegisterPopup_Initialize();
+    // event_register_popup.php
+    if (typeof EventRegisterPopup_Initialize === 'function') {
+        EventRegisterPopup_Initialize();
     }
-    // IssueRegisterByStock_Initialize.php
-    if (typeof IssueRegisterByStock_Initialize === 'function') {
-        IssueRegisterByStock_Initialize();
-    }
-
-    // issue_list.php
-    if (typeof IssueList_Initialize === 'function') {
-        IssueList_Initialize();
+    // EventRegisterByStock_Initialize.php
+    if (typeof EventRegisterByStock_Initialize === 'function') {
+        EventRegisterByStock_Initialize();
     }
 
-    // stock_issue_list.php
-    if (typeof StockIssueList_Initialize === 'function') {
-        StockIssueList_Initialize();
+    // event_list.php
+    if (typeof EventList_Initialize === 'function') {
+        EventList_Initialize();
     }
 
-    // stock_issue_list.php
+    // stock_event_list.php
+    if (typeof StockEventList_Initialize === 'function') {
+        StockEventList_Initialize();
+    }
+
+    // stock_event_list.php
     if (typeof ThemeReport_Initialize === 'function') {
         ThemeReport_Initialize();
     }
@@ -56,7 +56,6 @@ async function Common_SearchStock(event, input, callback = null) {
             if (stocks.length === 1) {
                 input.value = stocks[0].name; // 입력 칸에 종목명 설정
                 if (codeInput) codeInput.value = stocks[0].code; // 코드 설정
-                if (sectorInput) sectorInput.value = stocks[0].sector; // 섹터 설정 (옵션)
                 if (callback) callback(); // 콜백 함수 호출
             } else if (stocks.length > 1) {
                 Common_ShowStockPopup(stocks, input, codeInput, sectorInput, callback);
@@ -102,7 +101,6 @@ function Common_ShowStockPopup(stocks, nameInput, codeInput = null, sectorInput 
         btn.onclick = () => {
             nameInput.value = stock.name;
             if (codeInput) codeInput.value = stock.code;
-            if (sectorInput) sectorInput.value = stock.sector;
             document.body.removeChild(popup); // 선택 시 팝업 닫기
             if (callback) callback(); // 콜백 함수 호출
         };

@@ -48,31 +48,31 @@ $groupTypes = str_repeat('i', count($groupIds));
 $groupTypes.= 's';
 $groupparams = array_merge($groupIds, [$excludeDate]);
 
-// Query to fetch market issues and stocks related to these groups
+// Query to fetch market events and stocks related to these groups
 $query = "
     SELECT 
         kg.group_name, 
-        mis.code, 
-        mis.name, 
-        mis.date, 
-        mis.stock_comment
+        mes.code, 
+        mes.name, 
+        mes.date, 
+        mes.stock_comment
     FROM 
         keyword_groups kg
     INNER JOIN 
-        market_issues mi ON kg.group_id = mi.keyword_group_id
+        market_events me ON kg.group_id = me.keyword_group_id
     INNER JOIN 
-        market_issue_stocks mis ON mis.issue_id = mi.issue_id
+        market_event_stocks mes ON mes.event_id = me.event_id
     WHERE 
         kg.group_id IN ($groupPlaceholders)
-        AND mis.date = (
+        AND mes.date = (
             SELECT MAX(mis_sub.date)
-            FROM market_issue_stocks mis_sub
-            INNER JOIN market_issues mi_sub ON mis_sub.issue_id = mi_sub.issue_id
+            FROM market_event_stocks mis_sub
+            INNER JOIN market_events mi_sub ON mis_sub.event_id = mi_sub.event_id
             WHERE mi_sub.keyword_group_id = kg.group_id
             AND mi_sub.date != ?
         )
     ORDER BY 
-        kg.group_name, mis.date DESC
+        kg.group_name, mes.date DESC
 ";
 
 // Log the query and parameters
@@ -86,19 +86,19 @@ $result = $stmt->get_result();
 
 // Initialize variables
 $output = '';
-$currentIssue = null;
+$currentEvent = null;
 
 // Process each row in the result
 while ($row = $result->fetch_assoc()) {
     // Generate HTML for each group and its stocks
-    if ($currentIssue !== $row['group_name']) {
-        if ($currentIssue !== null) {
+    if ($currentEvent !== $row['group_name']) {
+        if ($currentEvent !== null) {
             $output .= '</tbody></table>';
         }
 
         $output .= '<h5>' . htmlspecialchars($row['group_name']) . '</h5>';
         $output .= '<table><thead><tr><th>종목명</th><th>코드</th><th>일자</th></tr></thead><tbody>';
-        $currentIssue = $row['group_name'];
+        $currentEvent = $row['group_name'];
     }
 
     $comment = htmlspecialchars($row['stock_comment']);
@@ -111,19 +111,19 @@ while ($row = $result->fetch_assoc()) {
     $output .= '</tr>';
 }
 
-if ($currentIssue !== null) {
+if ($currentEvent !== null) {
     $output .= '</tbody></table>';
 }
 
 
-// Query to fetch the most recent theme and sector for the identified exact group ID
+// Query to fetch the most recent theme for the identified exact group ID
 $themeQuery = "
-    SELECT mi.theme
-    FROM market_issues mi
+    SELECT me.theme
+    FROM market_events me
     JOIN keyword_groups kg
-    ON mi.keyword_group_id = kg.group_id
+    ON me.keyword_group_id = kg.group_id
     WHERE kg.group_name = ?
-    ORDER BY mi.date DESC
+    ORDER BY me.date DESC
     LIMIT 1
 ";
 

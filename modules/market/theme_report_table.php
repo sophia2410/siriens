@@ -2,41 +2,106 @@
 // table_view.php
 require($_SERVER['DOCUMENT_ROOT']."/modules/common/common_header_sub.php");
 
-$endDate = date('Y-m-d', time());
-$startDate = date('Y-m-d', strtotime('-15 days', time()));
+// $_GET['date']에서 받은 값 처리 (기본값은 오늘 날짜)
+$date = isset($_GET['date']) ? $_GET['date'] : date('Y-m-d');
+$criteria = isset($_GET['criteria']) ? $_GET['criteria'] : 'all';
+
+// 조회기준일자 구히가
+$query = "
+    SELECT MIN(c.date) AS start_date, MAX(c.date) AS end_date
+    FROM (
+        SELECT date
+        FROM calendar
+        WHERE date <= '$date'
+        ORDER BY date DESC
+        LIMIT 8
+    ) AS c;
+";
+
+$result = $mysqli->query($query);
+$row = $result->fetch_assoc();
+$startDate = $row['start_date'];
+$endDate = $row['end_date'];
+
+// 조회기준에 따른 조건문
+if ($criteria == 'all') {
+    $whereCriteria = "(mes.trade_amount > 500 OR mes.close_rate > 10)";
+} else {
+    $whereCriteria = "(mes.trade_amount > 1000 OR mes.is_leader = '1' OR mes.is_watchlist = '1')";
+}
+
+// 과거일자 순으로 종목 등장 순서 카운팅
+$past_order_query = "
+    SELECT 
+        me.group_label, 
+        me.date AS event_date, 
+        mes.code AS stock_code
+    FROM 
+        market_events me
+    JOIN 
+        market_event_stocks mes ON mes.event_id = me.event_id
+    WHERE 
+        me.date BETWEEN '$startDate' AND '$endDate'
+    AND 
+        $whereCriteria
+    ORDER BY 
+        me.date ASC;  -- 과거일자 순으로 정렬
+";
+
+$past_order_result = $mysqli->query($past_order_query);
+
+// 종목 등장 순서를 기록할 배열을 날짜별로 나눔
+$stock_appearance_order = [];
+$stock_appearance_by_date = [];
+
+while ($row = $past_order_result->fetch_assoc()) {
+    $event_date = $row['event_date'];
+    $stock_code = $row['stock_code'];
+
+    // 날짜별로 종목 등장 순서를 기록
+    if (!isset($stock_appearance_order[$stock_code])) {
+        $stock_appearance_order[$stock_code] = 1;
+    } else {
+        $stock_appearance_order[$stock_code]++;
+    }
+    $stock_appearance_by_date[$stock_code][$event_date] = "<font color=blue>".$stock_appearance_order[$stock_code]."</font>";
+}
+
 
 // Fetch groups with occurrence count and sorted by the latest date and occurrence count
 $theme_query = "
     SELECT 
-        mi.group_label, 
-        mi.date AS issue_date, 
-        mi.theme, 
-        mi.hot_theme, 
+        me.group_label, 
+        me.date AS event_date, 
+        me.theme, 
+        me.hot_theme, 
         kg.group_name AS keyword_group_name,
-        mis.name AS stock_name, 
-        mis.code AS stock_code, 
-        mis.close_rate, 
-        mis.trade_amount,
-        mis.is_leader,
-        mis.is_watchlist,
-        MAX(mi.date) OVER (PARTITION BY mi.group_label) AS last_occurrence_date,  -- 최신 날짜
-        SUM(mis.trade_amount) OVER (PARTITION BY mi.group_label, mi.date) AS daily_trade_amount,  -- 일별 거래량 합계
-        COUNT(mi.date) OVER (PARTITION BY mi.group_label, mi.date) AS occurrence_count  -- 발생 건수 계산
+        mes.name AS stock_name, 
+        mes.code AS stock_code, 
+        mes.close_rate, 
+        mes.trade_amount,
+        mes.is_leader,
+        mes.is_watchlist,
+        MAX(me.date) OVER (PARTITION BY me.group_label) AS last_occurrence_date,  -- 최신 날짜
+        SUM(mes.trade_amount) OVER (PARTITION BY me.group_label, me.date) AS daily_trade_amount,  -- 일별 거래량 합계
+        COUNT(me.date) OVER (PARTITION BY me.group_label, me.date) AS occurrence_count  -- 발생 건수 계산
     FROM 
-        market_issues mi
+        market_events me
     JOIN 
-        market_issue_stocks mis ON mis.issue_id = mi.issue_id
+        market_event_stocks mes ON mes.event_id = me.event_id
     LEFT JOIN 
-        keyword_groups kg ON mi.keyword_group_id = kg.group_id
+        keyword_groups kg ON me.keyword_group_id = kg.group_id
     WHERE 
-        mi.date BETWEEN '$startDate' AND '$endDate'
+        me.date BETWEEN '$startDate' AND '$endDate'
     AND 
-        (mis.trade_amount > 500 OR mis.close_rate > 10)
+        $whereCriteria
     ORDER BY 
-        mi.date DESC, -- 날짜를 우선 정렬, 최신 날짜가 먼저 오도록
+        me.date DESC, -- 날짜를 우선 정렬, 최신 날짜가 먼저 오도록
         daily_trade_amount DESC,  -- 일별 거래량 기준으로 강한 테마(섹터) 정렬
         occurrence_count DESC,  -- 발생 건수 순으로 정렬
         group_label,
+        is_leader DESC,
+        is_watchlist DESC,
         close_rate DESC;  -- 등락률 높은 순으로 정렬";
 
 $theme_result = $mysqli->query($theme_query);
@@ -56,6 +121,7 @@ $index_query = "
     ORDER BY 
         date ASC, market_fg ASC;
 ";
+// echo "$index_query";
 $index_result = $mysqli->query($index_query);
 
 $indices = [];
@@ -69,13 +135,12 @@ while ($row = $index_result->fetch_assoc()) {
 
 $groups = [];
 $dates = [];
-$stock_appearance_order = [];  // 종목이 날짜별로 등장하는 순서를 추적
 
 // 데이터 정렬 및 그룹화
 while ($row = $theme_result->fetch_assoc()) {
     $group_label = $row['group_label'];
     $theme = $row['theme'];
-    $issue_date = date('Y-m-d', strtotime($row['issue_date']));
+    $event_date = date('Y-m-d', strtotime($row['event_date']));
     $keyword_group_name = $row['keyword_group_name'];
     $stock_code = $row['stock_code'];
     $stock_name = $row['stock_name'];
@@ -87,21 +152,14 @@ while ($row = $theme_result->fetch_assoc()) {
         $groups[$group_label] = [];
     }
 
-    // Track the appearance order of the stock
-    if (!isset($stock_appearance_order[$stock_code])) {
-        $stock_appearance_order[$stock_code] = 1;
-    } else {
-        $stock_appearance_order[$stock_code]++;
-    }
-
     // Initialize or update the stock entry
-    if (!isset($groups[$group_label][$keyword_group_name][$issue_date])) {
-        $groups[$group_label][$keyword_group_name][$issue_date] = [];
+    if (!isset($groups[$group_label][$keyword_group_name][$event_date])) {
+        $groups[$group_label][$keyword_group_name][$event_date] = [];
     }
 
-    $groups[$group_label][$keyword_group_name][$issue_date][] = [
+    $groups[$group_label][$keyword_group_name][$event_date][] = [
         'theme' => $theme,
-        'stock_name' => $stock_name . $stock_appearance_order[$stock_code],  // Append the appearance order to the stock name
+        'stock_name' => $stock_name . $stock_appearance_by_date[$stock_code][$event_date],  // Append the appearance order to the stock name
         'close_rate' => number_format($row['close_rate'], 2) . "%",
         'trade_amount' => number_format($row['trade_amount']) . "억",
         'close_rate_css' => $row['close_rate'],
@@ -111,13 +169,10 @@ while ($row = $theme_result->fetch_assoc()) {
     ];
 
     // 날짜 저장
-    if (!in_array($issue_date, $dates)) {
-        $dates[] = $issue_date;
+    if (!in_array($event_date, $dates)) {
+        $dates[] = $event_date;
     }
 }
-
-// 날짜를 최신순으로 정렬
-rsort($dates);
 ?>
 
 <!DOCTYPE html>
@@ -211,7 +266,7 @@ rsort($dates);
                                         // 금액에 따른 스타일 클래스
                                         $amountClass = Utility_GetAmountClass($entry['trade_amount_css']);
                                         ?>
-                                        <span class="<?= $watchListClass ?> <?= $leaderClass ?>"><?= htmlspecialchars($entry['stock_name']) ?></span>
+                                        <span class="<?= $watchListClass ?> <?= $leaderClass ?>"><?= $entry['stock_name'] ?></span>
                                         (<span class="<?= $closeRateClass ?>"><?= htmlspecialchars($entry['close_rate']) ?></span>, <span class="<?= $amountClass ?>"><?= htmlspecialchars($entry['trade_amount']) ?></span>)
                                     </div>
                                 <?php endforeach; ?>
