@@ -151,7 +151,13 @@ $issueResult = $issueQuery->get_result();
                 <p class="issue-content"><?= nl2br(htmlspecialchars($issue['issue_content'], ENT_QUOTES | ENT_HTML401)); ?></p>
                 <p class="issue-keywords">
                     <?php foreach (Utility_GgetIssueKeywords($dateParam, $issue['issue_id']) as $keyword): ?>
-                        <span>#<?= htmlspecialchars($keyword['keyword'], ENT_QUOTES | ENT_HTML401); ?></span>
+                        <span>
+                            <a href="javascript:void(0);" class="no-underline"
+                                onclick="openKeywordPopup('<?= htmlspecialchars($keyword['keyword'], ENT_QUOTES | ENT_HTML401); ?>');">
+                                #<?= htmlspecialchars($keyword['keyword'], ENT_QUOTES | ENT_HTML401); ?>
+                                <?= $keyword['stock_cnt']; ?>
+                            </a>
+                        </span>
                     <?php endforeach; ?>
                 </p>
             </div>
@@ -236,6 +242,11 @@ require($_SERVER['DOCUMENT_ROOT'] . "/modules/common/common_footer.php");
             // 등록 모드에서는 화면 리로드
             document.getElementById('dateForm').submit();
         }
+    }
+    
+    function openKeywordPopup(keyword) {
+        const url = `keyword_group_list.php?keyword=${encodeURIComponent(keyword)}`;
+        window.open(url, '_blank');
     }
 </script>
 </body>

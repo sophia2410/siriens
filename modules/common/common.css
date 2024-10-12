@@ -276,14 +276,8 @@ hr {
     text-align: right !important;
 } /* 1000억 이상 */
 
-.amount-medium-high {
-    color: #ffb300 !important;
-    font-weight: bold !important;
-    text-align: right !important;
-} /* 500억 이상 */
-
 .amount-medium {
-    color: #ef9a9a !important;
+    color: #ffb300 !important;
     font-weight: bold !important;
     text-align: right !important;
 } /* 150억 이상 */
@@ -301,29 +295,35 @@ hr {
 
 
 /* 등락률에 따른 스타일 */
-.close-rate-high {
+.close-rate-highest {
     color: #e53935 !important;
+    font-weight: bold !important;
     text-align: right !important;
 } /* 종목 등락률 29.5% 이상 */
+
+.close-rate-high {
+    font-weight: bold !important;
+    text-align: right !important;
+} /* 종목 등락률 15.0% 이상 */
 
 .close-rate-lowest {
     color: inherit;
-    text-align: right !important;
-} /* 종목 등락률 29.5% 이상 */
+    text-align: right !important; /* 종목 등락률 29.5% 이상 */
+}
 
 /* 종목명에 따른 스타일 */
-.stock-name-high {
+.stock-name-highest {
     color: #c62828 !important;
     font-weight: bold !important;
 } /* 종목 등락률 29.5% 이상 or 2000억 이상*/
 
-.stock-name-medium-high {
+.stock-name-high {
     color: #fb8c00 !important;
     font-weight: bold !important;
 } /* 500억 이상 */
 
 .stock-name-medium {
-    color: #ef9a9a !important;
+    color: #ffb300 !important;
     font-weight: bold !important;
 } /* 150억 이상 */
 

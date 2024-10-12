@@ -15,7 +15,7 @@ require($_SERVER['DOCUMENT_ROOT']."/modules/common/common_header.php"); // 공�
                 <label for="stockCriteria">종목조회기준:</label>
                 <select id="stockCriteria">
                     <option value="all">전체</option>
-                    <option value="hot">Hot</option>
+                    <option value="hot" selected>Hot</option>
                 </select>
             </div>
 

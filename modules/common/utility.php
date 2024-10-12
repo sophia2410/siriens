@@ -6,8 +6,6 @@ function Utility_GetAmountClass($amountInBillion) {
     } elseif ($amountInBillion >= 1000) {
         return 'amount-high'; // 1000억 이상
     } elseif ($amountInBillion >= 500) {
-        return 'amount-medium-high'; // 500억 이상
-    } elseif ($amountInBillion >= 150) {
         return 'amount-medium'; // 150억 이상
     } elseif ($amountInBillion >= 100) {
         return 'amount-low'; // 100억 이상
@@ -19,7 +17,9 @@ function Utility_GetAmountClass($amountInBillion) {
 // 등락률에 따른 등락률 CSS 클래스 반환
 function Utility_GetCloseRateClass($closeRate) {
     if ($closeRate >= 29.5) {
-        return 'close-rate-high'; // 상한가
+        return 'close-rate-highest'; // 상한가
+    } elseif ($closeRate >= 15.0) {
+        return 'close-rate-high';
     } else {
         return 'close-rate-lowest'; // 100억 미만
     }
@@ -28,6 +28,8 @@ function Utility_GetCloseRateClass($closeRate) {
 // 등락률에 따른 종목명 CSS 클래스 반환
 function Utility_GetStockNameClass($closeRate) {
     if ($closeRate >= 29.5) {
+        return 'stock-name-highest';
+    } elseif ($closeRate >= 15.0) {
         return 'stock-name-high';
     } else {
         return 'stock-name-lowest';
@@ -36,9 +38,9 @@ function Utility_GetStockNameClass($closeRate) {
 // 등락률에 따른 종목명 CSS 클래스 반환
 function Utility_GetStockNameAmountClass($amountInBillion) {
     if ($amountInBillion >= 2000) {
-        return 'stock-name-high'; // 2000억 이상
+        return 'stock-name-highest'; // 2000억 이상
     } elseif ($amountInBillion >= 1000) {
-        return 'stock-name-medium-high'; // 1000억 이상
+        return 'stock-name-high'; // 1000억 이상
     } elseif ($amountInBillion >= 500) {
         return 'stock-name-medium'; // 500억 이상
     } elseif ($amountInBillion >= 100) {

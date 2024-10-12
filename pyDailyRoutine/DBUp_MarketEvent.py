@@ -76,13 +76,13 @@ def handle_keywords(cursor, keywords):
         return group_id
 
 # 이슈 삽입 및 업데이트 함수 (섹터 제외)
-def insert_or_update_event(cursor, date, issue, first_occurrence, link, theme, hot_theme, group_id):
-    # print(f"Inserting/updating issue: {issue} for date: {date}, theme: {theme}")
+def insert_or_update_event(cursor, date, theme, hot_theme, group_id):
+    # print(f"Inserting/updating for date: {date}, theme: {theme}")
 
     cursor.execute("""
         SELECT event_id FROM market_events 
-        WHERE date = %s AND keyword_group_id = %s AND issue = %s AND theme = %s
-    """, (date, group_id, issue, theme))
+        WHERE date = %s AND keyword_group_id = %s AND theme = %s
+    """, (date, group_id, theme))
     result = cursor.fetchone()
     
     if result:
@@ -90,9 +90,9 @@ def insert_or_update_event(cursor, date, issue, first_occurrence, link, theme, h
         return result[0]
     else:
         cursor.execute("""
-            INSERT INTO market_events (date, issue, first_occurrence, link, theme, hot_theme, keyword_group_id, status, create_dtime) 
-            VALUES (%s, %s, %s, %s, %s, %s, %s, 'registered', NOW())
-        """, (date, issue, first_occurrence, link, theme, hot_theme, group_id))
+            INSERT INTO market_events (date, theme, hot_theme, keyword_group_id, status, create_dtime) 
+            VALUES (%s, %s, %s, %s, 'registered', NOW())
+        """, (date, theme, hot_theme, group_id))
         event_id = cursor.lastrowid
         # print(f"Inserted new event with ID: {event_id}")
         return event_id
@@ -153,13 +153,11 @@ def process_events(db, df):
             if row['키워드']:
                 keywords = row['키워드']
                 theme = row['테마']
-                issue = row['이슈']
-                first_occurrence = 'Y' if row['신규이슈'] == 1 else 'N'
                 hot_theme = 'Y' if row['핫테마'] == 1 else 'N'
                 
                 # 새로운 그룹에 대해 event_id 생성
                 group_id = handle_keywords(cursor, keywords)
-                event_id = insert_or_update_event(cursor, date, issue, first_occurrence, '', theme, hot_theme, group_id)
+                event_id = insert_or_update_event(cursor, date, '', theme, hot_theme, group_id)
                 last_event_id = event_id
             else:
                 # 이전 event_id 사용

@@ -1,5 +1,5 @@
 <?php
-$pageTitle = "종목별 이슈 조회"; // 페이지별 타이틀 설정
+$pageTitle = "종목별 이벤트 조회"; // 페이지별 타이틀 설정
 require($_SERVER['DOCUMENT_ROOT']."/modules/common/common_header.php");
 require($_SERVER['DOCUMENT_ROOT']."/modules/market/event_register_form.php");
 
@@ -7,7 +7,7 @@ require($_SERVER['DOCUMENT_ROOT']."/modules/market/event_register_form.php");
 $stockName = $_GET['stock_name'] ?? '';
 $stockCode = $_GET['stock_code'] ?? '';
 
-// 종목명과 코드가 설정되어 있을 때만 이슈 조회 실행
+// 종목명과 코드가 설정되어 있을 때만 이벤트 조회 실행
 $eventsResult = [];
 if ($stockCode) {
     $eventsQuery = $mysqli->prepare("
@@ -71,11 +71,6 @@ if ($stockCode) {
             background-color: #f2f2f2;
         }
 
-        .first_occurrence {
-            font-weight: bold;
-            color: #e74c3c; /* 빨간색 */
-        }
-
         .hot_theme {
             background-color: #f39c12; /* 주황색 배경 */
             color: white;
@@ -88,9 +83,9 @@ if ($stockCode) {
 
 <body>
     <div id="container">
-        <!-- 종목 검색 및 이슈 리스트 -->
+        <!-- 종목 검색 및 이벤트 리스트 -->
         <div id="event_list_panel">
-            <h2>종목 이슈 조회</h2>
+            <h2>종목 이벤트 조회</h2>
             <form id="stock_search_form" method="get" action="stock_event_list.php">
                 <div class="search-bar">
                     <input type="text" id="stock_search_input" name="stock_name" value="<?= htmlspecialchars($stockName) ?>" placeholder="종목명/코드 입력" required autocomplete="off">
@@ -100,14 +95,13 @@ if ($stockCode) {
             </form>
 
             <?php if ($stockCode && $eventsResult->num_rows > 0): ?>
-                <h3>이슈 리스트</h3>
+                <h3>이벤트 리스트</h3>
                 <table class="event_list_table">
                     <thead>
                         <tr>
                             <th>날짜</th>
                             <th>키워드 그룹</th>
                             <th>테마</th>
-                            <th>이슈</th>
                             <th>등락률</th>
                             <th>거래대금</th>
                             <th>주도주</th>
@@ -119,7 +113,6 @@ if ($stockCode) {
                         <?php while ($event = $eventsResult->fetch_assoc()): ?>
                             <?php 
                                 $themeClass    = ($event['hot_theme'] === 'Y') ? 'hot-theme' : '';
-                                $newEventClass = ($event['first_occurrence'] === 'Y') ? 'first-occurrence' : '';
 
                                 // 등락률 따른 스타일 클래스
                                 $closeRateClass = Utility_GetCloseRateClass($event['close_rate']);
@@ -136,7 +129,6 @@ if ($stockCode) {
                                 <td><?= $event['date'] ?></td>
                                 <td><?= htmlspecialchars($event['group_name']) ?></td>
                                 <td class="<?= $themeClass; ?>"><?= htmlspecialchars($event['theme']) ?></td>
-                                <td class="<?= $newEventClass; ?>"><?= htmlspecialchars($event['issue']) ?></td>
                                 <td class="<?= $closeRateClass; ?>"><?= number_format($event['close_rate'], 2) ?>%</td>
                                 <td class="<?= $amountClass; ?>"><?= number_format($event['trade_amount']) ?>억</td>
                                 <td class="<?= $leaderClass; ?>"><?= $isLeader ?></td>
@@ -147,11 +139,11 @@ if ($stockCode) {
                     </tbody>
                 </table>
             <?php elseif ($stockCode): ?>
-                <p>해당 종목에 대한 이슈가 없습니다.</p>
+                <p>해당 종목에 대한 이벤트가 없습니다.</p>
             <?php endif; ?>
         </div>
 
-        <!-- 이슈 및 테마 등록 화면 -->
+        <!-- 이벤트 및 테마 등록 화면 -->
         <div id="event_details_panel">
             <?php render_event_register_form(); ?>
         </div>
@@ -159,7 +151,7 @@ if ($stockCode) {
 
     <script>
         function StockEventList_Initialize() {
-            console.log("상품 이슈 조회 초기화");
+            console.log("상품 이벤트 조회 초기화");
 
             document.getElementById('stock_search_input').addEventListener('input', function() {
                 // 종목명 변경 시 코드 초기화

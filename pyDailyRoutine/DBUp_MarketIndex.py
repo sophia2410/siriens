@@ -46,7 +46,7 @@ query_date = f"SELECT DATE_ADD(now(), INTERVAL +1 DAY)"
 cursor.execute(query_date)
 end_date= cursor.fetchone()[0].strftime('%Y-%m-%d')
 
-# start_date = '2024-10-02'
+# start_date = '2024-09-26'
 # end_date = '2024-10-02'
 
 # 지수 코드와 티커를 딕셔너리로 저장

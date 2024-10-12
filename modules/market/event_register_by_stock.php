@@ -34,20 +34,25 @@ $stocks = [];
 if ($dataSource === 'rate') {
     // 등락률 기준 데이터 조회
     $query = "
-        SELECT code, name, close_rate, volume, amount, source,
-               CASE WHEN amount > 1000 THEN '1' ELSE '0' END is_leader,
-               CASE WHEN close_rate > 15 THEN '1' ELSE '0' END is_watchlist
-        FROM v_daily_price
-        WHERE date = ?
-        AND ((amount > 30 AND close_rate > 7) OR (amount > 300 AND close_rate > 5))
-        ORDER BY close_rate DESC
+        SELECT code, MAX(name) AS name, MAX(close_rate) AS close_rate,  MAX(volume) AS volume, MAX(amount) AS amount 
+        FROM (
+                SELECT vdp.code, vdp.name, vdp.close_rate, vdp.volume, vdp.amount
+                FROM v_daily_price vdp
+                WHERE vdp.date = ?
+                AND ((vdp.amount > 30 AND vdp.close_rate > 7) OR (vdp.amount > 300 AND vdp.close_rate > 5))
+                UNION ALL
+                SELECT mes.code, mes.name, mes.close_rate, mes.volume, mes.trade_amount AS amount
+                FROM market_event_stocks mes
+                WHERE mes.date = ?
+            ) ua
+        GROUP BY code
     ";
     $stmt = $mysqli->prepare($query);
-    $stmt->bind_param('s', $reportDate);
+    $stmt->bind_param('ss', $reportDate, $reportDate);
 } else {
     // 엑셀 업로드된 데이터 조회
     $query = "
-        SELECT us.code, us.name, dp.close_rate, dp.volume, dp.amount, dp.source,
+        SELECT us.code, us.name, dp.close_rate, dp.volume, dp.amount,
                CASE WHEN dp.amount > 1000 THEN '1' ELSE '0' END is_leader,
                CASE WHEN dp.close_rate > 15 THEN '1' ELSE '0' END is_watchlist
         FROM market_event_upload us
@@ -81,6 +86,9 @@ foreach ($stocks as $stock) {
         'event_id' => '',
         'keyword_group_name' => '',
         'theme' => '',
+        'hot_theme' => '',
+        'is_leader' => '',
+        'is_watchlist' => '',
         'stock_comment' => '',
         'date' => 'N/A',
         'group_str' => $default_group_str
@@ -90,17 +98,16 @@ foreach ($stocks as $stock) {
         SELECT 
             me.event_id AS event_id,
             me.date AS date,
-            me.first_occurrence AS first_occurrence,
             me.group_label AS group_label,
             me.keyword_group_id AS keyword_group_id,
             kgm.group_name AS keyword_group_name,
             me.theme AS theme,
-            me.hot_theme AS hot_theme,
+            CASE WHEN me.date = ? THEN me.hot_theme ELSE 'N' END AS hot_theme,
             mes.code AS code,
             mes.name AS name,
             mes.stock_comment AS stock_comment,
-            mes.is_leader AS is_leader,
-            mes.is_watchlist AS is_watchlist,
+            CASE WHEN me.date = ? THEN mes.is_leader ELSE '0' END AS is_leader,
+            CASE WHEN me.date = ? THEN mes.is_watchlist ELSE '0' END AS is_watchlist,
             CASE 
                 WHEN ? = 'rate' THEN me.group_label
                 ELSE 'excel'
@@ -117,7 +124,7 @@ foreach ($stocks as $stock) {
         LIMIT 1
     ";
     $eventStmt = $mysqli->prepare($eventQuery);
-    $eventStmt->bind_param('sss', $dataSource, $code, $reportDate);
+    $eventStmt->bind_param('ssssss', $reportDate, $reportDate, $reportDate, $dataSource, $code, $reportDate);
     $eventStmt->execute();
     $eventResult = $eventStmt->get_result();
     
@@ -126,6 +133,9 @@ foreach ($stocks as $stock) {
             'event_id' => $event['event_id'] ?? '',
             'keyword_group_name' => $event['keyword_group_name'] ?? '',
             'theme' => $event['theme'] ?? '',
+            'hot_theme' => $event['hot_theme'] ?? 'N',
+            'is_leader' => $event['is_leader'] ?? '0',
+            'is_watchlist' => $event['is_watchlist'] ?? '0',
             'stock_comment' => $event['stock_comment'] ?? '',
             'date' => $event['date'] ?? 'N/A',
             'group_str' => $event['group_str'] ?? '개별주'
@@ -153,6 +163,9 @@ foreach ($events as $event) {
             'event_id' => $event['event_id'],
             'keyword_group_name' => $event['keyword_group_name'],
             'theme' => $event['theme'],
+            'hot_theme' => $event['hot_theme'],
+            'is_leader' => $event['is_leader'],
+            'is_watchlist' => $event['is_watchlist'],
             'stock_comment' => $event['stock_comment']
         ];
     } else {
@@ -161,12 +174,29 @@ foreach ($events as $event) {
     }
 }
 
-// 'rate' 기준의 경우 기존 로직 유지
+// 'rate' 기준의 경우 keyword_group_name을 기준으로 정렬
 if ($dataSource === 'rate') {
     // 각 테마 그룹 내에서 keyword_group_name을 기준으로 정렬
     foreach ($groups as &$groupEvents) {
         usort($groupEvents, function($a, $b) {
-            return strcmp($a['keyword_group_name'], $b['keyword_group_name']);
+            // 1. keyword_group_name으로 먼저 정렬 (오름차순)
+            $result = strcmp($a['keyword_group_name'], $b['keyword_group_name']);
+            if ($result !== 0) {
+                return $result; // keyword_group_name이 다르면 그대로 반환
+            }
+
+            // 2. is_leader로 정렬 (내림차순)
+            if ($a['is_leader'] !== $b['is_leader']) {
+                return $b['is_leader'] - $a['is_leader'];
+            }
+
+            // 3. is_watchlist로 정렬 (내림차순)
+            if ($a['is_watchlist'] !== $b['is_watchlist']) {
+                return $b['is_watchlist'] - $a['is_watchlist'];
+            }
+
+            // 4. trade_amount로 정렬 (내림차순)
+            return $b['trade_amount'] <=> $a['trade_amount'];
         });
     }
     unset($groupEvents);
@@ -175,7 +205,8 @@ if ($dataSource === 'rate') {
     uasort($groups, function($a, $b) {
         return count($b) - count($a);
     });
-} 
+}
+
 // 'excel' 기준일 때는 정렬을 생략하고 원래 순서대로 표시
 else if ($dataSource === 'excel') {
     // 엑셀 업로드된 데이터는 정렬 없이 출력
@@ -242,7 +273,6 @@ else if ($dataSource === 'excel') {
                         value="<?= htmlspecialchars($reportDate) ?>" 
                         onchange="document.getElementById('reportForm').submit();"> <!-- 조회일 변경 시 자동 제출 -->
 
-
                         <div class="radio-group">
                             <label><input type="radio" name="data_source" value="rate" <?= ($dataSource == 'rate') ? 'checked' : '' ?> onchange="document.getElementById('reportForm').submit();"> 등락률 기준</label>
                             <label><input type="radio" name="data_source" value="excel" <?= ($dataSource == 'excel') ? 'checked' : '' ?> onchange="document.getElementById('reportForm').submit();"> 엑셀 업로드 데이터</label>
@@ -265,13 +295,16 @@ else if ($dataSource === 'excel') {
             <table>
                 <thead>
                     <tr>
-                        <th width=80>선택</th>
-                        <th width=100>코드</th>
-                        <th width=200>종목명</th>
-                        <th width=80>등락률</th>
-                        <th width=90>거래대금</th>
+                        <th width=60>선택</th>
                         <th width=250>키워드</th>
                         <th width=150>테마</th>
+                        <th width=70>핫테마</th>
+                        <th width=100>코드</th>
+                        <th width=200>종목명</th>
+                        <th width=70>주도주</th>
+                        <th width=70>관.종</th>
+                        <th width=80>등락률</th>
+                        <th width=90>거래대금</th>
                         <th>종목코멘트</th>
                         <th width=100>등록일</th>
                     </tr>
@@ -280,7 +313,7 @@ else if ($dataSource === 'excel') {
                     <?php foreach ($groups as $group => $groupEvents): ?>
                         <!-- 테마별로 출력 -->
                         <tr style="background-color: #f4f4f4;">
-                            <td colspan="10"><strong>그룹: <?= htmlspecialchars($group) ?> (<?= count($groupEvents) ?> 종목)</strong></td>
+                            <td colspan="13"><strong>그룹: <?= htmlspecialchars($group) ?> (<?= count($groupEvents) ?> 종목)</strong></td>
                         </tr>
                         <?php foreach ($groupEvents as $event): ?>
                             <?php
@@ -289,6 +322,11 @@ else if ($dataSource === 'excel') {
                                 $stockNameClass = Utility_GetStockNameAmountClass($event['trade_amount']);
                                 $closeRateClass = Utility_GetCloseRateClass($event['close_rate']);
                                 $amountClass = Utility_GetAmountClass($event['trade_amount']);
+
+                                // 체크박스 상태 설정
+                                $hotThemeChecked = $event['hot_theme'] === 'Y' ? 'checked' : '';
+                                $isLeaderChecked = $event['is_leader'] === '1' ? 'checked' : '';
+                                $isWatchlistChecked = $event['is_watchlist'] === '1' ? 'checked' : '';
                             ?>
                             <tr <?= $is_existing ? 'class="highlighted-row"' : '' ?> class="event_register_stock_item">
                                 <td class="checkbox-cell">
@@ -297,14 +335,8 @@ else if ($dataSource === 'excel') {
                                     <input type="hidden" name="events[<?= htmlspecialchars($event['code']) ?>][event_id]" value="<?= $is_existing ? htmlspecialchars($event['event_id']) : '' ?>">
                                 </td>
                                 <td>
-                                    <input type="text" name="events[<?= htmlspecialchars($event['code']) ?>][code]" value="<?= htmlspecialchars($event['code']) ?>" style='width:70px;' readonly>
-                                    <input type="hidden" name="events[<?= htmlspecialchars($event['code']) ?>][name]" value="<?= htmlspecialchars($event['name']) ?>">
-                                </td>
-                                <td class="<?= $stockNameClass; ?>"><?= htmlspecialchars($event['name']) ?></td>
-                                <td class="<?= $closeRateClass; ?>"><?= number_format($event['close_rate'], 2) ?> %</td>
-                                <td class="<?= $amountClass; ?>"><?= number_format($event['trade_amount']) ?> 억</td>
-                                <td>
                                     <input type="text" name="events[<?= htmlspecialchars($event['code']) ?>][keyword]" placeholder="키워드 입력" 
+                                    class="input-text-bold"
                                     value="<?= htmlspecialchars($event['keyword_group_name']) ?>"
                                     data-original="<?= htmlspecialchars($event['keyword_group_name']) ?>" 
                                     oninput="checkForChanges(this)" autocomplete="off">
@@ -315,6 +347,31 @@ else if ($dataSource === 'excel') {
                                     data-original="<?= htmlspecialchars($event['theme']) ?>" 
                                     oninput="checkForChanges(this)" autocomplete="off">
                                 </td>
+                                <td class="checkbox-cell">
+                                    <label>
+                                        <input type="checkbox" name="events[<?= htmlspecialchars($event['code']) ?>][hot_theme]" data-original="<?= $event['hot_theme'] === 'Y' ? 'Y' : 'N' ?>" <?= $hotThemeChecked ?> oninput="checkForChanges(this)" >
+                                        Hot
+                                    </label>
+                                </td>
+                                <td>
+                                    <input type="text" name="events[<?= htmlspecialchars($event['code']) ?>][code]" value="<?= htmlspecialchars($event['code']) ?>" style='width:70px;' readonly>
+                                    <input type="hidden" name="events[<?= htmlspecialchars($event['code']) ?>][name]" value="<?= htmlspecialchars($event['name']) ?>">
+                                </td>
+                                <td class="<?= $stockNameClass; ?>"><?= htmlspecialchars($event['name']) ?></td>
+                                <td class="checkbox-cell">
+                                    <label>
+                                        <input type="checkbox" name="events[<?= htmlspecialchars($event['code']) ?>][is_leader]" data-original="<?= $event['is_leader'] === '1' ? '1' : '0' ?>" <?= $isLeaderChecked ?> oninput="checkForChanges(this)" >
+                                        ldr
+                                    </label>
+                                </td>
+                                <td class="checkbox-cell">
+                                    <label>
+                                        <input type="checkbox" name="events[<?= htmlspecialchars($event['code']) ?>][is_watchlist]" data-original="<?= $event['is_watchlist'] === '1' ? '1' : '0' ?>" <?= $isWatchlistChecked ?> oninput="checkForChanges(this)" >
+                                        W.L
+                                    </label>
+                                </td>
+                                <td class="<?= $closeRateClass; ?>"><?= number_format($event['close_rate'], 2) ?> %</td>
+                                <td class="<?= $amountClass; ?>"><?= number_format($event['trade_amount']) ?> 억</td>
                                 <td>
                                     <input type="text" name="events[<?= htmlspecialchars($event['code']) ?>][comment]" placeholder="종목 코멘트 입력" 
                                     onfocus="fetchStockComment(this)" 
@@ -389,11 +446,22 @@ function checkForChanges(input) {
     const themeInput = row.querySelector('input[name*="[theme]"]');
     const commentInput = row.querySelector('input[name*="[comment]"]');
 
+    const leaderCheckbox = row.querySelector('input[name*="[is_leader]"]');
+    const watchlistCheckbox = row.querySelector('input[name*="[is_watchlist]"]');
+    const hotThemeCheckbox = row.querySelector('input[name*="[hot_theme]"]');
+
+    // 입력 필드의 변경 여부 확인
     const keywordChanged = keywordInput.getAttribute('data-original') !== keywordInput.value;
     const themeChanged = themeInput.getAttribute('data-original') !== themeInput.value;
     const commentChanged = commentInput.getAttribute('data-original') !== commentInput.value;
 
-    if (keywordChanged || themeChanged || commentChanged) {
+    // 체크박스의 변경 여부 확인
+    const leaderChanged = leaderCheckbox.getAttribute('data-original') !== (leaderCheckbox.checked ? '1' : '0');
+    const watchlistChanged = watchlistCheckbox.getAttribute('data-original') !== (watchlistCheckbox.checked ? '1' : '0');
+    const hotThemeChanged = hotThemeCheckbox.getAttribute('data-original') !== (hotThemeCheckbox.checked ? 'Y' : 'N');
+
+    // 변경된 것이 하나라도 있으면 체크박스를 선택 상태로
+    if (keywordChanged || themeChanged || commentChanged || leaderChanged || watchlistChanged || hotThemeChanged) {
         checkbox.checked = true;
     } else {
         checkbox.checked = false;

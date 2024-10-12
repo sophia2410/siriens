@@ -3,7 +3,7 @@ require($_SERVER['DOCUMENT_ROOT']."/modules/common/common_header_sub.php");
 
 // $_GET['date']에서 받은 값 처리 (기본값은 오늘 날짜)
 $date = isset($_GET['date']) ? $_GET['date'] : date('Y-m-d');
-$criteria = isset($_GET['criteria']) ? $_GET['criteria'] : 'all';
+$criteria = isset($_GET['criteria']) ? $_GET['criteria'] : 'hot';
 
 // 조회기준일자 구히가
 $query = "

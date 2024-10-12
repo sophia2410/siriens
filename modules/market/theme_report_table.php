@@ -4,7 +4,7 @@ require($_SERVER['DOCUMENT_ROOT']."/modules/common/common_header_sub.php");
 
 // $_GET['date']에서 받은 값 처리 (기본값은 오늘 날짜)
 $date = isset($_GET['date']) ? $_GET['date'] : date('Y-m-d');
-$criteria = isset($_GET['criteria']) ? $_GET['criteria'] : 'all';
+$criteria = isset($_GET['criteria']) ? $_GET['criteria'] : 'hot';
 
 // 조회기준일자 구히가
 $query = "
@@ -108,18 +108,20 @@ $theme_result = $mysqli->query($theme_query);
 
 $index_query = "
     SELECT 
-        market_fg, 
-        date, 
-        close_rate, 
-        ROUND(amount / 1000000000000, 2) AS amount_in_trillion  -- 거래대금을 천억 단위로 변환
+        cl.date, 
+        mi.market_fg, 
+        IFNULL(mi.close_rate, 0.0) close_rate,
+        ROUND(IFNULL(mi.amount, 0) / 1000000000000, 2) AS amount_in_trillion  -- 거래대금을 천억 단위로 변환
     FROM 
-        market_index 
+        calendar cl
+    LEFT JOIN 
+        market_index mi
+    ON 
+        mi.date = cl.date AND mi.market_fg IN ('KOSPI', 'KOSDAQ')
     WHERE 
-        date BETWEEN '$startDate' AND '$endDate'
-    AND 
-        market_fg IN ('KOSPI', 'KOSDAQ')
+        cl.date BETWEEN '$startDate' AND '$endDate'
     ORDER BY 
-        date ASC, market_fg ASC;
+        cl.date ASC, mi.market_fg ASC;
 ";
 // echo "$index_query";
 $index_result = $mysqli->query($index_query);
@@ -219,23 +221,22 @@ while ($row = $theme_result->fetch_assoc()) {
 
                     <div style="font-size: 0.9em;">
                         <div style="margin-bottom: 5px;">
-                            <div style="font-weight: bold; color: <?= ($indices[$date]['KOSPI']['close_rate'][0] === '-') ? 'blue' : 'red'; ?>">
-                                KOSPI <?= $indices[$date]['KOSPI']['close_rate'] ?>
+                            <div style="font-weight: bold; color: <?= (isset($indices[$date]['KOSPI']) && $indices[$date]['KOSPI']['close_rate'][0] === '-') ? 'blue' : 'red'; ?>">
+                                KOSPI <?= isset($indices[$date]['KOSPI']) ? $indices[$date]['KOSPI']['close_rate'] : '데이터 없음' ?>
                             </div>
                             <div style="font-size: 0.8em; color: #666;">
-                                <?= $indices[$date]['KOSPI']['amount'] ?>
+                                <?= isset($indices[$date]['KOSPI']) ? $indices[$date]['KOSPI']['amount'] : '데이터 없음' ?>
                             </div>
                         </div>
                         <div style="border-top: 1px solid #eee; padding-top: 5px;">
-                            <div style="font-weight: bold; color: <?= ($indices[$date]['KOSDAQ']['close_rate'][0] === '-') ? 'blue' : 'red'; ?>">
-                                KOSDAQ <?= $indices[$date]['KOSDAQ']['close_rate'] ?>
+                            <div style="font-weight: bold; color: <?= (isset($indices[$date]['KOSDAQ']) && $indices[$date]['KOSDAQ']['close_rate'][0] === '-') ? 'blue' : 'red'; ?>">
+                                KOSDAQ <?= isset($indices[$date]['KOSDAQ']) ? $indices[$date]['KOSDAQ']['close_rate'] : '데이터 없음' ?>
                             </div>
                             <div style="font-size: 0.8em; color: #666;">
-                                <?= $indices[$date]['KOSDAQ']['amount'] ?>
+                                <?= isset($indices[$date]['KOSDAQ']) ? $indices[$date]['KOSDAQ']['amount'] : '데이터 없음' ?>
                             </div>
                         </div>
                     </div>
-                    
                 </th>
             <?php endforeach; ?>
         </tr>

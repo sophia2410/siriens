@@ -25,11 +25,6 @@ function render_event_register_form($dateParam = null, $event_id = null) {
         <label for="event_register_date">날짜:</label>
         <input type="date" id="event_register_date" name="report_date" value="<?= $dateParam ?>" required>
 
-        <label>
-        <input type="checkbox" name="new_issue" id="event_register_new_issue"> 신규 이벤트
-        </label>
-        <textarea id="event_register_issue" name="issue" rows="2" placeholder="이벤트"></textarea>
-
         <label for="event_register_keyword">키워드 (# 으로 구분):</label>
         <input type="text" id="event_register_keyword" name="keyword" placeholder="#키워드1 #키워드2" required autocomplete="off">
         <label for="event_register_theme">테마:</label>
@@ -190,10 +185,8 @@ function render_event_register_form($dateParam = null, $event_id = null) {
                     if (data.eventDetails) {
                         $('#event_register_date').val(data.eventDetails.date);
                         $('#event_register_keyword').val(data.eventDetails.keyword_group_name);
-                        $('#event_register_issue').val(data.eventDetails.issue);
                         $('#event_register_theme').val(data.eventDetails.theme);
                         $('#event_register_hot_theme').prop('checked', data.eventDetails.hot_theme === 'Y');
-                        $('#event_register_new_event').prop('checked', data.eventDetails.first_occurrence === 'Y');
                         $('#event_register_action').val('update');
                         $('#event_register_event_id').val(data.eventDetails.event_id);
                         

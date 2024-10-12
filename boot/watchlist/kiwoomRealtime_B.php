@@ -222,8 +222,8 @@ else {
 				SELECT m2.rate
 				FROM $tableToUse m2
 				WHERE m2.code = m.code
-					AND STR_TO_DATE(CONCAT(m2.date, m2.minute), '%Y%m%d%H%i') <= t.specific_datetime
-				ORDER BY STR_TO_DATE(CONCAT(m2.date, m2.minute), '%Y%m%d%H%i') DESC
+					AND STR_TO_DATE(CONCAT(REPLACE(m2.date, '-', ''), m2.minute), '%Y%m%d%H%i') <= t.specific_datetime
+				ORDER BY STR_TO_DATE(CONCAT(REPLACE(m2.date, '-', ''), m2.minute), '%Y%m%d%H%i') DESC
 				LIMIT 1
 				) AS rate -- 주어진 시간 이전의 가장 최근 rate
 			FROM

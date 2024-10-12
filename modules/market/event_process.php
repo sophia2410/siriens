@@ -23,9 +23,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         if ($action === 'register' || $action === 'update') {
             // 등록 및 수정 로직
             $date = $selected_date;
-            $issue = $_POST['issue'] ?? '';
-            $first_occurrence = isset($_POST['new_issue']) ? 'Y' : 'N';
-            $link = $_POST['link'] ?? '';
             $theme = $_POST['theme'] ?? '';
             $hot_theme = isset($_POST['hot_theme']) ? 'Y' : 'N';
             $group_id = handleKeywords($mysqli, $_POST['keyword'] ?? '');
@@ -37,16 +34,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $stmt->execute();
                 $result = $stmt->get_result();
         
-                if ($row = $result->fetch_assoc()) {
+                if ($row = $result->fetch_assoc() && !is_null($row['event_id'])) {
                     // 이미 등록된 키워드 그룹이 있으면 해당 event_id 사용
                     $event_id = $row['event_id'];
+                    error_log("Existing keyword group found. Using event_id: {$event_id}");
                 } else {
-                    // 등록된 키워드 그룹이 없으면 새로 market_events에 등록
-                    $event_id = insertOrUpdateEvent($mysqli, $date, $issue, $first_occurrence, $link, $theme, $hot_theme, $group_id);
+                    // event_id가 NULL이거나 결과가 없을 때 새로운 이벤트 등록
+                    error_log("No event_id found or no result found. Proceeding with new event registration.");
+                    $event_id = insertOrUpdateEvent($mysqli, $date, $theme, $hot_theme, $group_id);
                 }
             } elseif ($action === 'update') {
                 $event_id = $_POST['event_id'];
-                updateEvent($mysqli, $event_id, $date, $issue, $first_occurrence, $link, $theme, $hot_theme, $group_id);
+                updateEvent($mysqli, $event_id, $date, $theme, $hot_theme, $group_id);
                 deleteStocks($mysqli, $event_id); // 기존 종목 삭제
             }
 
@@ -104,6 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
                 $isExisting = $event_data['is_existing'] ?? '0';  // 등록 여부 확인
                 $event_id = null;
+                $hot_theme = isset($event_data['hot_theme']) ? 'Y' : 'N';
         
                 // 키워드 그룹 처리 (새로운 키워드 그룹 ID 구함)
                 $new_group_id = handleKeywords($mysqli, $event_data['keyword'] ?? '');
@@ -143,13 +143,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         
                         // 새로운 키워드 그룹으로 이슈 업데이트
                         $event_id = insertOrUpdateEvent(
-                            $mysqli, $selected_date, '', 'N', '', $event_data['theme'], 'N', $new_group_id
+                            $mysqli, $selected_date, $event_data['theme'], $hot_theme, $new_group_id
                         );
                         // error_log("Inserted/Updated event with new keyword group, event_id={$event_id}");
                     } else {
                         // 키워드 그룹이 변경되지 않은 경우 기존 이슈 업데이트
                         updateEvent(
-                            $mysqli, $event_id, $selected_date, '', 'N', '', $event_data['theme'], 'N', $existing_group_id
+                            $mysqli, $event_id, $selected_date, $event_data['theme'], $hot_theme, $existing_group_id
                         );
                         // error_log("Updated event with existing keyword group, event_id={$event_id}");
                     }
@@ -167,7 +167,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 } else {
                     // 새로 등록해야 하는 경우
                     $event_id = insertOrUpdateEvent(
-                        $mysqli, $selected_date, '', 'N', '', $event_data['theme'], 'N', $new_group_id
+                        $mysqli, $selected_date, $event_data['theme'], $hot_theme, $new_group_id
                     );
                     // error_log("Inserted new event, event_id={$event_id}");
         
@@ -270,9 +270,9 @@ function handleKeywords($mysqli, $keywords_input) {
     return $group_id;
 }
 
-function insertOrUpdateEvent($mysqli, $date, $issue, $first_occurrence, $link, $theme, $hot_theme, $group_id) {
+function insertOrUpdateEvent($mysqli, $date, $theme, $hot_theme, $group_id) {
 
-    error_log("call insertOrUpdateEvent: date={$date} issue={$issue} first_occurrence={$first_occurrence} link={$link} theme={$theme} hot_theme={$hot_theme} group_id={$group_id}");
+    error_log("call insertOrUpdateEvent: date={$date} theme={$theme} hot_theme={$hot_theme} group_id={$group_id}");
 
     // group_label은 keyword_groups 테이블에서 첫 번째 키워드를 추출해 설정
     $stmt = $mysqli->prepare("SELECT group_name FROM keyword_groups WHERE group_id = ?");
@@ -287,6 +287,7 @@ function insertOrUpdateEvent($mysqli, $date, $issue, $first_occurrence, $link, $
         // group_label을 설정할 수 없으면 빈 값으로 처리
         $group_label = '';
     }
+
     $stmt = $mysqli->prepare("SELECT event_id FROM market_events WHERE date = ? AND keyword_group_id = ?");
     $stmt->bind_param('si', $date, $group_id);
     $stmt->execute();
@@ -296,21 +297,21 @@ function insertOrUpdateEvent($mysqli, $date, $issue, $first_occurrence, $link, $
 
         $stmt = $mysqli->prepare("
             UPDATE market_events 
-            SET date = ?, issue = ?, first_occurrence = ?, link = ?, theme = ?, hot_theme = ?, keyword_group_id = ?, group_label = ?, status = 'registered' 
+            SET date = ?, theme = ?, hot_theme = ?, keyword_group_id = ?, group_label = ?, status = 'registered' 
             WHERE event_id = ?
         ");
 
-        $stmt->bind_param('ssssssisi', $date, $issue, $first_occurrence, $link, $theme, $hot_theme, $group_id, $group_label, $row['event_id']);
+        $stmt->bind_param('sssisi', $date, $theme, $hot_theme, $group_id, $group_label, $row['event_id']);
         if (!$stmt->execute()) {
             throw new Exception("market_events 업데이트 실패: " . $stmt->error);
         }
         return $row['event_id'];
     } else {
         $stmt = $mysqli->prepare("
-            INSERT INTO market_events (date, issue, first_occurrence, link, theme, hot_theme, keyword_group_id, group_label, status, create_dtime) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'registered', NOW())
+            INSERT INTO market_events (date, theme, hot_theme, keyword_group_id, group_label, status, create_dtime) 
+            VALUES (?, ?, ?, ?, ?, 'registered', NOW())
         ");
-        $stmt->bind_param('ssssssis', $date, $issue, $first_occurrence, $link, $theme, $hot_theme, $group_id, $group_label);
+        $stmt->bind_param('sssis', $date, $theme, $hot_theme, $group_id, $group_label);
         if (!$stmt->execute()) {
             throw new Exception("market_events 삽입 실패: " . $stmt->error);
         }
@@ -318,8 +319,8 @@ function insertOrUpdateEvent($mysqli, $date, $issue, $first_occurrence, $link, $
     }
 }
 
-function updateEvent($mysqli, $event_id, $date, $issue, $first_occurrence, $link, $theme, $hot_theme, $group_id) {
-    error_log("call updateEvent: issue={$issue} date={$date} first_occurrence={$first_occurrence} link={$link} theme={$theme} hot_theme={$hot_theme} group_id={$group_id}");
+function updateEvent($mysqli, $event_id, $date, $theme, $hot_theme, $group_id) {
+    error_log("call updateEvent: date={$date} theme={$theme} hot_theme={$hot_theme} group_id={$group_id}");
 
     // group_label은 keyword_groups 테이블에서 첫 번째 키워드를 추출해 설정
     $stmt = $mysqli->prepare("SELECT group_name FROM keyword_groups WHERE group_id = ?");
@@ -336,10 +337,10 @@ function updateEvent($mysqli, $event_id, $date, $issue, $first_occurrence, $link
     }
     $stmt = $mysqli->prepare("
         UPDATE market_events 
-        SET date = ?, issue = ?, first_occurrence = ?, link = ?, theme = ?, hot_theme = ?, keyword_group_id = ?, group_label = ?, status = 'registered' 
+        SET date = ?, theme = ?, hot_theme = ?, keyword_group_id = ?, group_label = ?, status = 'registered' 
         WHERE event_id = ?
     ");
-    $stmt->bind_param('ssssssisi', $date, $issue, $first_occurrence, $link, $theme, $hot_theme, $group_id, $group_label, $event_id);
+    $stmt->bind_param('sssisi', $date, $theme, $hot_theme, $group_id, $group_label, $event_id);
     if (!$stmt->execute()) {
         throw new Exception("market_events 업데이트 실패: " . $stmt->error);
     }
@@ -476,15 +477,12 @@ function copyEvent($mysqli, $event_id) {
     }
 
     $stmt = $mysqli->prepare("
-        INSERT INTO market_events (date, issue, first_occurrence, link, theme, hot_theme, status, create_dtime, keyword_group_id, group_label) 
-        VALUES (?, ?, ?, ?, ?, ?, 'copied', NOW(), ?, ?)
+        INSERT INTO market_events (date, theme, hot_theme, keyword_group_id, group_label, status, create_dtime) 
+        VALUES (?, ?, ?, ?, ?, 'copied', NOW())
     ");
     $stmt->bind_param(
-        'ssssssiss',
+        'sssis',
         $eventData['date'],
-        $eventData['issue'],
-        $eventData['first_occurrence'],
-        $eventData['link'],
         $eventData['theme'],
         $eventData['hot_theme'],
         $eventData['keyword_group_id'],
@@ -503,7 +501,7 @@ function copyEvent($mysqli, $event_id) {
     $stocksResult = $stmt->get_result();
 
     while ($stock = $stocksResult->fetch_assoc()) {
-        $stmt = $mysqli->prepare("INSERT INTO market_event_stocks (event_id, code, name, high_rate, close_rate, volume, trade_amount, stock_comment, date, registration_source, create_dtime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'manual', NOW())");
+        $stmt = $mysqli->prepare("INSERT INTO market_event_stocks (event_id, code, name, high_rate, close_rate, volume, trade_amount, stock_comment, date, registration_source, create_dtime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'manual', NOW())");
         $stmt->bind_param(
             'issssddss',
             $new_event_id,

@@ -91,10 +91,10 @@ if($_SERVER["HTTP_HOST"] == 'localhost') {
 
         <li><a href="<?=$PATH?>modules/market/market_report.php"><i class="fas fa-edit"></i> <span>마켓리포트</span></a></li>
         <li><a href="<?=$PATH?>modules/market/theme_report.php"><i class="fas fa-tags"></i> <span>테마 조회</span></a></li>
-        <li><a href="<?=$PATH?>modules/market/event_register_by_stock.php"><i class="fas fa-edit"></i> <span>이벤트 등록<br>(by Stock)</span></a></li>
+        <li><a href="<?=$PATH?>modules/market/issue_register.php"><i class="fas fa-edit"></i> <span>이슈 등록</span></a></li>
+        <li><a href="<?=$PATH?>modules/market/event_register_by_stock.php"><i class="fas fa-edit"></i> <span>이벤트 등록<br>[ by Stock ]</span></a></li>
         <li><a href="<?=$PATH?>modules/market/event_register.php"><i class="fas fa-edit"></i> <span>이벤트 등록</span></a></li>
         <li><a href="<?=$PATH?>modules/market/stock_event_list.php"><i class="fas fa-search"></i> <span>종목 조회</span></a></li>
-        <li><a href="<?=$PATH?>modules/market/issue_register.php"><i class="fas fa-edit"></i> <span>이슈 등록</span></a></li>
         <li><a href="<?=$PATH?>modules/market/keyword_group_list.php"><i class="fas fa-search"></i> <span>키워드 그룹</span></a></li>
 
         <!-- Sidebar Divider -->

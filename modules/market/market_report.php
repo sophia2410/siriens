@@ -28,10 +28,11 @@ $next_date = isset($next_date_row['date']) ? $next_date_row['date'] : null;
 
 
 // Fetch market comment, overview and titles
-$overview_query = "SELECT market_review, market_overview, us_market_overview, other_market_overview, morning_report_title, morning_news_link, evening_report_title FROM market_report WHERE date = '$report_date'";
+$overview_query = "SELECT market_review, sophia_review, market_overview, us_market_overview, other_market_overview, morning_report_title, morning_news_link, evening_report_title FROM market_report WHERE date = '$report_date'";
 $overview_result = $mysqli->query($overview_query);
 $overview_row = $overview_result->fetch_assoc();
 $market_review = isset($overview_row) ? $overview_row['market_review'] : '';
+$sophia_review = isset($overview_row) ? $overview_row['sophia_review'] : '';
 $market_overview = isset($overview_row) ? $overview_row['market_overview'] : '';
 $us_market_overview = isset($overview_row) ? $overview_row['us_market_overview'] : '';
 $other_market_overview = isset($overview_row) ? $overview_row['other_market_overview'] : '';
@@ -41,34 +42,35 @@ $evening_report_title = isset($overview_row) ? $overview_row['evening_report_tit
 
 // Fetch group data
 $group_query = "
-    SELECT theme_group.group_label,
-        theme_group.theme,
-        theme_group.issue,
-        theme_group.hot_theme,
-        theme_group.code,
-        theme_group.name,
-        theme_group.stock_comment,
-        theme_group.stock_change,
-        theme_group.stock_amount,
-        theme_group.hot_theme,
-        theme_group.is_leader,
-        theme_group.is_watchlist,
-        theme_group.keyword_group_name,
-        theme_group.remaining_keywords
+    SELECT tg.group_label,
+        tg.theme,
+        tg.hot_theme,
+        tg.code,
+        tg.name,
+        tg.stock_comment,
+        tg.stock_change,
+        tg.stock_amount,
+        tg.hot_theme,
+        tg.is_leader,
+        tg.is_watchlist,
+        tg.keyword_group_name,
+        tg.remaining_keywords
     FROM (
-        SELECT group_label, keyword_group_name, theme, issue, hot_theme, code, name, stock_comment, 
+        SELECT group_label, keyword_group_name, theme, hot_theme, code, name, stock_comment, 
             close_rate AS stock_change, trade_amount AS stock_amount, is_leader, is_watchlist,
+            MAX(trade_amount) OVER (PARTITION BY group_label) AS max_amount_group,
             MAX(trade_amount) OVER (PARTITION BY keyword_group_name) AS max_amount,
             SUBSTRING(keyword_group_name, INSTR(keyword_group_name, ' ') + 1) AS remaining_keywords
         FROM v_market_event
         WHERE date = '$report_date'
-    ) AS theme_group
-    ORDER BY theme_group.hot_theme DESC,   -- 핫테마 우선 정렬
-            theme_group.keyword_group_name ASC,   -- 키워드 이름 순서로 정렬
-            theme_group.max_amount DESC,   -- 키워드에서 최대 거래대금 키워드순 정렬
-            theme_group.is_leader DESC,    -- 주도주 종목 우선 정렬
-            theme_group.is_watchlist DESC, -- 관심종목 종목 우선 정렬
-            theme_group.stock_change DESC  -- 동일한 키워드 내에서 등락률 기준으로 종목 정렬
+    ) AS tg
+    ORDER BY tg.hot_theme DESC,        -- 핫테마 우선 정렬
+            tg.max_amount_group DESC,  -- 그룹 거래대금 우선 정렬
+            tg.keyword_group_name ASC, -- 키워드 이름 순서로 정렬
+            tg.max_amount DESC,   -- 키워드에서 최대 거래대금 키워드순 정렬
+            tg.is_leader DESC,    -- 주도주 종목 우선 정렬
+            tg.is_watchlist DESC, -- 관심종목 종목 우선 정렬
+            tg.stock_change DESC  -- 동일한 키워드 내에서 등락률 기준으로 종목 정렬
 ";
 $sector_result = $mysqli->query($group_query);
 $group_data = [];
@@ -135,7 +137,6 @@ else {
         $group_data[$row['group_label']][] = $row;
     }
 }
-
 // Fetch recent 5 days themes and stocks
 $recent_themes_query = "
     SELECT 
@@ -216,7 +217,6 @@ while ($row = $index_result->fetch_assoc()) {
     ];
 }
 
-
 // Fetch Market Issues
 $issueQuery = $mysqli->prepare("
     SELECT mi.*, kg.group_name 
@@ -229,7 +229,6 @@ $issueQuery = $mysqli->prepare("
 $issueQuery->bind_param('s', $report_date);
 $issueQuery->execute();
 $issueResult = $issueQuery->get_result();
-
 ?>
 
 <head>
@@ -237,7 +236,7 @@ $issueResult = $issueQuery->get_result();
     <style>
         #wrapper {
             display: grid;
-            grid-template-columns: 3fr 5fr 2fr;
+            grid-template-columns: 2fr 3fr 1fr;
             gap: 10px;
             padding: 10px;
             width: 99%;
@@ -248,24 +247,22 @@ $issueResult = $issueQuery->get_result();
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 10px;
+            margin-bottom: 0px;
         }
 
         #date-controls {
             display: flex;
-            flex-direction: column; /* 달력과 버튼이 위아래로 정렬 */
             align-items: center;
         }
 
         #date-navigation {
             display: flex;
-            gap: 10px; /* 버튼 간 간격 */
+            gap: 2px; /* 버튼 간 간격 */
             margin-top: 5px;
         }
 
         .nav-button {
             padding: 5px 10px;
-            font-size: 12px; /* 버튼을 작게 설정 */
             background-color: #ff5f5f;
             border: none;
             color: white;
@@ -274,19 +271,14 @@ $issueResult = $issueQuery->get_result();
 
         #report_date {
             width: 150px;
-            padding: 5px;
-            font-size: 14px;
+            padding: 10px;
+            font-size: 16px;
+            font-weight: bold;
             text-align: center;
         }
-
-        #save-controls {
-            display: flex;
-            align-items: center;
-        }
-
         #index-section {
             margin-top: 0;
-            flex: 1 1 80%; /* 지수 섹션의 넓이를 50%로 설정 */
+            flex: 1 1 80%; /* 지수 섹션의 넓이를 80%로 설정 */
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -294,24 +286,38 @@ $issueResult = $issueQuery->get_result();
 
         .index-item {
             flex: 1;
-            height: 90px; /* 텍스트 입력 영역의 높이를 크게 조정 */
-            text-align: center;
+            height: auto; /* 텍스트 영역의 높이 자동 조정 */
+            text-align: left; /* 왼쪽 정렬로 변경 */
             background: white;
             padding: 10px;
             border: 1px solid #ddd;
             margin: 0 10px;
+            display: flex; /* 플렉스 박스로 설정 */
+            justify-content: space-between; /* 왼쪽과 오른쪽에 각각 정렬 */
+            align-items: center; /* 수직 가운데 정렬 */
         }
 
-        #index-section h3 {
-            margin-bottom: 10px;
+        .market-name {
+            font-size: 1em;
+            margin-right: 10px; /* 마켓 이름과 데이터 사이 간격 */
+        }
+
+        .market-data {
+            font-size: 1.2em;
+        }
+
+        .market-amount {
+            font-size: 0.8em;
+            color: #666;
+            margin-top: 5px;
         }
 
         #left-content, #middle-content, #right-content {
             background-color: white;
             border: 1px solid #ddd;
             padding: 20px;
-            height: calc(100vh - 150px); /* 원하는 높이로 설정 (헤더, 인덱스 등 다른 요소들을 고려해서 조정) */
-            overflow-y: auto; /* 세로 스크롤이 생기게 설정 */
+            height: calc(100vh - 150px) !important; /* 원하는 높이로 설정 (헤더, 인덱스 등 다른 요소들을 고려해서 조정) */
+            overflow-y: auto !important; /* 세로 스크롤이 생기게 설정 */
             box-sizing: border-box; /* 패딩이 포함된 높이를 정확하게 계산 */
         }
 
@@ -319,7 +325,7 @@ $issueResult = $issueQuery->get_result();
             /* display: inline; 한 줄로 표시 */
             font-size: 20px;
             font-weight: bold;
-            margin-bottom: 20px;
+            margin-bottom: 10px;
             color: #242;
         }
 
@@ -341,16 +347,7 @@ $issueResult = $issueQuery->get_result();
         }
 
         #middle-content {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 20px;
-        }
-
-        .group-container {
-            display: flex;
-            flex-wrap: wrap;  /* 여러 줄을 사용할 수 있게 함 */
-            gap: 10px;  /* 카드 간격 */
-            justify-content: space-between;  /* 좌우 간격을 균일하게 분배 */
+            display: block; /* Masonry.js 적용을 위해 block 설정 */
         }
 
         .group-card {
@@ -358,9 +355,12 @@ $issueResult = $issueQuery->get_result();
             border: 1px solid #ddd;
             padding: 10px;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-            flex: 1 1 calc(33.33% - 20px);  /* 3열이 나오도록 설정 (100%를 3으로 나눈 값) */
-            min-width: 280px;  /* 최소 너비 설정 */
-            height: auto;
+            margin-bottom: 25px; /* 카드 간의 세로 간격 */
+            margin-right: 25px;  /* 카드 간의 가로 간격 */
+            width: 100%;
+            box-sizing: border-box;
+            min-width: 300px; /* 카드의 최소 너비 설정 */
+            max-width: 360px; /* 카드의 최대 너비 설정 */
         }
 
         .keyword-row h4 {
@@ -415,9 +415,10 @@ $issueResult = $issueQuery->get_result();
             margin-top: 5px;
         }
 
+        /* 테마별 카드의 스타일 */
         .recent-themes-container {
             background-color: #f4f4f9; /* Subtle background difference */
-            padding: 15px;
+            padding: 12px;
             border-radius: 8px;
         }
 
@@ -432,8 +433,7 @@ $issueResult = $issueQuery->get_result();
             background-color: #fff;
             border: 1px solid #ddd;
             padding: 15px;
-            width: calc(100% - 10px); /* 두 개씩 보여줄 수 있도록 넓이 조정 */
-            min-width: 300px;
+            width: 100%;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             transition: background-color 0.3s ease;
         }
@@ -449,15 +449,14 @@ $issueResult = $issueQuery->get_result();
         hr {
             border: none;
             border-top: 2px solid #ccc;
-            margin: 20px 20px; /* 수평선 위아래 간격 */
+            margin: 15px; /* 수평선 위아래 간격 */
         }
 
         /* Container for the Today's Issue title and Add Theme button */
-        .issues-header {
+        .flex-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 10px;
         }
 
         /* 이슈 리스트 */
@@ -500,12 +499,10 @@ $issueResult = $issueQuery->get_result();
             display: inline-block;
         }
     </style>
-
 </head>
 
 <body>
 <div id="container">
-
 <div id="wrapper">
     <!-- Date and Save Controls -->
     <div id="controls">
@@ -528,10 +525,6 @@ $issueResult = $issueQuery->get_result();
             </div>
         </div>
 
-        <div id="save-controls">
-            <button onclick="saveReport()">Save Report</button>
-        </div>
-
         <div id="index-section">
             <?php
             // 각 마켓의 이름과 관련된 정보를 배열로 설정
@@ -541,16 +534,20 @@ $issueResult = $issueQuery->get_result();
             foreach ($markets as $market) {
                 // Close Rate 색상을 빨간색(양수) 또는 파란색(음수)으로 구분
                 $color = (isset($index_data[$market]['close_rate']) && $index_data[$market]['close_rate'] < 0) ? 'blue' : 'red';
-                
+
                 // 마켓 이름을 기반으로 데이터 출력
                 echo "
-                <div class='index-item' style='font-weight: bold; color: $color;'>
-                    <h3>$market</h3>
-                    <p>" . (isset($index_data[$market]) ? number_format($index_data[$market]['close'],2)."(".htmlspecialchars($index_data[$market]['close_rate']) . '%)' : 'No data') . "</p>";
+                <div class='index-item'>
+                    <span class='market-name' style='font-weight: bold; color: black;'>$market</span>
+                    <span class='market-data' style='font-weight: bold; color: $color;'>
+                        " . (isset($index_data[$market]) ? number_format($index_data[$market]['close'],2)."(".htmlspecialchars($index_data[$market]['close_rate']) . '%)' : 'No data') . "
+                    </span>";
 
                 // 'KOSPI'와 'KOSDAQ'에 대해서만 Amount 출력
                 if (in_array($market, ['KOSPI', 'KOSDAQ'])) {
-                    echo "<p style='font-size: 0.8em; color: #666;'>" . (isset($index_data[$market]) ? htmlspecialchars($index_data[$market]['amount_in_trillion']) . '조' : '') . "</p>";
+                    echo "<p class='market-amount' style='font-size: 0.8em; color: #666;'>" . (isset($index_data[$market]) ? htmlspecialchars($index_data[$market]['amount_in_trillion']) . '조' : '') . "</p>";
+                } else {
+                    echo "<p class='market-amount' style='font-size: 0.8em; color: #666;'> &nbsp; </p>";
                 }
 
                 echo "</div>";
@@ -558,7 +555,6 @@ $issueResult = $issueQuery->get_result();
             ?>
         </div>
     </div>
-
     <!-- Morning Report 제목 -->
     <div id="left-content">
         <p class="report-content">
@@ -567,12 +563,13 @@ $issueResult = $issueQuery->get_result();
             </a>
         </p>
 
-        <h3>US Market Overview</h3>
+        <div class="flex-header">
+            <h3>US Market Overview</h3>
+            <button class="button-small" onclick="saveReport()">Save Report</button>
+        </div>
         <textarea id="us_market_overview"><?= htmlspecialchars($us_market_overview) ?></textarea>
-
         <h3>Other Market Overview</h3>
         <textarea class="small" id="other_market_overview"><?= htmlspecialchars($other_market_overview) ?></textarea>
-
         <h3>Market Overview</h3>
         <textarea id="market_overview"><?= htmlspecialchars($market_overview) ?></textarea>
         
@@ -581,15 +578,17 @@ $issueResult = $issueQuery->get_result();
         <p class="report-content"><?= htmlspecialchars($evening_report_title) ?></p>
 
         <h3>Market Review</h3>
-        <textarea class="large" id="market_review"><?= htmlspecialchars($market_review) ?></textarea>
+        <textarea id="market_review"><?= htmlspecialchars($market_review) ?></textarea>
+        <h3>Sophia Review</h3>
+        <textarea id="sophia_review"><?= htmlspecialchars($sophia_review) ?></textarea>
 
         <!-- Add the "Today's Themes" section here -->
         <hr>
 
         <!-- Today's Themes Section -->
-        <div class="issues-header">
+        <div class="flex-header">
             <h3>Today's Issues</h3>
-            <button id="add-theme-btn" class="button-green" onclick="window.open('issue_register.php?date=<?= htmlspecialchars($report_date) ?>', '_blank')">Add Issues</button>
+            <button class="button-small button-green" onclick="window.open('issue_register.php?date=<?= htmlspecialchars($report_date) ?>', '_blank')">Add Issues</button>
         </div>
         <!-- 이슈 리스트 -->
         <div id="issue_list_container">
@@ -603,10 +602,10 @@ $issueResult = $issueQuery->get_result();
                     <?php foreach (Utility_GgetIssueKeywords($report_date, $issue['issue_id']) as $keyword): ?>
                         <span>
                             <a href="javascript:void(0);" class="no-underline"
-                            onclick="openKeywordPopup('<?= htmlspecialchars($keyword['keyword'], ENT_QUOTES | ENT_HTML401); ?>');">
-                            #<?= htmlspecialchars($keyword['keyword'], ENT_QUOTES | ENT_HTML401); ?>
-                            <?= $keyword['stock_cnt']; ?>
-                        </a>
+                                onclick="openKeywordPopup('<?= htmlspecialchars($keyword['keyword'], ENT_QUOTES | ENT_HTML401); ?>');">
+                                #<?= htmlspecialchars($keyword['keyword'], ENT_QUOTES | ENT_HTML401); ?>
+                                <?= $keyword['stock_cnt']; ?>
+                            </a>
                         </span>
                     <?php endforeach; ?>
                 </p>
@@ -614,57 +613,54 @@ $issueResult = $issueQuery->get_result();
             <?php endwhile; ?>
         </div>
     </div>
+    <!-- Group and Stock Events (Masonry 적용) -->
+    <div id="middle-content">
+        <?php 
+        $current_group_label = '';  // 현재 출력 중인 group_label
+        $current_keyword = '';  // 현재 출력 중인 theme
 
+        foreach ($group_data as $group => $stocks): ?>
+            <div class="group-card">
+                <!-- 그룹 라벨을 먼저 출력 -->
+                <h3><?= htmlspecialchars($group) ?></h3>
 
-    <!-- Group and Stock Events (플렉스박스 형태로 구성) -->
-    
-    <div id="middle-content" class="group-container">
-    <?php 
-    $current_group_label = '';  // 현재 출력 중인 group_label
-    $current_keyword = '';  // 현재 출력 중인 theme
-
-    foreach ($group_data as $group => $stocks): ?>
-        <div class="group-card">
-            <!-- 그룹 라벨을 먼저 출력 -->
-            <h3><?= htmlspecialchars($group) ?></h3>
-
-            <?php foreach ($stocks as $stock): ?>
-                <?php if ($stock['remaining_keywords'] !== $current_keyword): ?>
-                    <!-- 테마가 바뀔 때마다 테마가 그룹 라벨과 다르면 출력 -->
-                    <div class="keyword-row">
-                        <h4 style="color: #888; margin-bottom: 10px;"><?= htmlspecialchars($stock['remaining_keywords']) ?></h4>
-                    </div>
-                    <?php $current_keyword = $stock['remaining_keywords']; // 새로운 테마 저장 ?>
-                <?php endif; ?>
-
-                <!-- 종목 출력 -->
-                <div class="stock-item">
-                    <div class="stock-row">
-                        <div class="stock-name <?= $stock['is_leader'] === '1' ? 'leader' : '' ?> <?= $stock['is_watchlist'] === '1' ? 'watchlist' : '' ?>">
-                            <?= htmlspecialchars($stock['name']) ?>
+                <?php foreach ($stocks as $stock): ?>
+                    <?php if ($stock['remaining_keywords'] !== $current_keyword): ?>
+                        <!-- 테마가 바뀔 때마다 테마가 그룹 라벨과 다르면 출력 -->
+                        <div class="keyword-row">
+                            <h4 style="color: #888; margin-bottom: 10px;"><?= htmlspecialchars($stock['remaining_keywords']) ?></h4>
                         </div>
-                        <div class="stock-change">
-                            <span class="<?= Utility_GetCloseRateClass($stock['stock_change']) ?>">
-                                <?= number_format($stock['stock_change'], 2) ?>%
-                            </span>
-                            <span class="stock-amount <?= Utility_GetAmountClass($stock['stock_amount']) ?>">
-                                (<?= number_format($stock['stock_amount']) ?>억)
-                            </span>
+                        <?php $current_keyword = $stock['remaining_keywords']; // 새로운 테마 저장 ?>
+                    <?php endif; ?>
+
+                    <!-- 종목 출력 -->
+                    <div class="stock-item">
+                        <div class="stock-row">
+                            <div class="stock-name <?= $stock['is_leader'] === '1' ? 'leader' : '' ?> <?= $stock['is_watchlist'] === '1' ? 'watchlist' : '' ?>">
+                                <?= htmlspecialchars($stock['name']) ?>
+                            </div>
+                            <div class="stock-change">
+                                <span class="<?= Utility_GetCloseRateClass($stock['stock_change']) ?>">
+                                    <?= number_format($stock['stock_change'], 2) ?>%
+                                </span>
+                                <span class="stock-amount <?= Utility_GetAmountClass($stock['stock_amount']) ?>">
+                                    (<?= number_format($stock['stock_amount']) ?>억)
+                                </span>
+                            </div>
+                        </div>
+                        <div class="stock-comment">
+                            <?= htmlspecialchars($stock['stock_comment']) ?>
                         </div>
                     </div>
-                    <div class="stock-comment">
-                        <?= htmlspecialchars($stock['stock_comment']) ?>
-                    </div>
-                </div>
-            <?php endforeach; ?>
-        </div>
-    <?php endforeach; ?>
-</div>
+                <?php endforeach; ?>
+            </div>
+        <?php endforeach; ?>
+    </div>
 
     <!-- Recent Themes and Stocks -->
     <div id="right-content">
+        <h3>최근 7일간의 주도주 및 관심종목</h3>
         <div class="recent-themes-container">
-            <h3>최근 7일간의 주도주 및 관심종목</h3>
             <div class="theme-list">
             <?php foreach($recent_themes as $theme => $stocks): ?>
                 <div class="theme-card">
@@ -672,7 +668,7 @@ $issueResult = $issueQuery->get_result();
                     <div class="stock-list">
                         <?php foreach ($stocks as $stock): ?>
                             <div class="stock-item">
-                                <span class="stock-name"><?= htmlspecialchars($stock['name']) ?> (<?= htmlspecialchars($stock['code']) ?>)</span>
+                                <span class="stock-name"><?= htmlspecialchars($stock['name']) ?> </span>
                                 <span class="stock-change"><?= number_format($stock['max_close_rate'], 2) ?>% </span>
                                 <span class="stock-amount"><?= number_format($stock['max_trade_amount']) ?>억</span>
                             </div>
@@ -706,11 +702,20 @@ $issueResult = $issueQuery->get_result();
         </table>
     </div> -->
 </div>
-
 </div>
 
+<!-- Masonry.js 라이브러리 추가 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/masonry/4.2.2/masonry.pkgd.min.js"></script>
 
+<!-- Masonry.js를 활용한 레이아웃 초기화 -->
 <script>
+    var elem = document.querySelector('#middle-content');
+    var msnry = new Masonry(elem, {
+        itemSelector: '.group-card', // 카드 셀렉터
+        columnWidth: '.group-card',  // 카드의 너비를 기준으로 배치
+        percentPosition: true        // 퍼센트 기반의 배치
+    });
+
     function search() {
         var selectedDate = document.getElementById('report_date').value;
         window.location.href = 'market_report.php?report_date=' + selectedDate;
@@ -722,8 +727,10 @@ $issueResult = $issueQuery->get_result();
         var us_market_overview_element = document.getElementById('us_market_overview');
         var other_market_overview_element = document.getElementById('other_market_overview');
         var market_review_element = document.getElementById('market_review');
+        var sophia_review_element = document.getElementById('sophia_review');
+        
 
-        if (!report_date_element || !market_overview_element || !us_market_overview_element || !other_market_overview_element || !market_review_element) {
+        if (!report_date_element || !market_overview_element || !us_market_overview_element || !other_market_overview_element || !market_review_element || !sophia_review_element) {
             console.error('One or more required elements are not found.');
             return;
         }
@@ -733,6 +740,7 @@ $issueResult = $issueQuery->get_result();
         var us_market_overview = us_market_overview_element.value;
         var other_market_overview = other_market_overview_element.value;
         var market_review = market_review_element.value;
+        var sophia_review = sophia_review_element.value;
 
         var xhr = new XMLHttpRequest();
         xhr.open('POST', 'market_process.php?action=save_report', true);
@@ -758,7 +766,8 @@ $issueResult = $issueQuery->get_result();
             '&market_overview=' + encodeURIComponent(market_overview) + 
             '&us_market_overview=' + encodeURIComponent(us_market_overview) + 
             '&other_market_overview=' + encodeURIComponent(other_market_overview) + 
-            '&market_review=' + encodeURIComponent(market_review)
+            '&market_review=' + encodeURIComponent(market_review) + 
+            '&sophia_review=' + encodeURIComponent(sophia_review)
         );
     }
 
@@ -777,5 +786,6 @@ $issueResult = $issueQuery->get_result();
         window.open(url, '_blank');
     }
 </script>
+
 </body>
 </html>
