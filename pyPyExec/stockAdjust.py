@@ -1,8 +1,9 @@
+# 수정주가 반영
+
 import yfinance as yf
 import pymysql
 import configparser
 from datetime import datetime
-
 # 1. 종목의 티커를 생성하는 함수 (코스피: .KS, 코스닥: .KQ)
 def create_ticker(code, market_fg):
     market_fg = market_fg.decode('utf-8')  # 바이트 스트링을 문자열로 변환
@@ -105,7 +106,7 @@ db = pymysql.connect(
 )
 
 # 7. 종목 코드 입력 및 데이터베이스에서 정보 가져오기
-code = "196170"  # 예시 종목 코드 (알테오젠)
+code = "028300" 
 min_date, max_date, market_fg = get_min_max_date_and_market(db, code)
 
 # 8. 시장 구분에 따른 티커 생성

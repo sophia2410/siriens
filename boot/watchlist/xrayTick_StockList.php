@@ -89,7 +89,7 @@ if($pgmId == '') {
 		// 가장 최근 0일차 상승이유
 		echo "<tr><td rowspan=2>";
 		if($row['group_key_str'] != '') {
-			$info_0day =" <b>(".$row['uprsn'].")</b> ".$row['close_rate_str']." / ".$row['tot_trade_amt_str']."</font>"." &nbsp; ";
+			$info_0day =" <b>(".$row['uprsn'].")</b> ".$row['close_rate_str']." / ".$row['trade_amount_str']."</font>"." &nbsp; ";
 		} else {
 			$info_0day = "<font class='h5'>&nbsp</font>";
 		}
@@ -98,7 +98,7 @@ if($pgmId == '') {
 		$realtime_data = "";
 		if($row['trade_date'] != '') {
 			$realtime_data = "<font class='h5'>".number_format($row['acc_trade_amount'])."억  &nbsp ".$row['trade_rate_str']." </font> &nbsp";
-			$realtime_data .= "<font class='text-dark'>".number_format($row['trade_price'])."&nbsp ".number_format($row['market_cap'],2)."&nbsp ".$row['trade_date']."</font> ";
+			$realtime_data .= "<font class='text-dark'>".number_format($row['market_cap'])."억 &nbsp ".$row['trade_date']."</font> ";
 		}
 
 		// 모차십 0일차 등록건이 있는 경우 건수 표시되게 함.
@@ -109,16 +109,14 @@ if($pgmId == '') {
 
 		$stock_name = $row['name'];
 
-		// xray_tick 조회 화면 연결
-		$xray_tick_detail1 = "<a href='../watchlist/xrayTick_stock.php?stock=".$row['code']."&stock_nm=".$stock_name."' onclick='window.open(this.href, \'stock\', '');return false;' target='_blank'>(→)</a>";
 		//그래프를 잘 보기 위해 팝업으로 연결
-		$xray_tick_detail2 = "<a href='#' onclick=\"window.open('../watchlist/xrayTick_Stock_L.php?page_fg=popup&code=".$row['code']."&name=".$stock_name."', 'stock', 'width=1400,height=1800,left=680,top=0,screenX=680,screenY=0,scrollbars=yes'); return false;\" target='_blank'>(+)</a>";
+		$xray_tick_detail = "<a href='#' onclick=\"window.open('../watchlist/xrayTick_Stock_L.php?page_fg=popup&code=".$row['code']."&name=".$stock_name."', 'stock', 'width=1400,height=1800,left=680,top=0,screenX=680,screenY=0,scrollbars=yes'); return false;\" target='_blank'>(+)</a>";
 
 		// echo "<div class='col-xl-3 col-md-6 mb-4' style='margin: 0; margin-left:10px margin-right:10px'>
 		echo "<div class='row no-gutters align-items-center'>
 				<div class='col mr-0'>
 					<div class='font-weight-bold text-primary text-uppercase mb-1' style='height:35px; line-height:35px;'>$mochaten_cnt
-						<font class='h4'><span class='draggable' id=stock_nm$d draggable='true'><b><a href='../siriens/stock_B.php?code=".$row['code']."&name=".$stock_name."&brWidth=2500' onclick='window.open(this.href, \'stock\', 'width=2500px,height=850,scrollbars=1,resizable=yes');return false;' target='_blank'>".$stock_name."</a></b></span></font> $xray_tick_detail1 $xray_tick_detail2 &nbsp;".$realtime_data."
+						<font class='h4'><a href=\"javascript:void(0);\" onclick=\"openStockPopup('{$row['code']}', '{$stock_name}')\">".$stock_name."</a></b></span></font> $xray_tick_detail &nbsp;".$realtime_data."
 					</div>
 					<div class='font-weight-bold mb-1 style='margin: 0;'>
 						$info_0day
@@ -135,7 +133,7 @@ if($pgmId == '') {
 		echo "</td>";
 
 		$code = $row['code'];  // 현재 행의 코드 사용
-		$zeroday_date = $row['0day_date'];  // 현재 행의 0day일자 사용
+		$zeroday_date = $row['date'];  // 현재 행의 0day일자 사용
 
 		// 종목 이슈 데이터 구해오기 // 0일차 이슈 구해오기
 		$today_issue = '';
@@ -191,7 +189,7 @@ if($pgmId == '') {
 		echo "<td width=60%>$today_issue</td></tr><tr><td>";
 
 		// X-RAY 순간체결 거래량 쿼리 실행
-		$query2 = "SELECT cal.date, DATE_FORMAT(cal.date, '%m-%d') mm_dd, xray.close_rate, xray.high_rate, xray.low_rate, xray.tot_trade_amt, xray.amount, xray.cnt
+		$query2 = "SELECT cal.date, DATE_FORMAT(cal.date, '%m-%d') mm_dd, xray.close_rate, xray.high_rate, xray.low_rate, xray.trade_amount, xray.amount, xray.cnt
 					FROM (
 						SELECT date
 						FROM calendar
@@ -200,15 +198,15 @@ if($pgmId == '') {
 						LIMIT 22
 					) cal
 					LEFT OUTER JOIN (
-						SELECT xr.code, xr.name, xr.date, dp.close_rate, dp.high_rate, dp.low_rate, 
-							ROUND(dp.amount / 100000000, 0) tot_trade_amt, 
+						SELECT dp.code, dp.date, dp.close_rate, dp.high_rate, dp.low_rate, 
+							ROUND(dp.amount / 100000000, 0) trade_amount, 
 							ROUND(xr.tot_amt / 100000000, 1) amount,  
 							xr.tot_cnt cnt
-						FROM kiwoom_xray_tick_summary xr
-						LEFT OUTER JOIN daily_price dp
+						FROM daily_price dp
+						LEFT OUTER JOIN kiwoom_xray_tick_summary xr
 						ON dp.date = xr.date
 						AND dp.code = xr.code
-						WHERE xr.code = '$code'
+						WHERE dp.code = '$code'
 					) xray
 					ON xray.date = cal.date
 					ORDER BY cal.date DESC";
@@ -237,9 +235,9 @@ if($pgmId == '') {
 					$rate_style = "";
 
 				// 총 거래대금에 따라 스타일 적용
-				if($row['tot_trade_amt'] > 1000)
+				if($row['trade_amount'] > 1000)
 					$tot_amt_style = "background-color:#ffccd5;";
-				else if($row['tot_trade_amt'] > 500)
+				else if($row['trade_amount'] > 500)
 					$tot_amt_style = "background-color:#fde2e4;";
 				else
 					$tot_amt_style = "";
@@ -254,7 +252,7 @@ if($pgmId == '') {
 
 				$xray_close_rate.= "<td align=center style='width:80px; height: 25px;' {$rate_style}>". $row['close_rate']."%</td>";
 				$xray_highlow_rate.= "<td align=center style='width:80px; height: 25px; font-size:10px'>{$row['high_rate']} / {$row['low_rate']}</td>";
-				$xray_tot_amount.= "<td align=center style='width:80px; height: 25px;{$tot_amt_style}'>". number_format($row['tot_trade_amt'])."억</td>";
+				$xray_tot_amount.= "<td align=center style='width:80px; height: 25px;{$tot_amt_style}'>". number_format($row['trade_amount'])."억</td>";
 				$xray_cnt       .= "<td align=center style='width:80px; height: 25px;'>". number_format($row['cnt'])."건</td>";
 				$xray_amount    .= "<td align=center style='width:80px; height: 25px;' class='"."$amt_style"."'>". number_format($row['amount'])."억</td>";
 			} else {
@@ -280,7 +278,7 @@ if($pgmId == '') {
 
 		
 		// 등록 코멘트 불러오기
-		$query = "SELECT comment, pick_yn, comment_date FROM kiwoom_xtay_tick_comments WHERE code = '$code' AND comment_date = '$today'";
+		$query = "SELECT comment, pick_yn, comment_date FROM kiwoom_xtay_tick_comments WHERE code = '$code' AND comment_date = '$search_date'";
 		$result = $mysqli->query($query);
 		if ($row = $result->fetch_assoc()) {
 			$comment = $row['comment'];
@@ -291,7 +289,7 @@ if($pgmId == '') {
 		}
 
 		// 최근 코멘트를 가져와서 표시하는 부분 추가
-		$query = "SELECT comment, pick_yn, comment_date FROM kiwoom_xtay_tick_comments WHERE code = '$code' AND comment_date < '$today' ORDER BY comment_date DESC LIMIT 1";
+		$query = "SELECT comment, pick_yn, comment_date FROM kiwoom_xtay_tick_comments WHERE code = '$code' AND comment_date < '$search_date' ORDER BY comment_date DESC LIMIT 1";
 		$result = $mysqli->query($query);
 		if ($row = $result->fetch_assoc()) {
 			$pick_yn = ($row['pick_yn'] =='Y') ? "<b><font color=red>PICK</font></b>" : "";
@@ -320,7 +318,7 @@ if($pgmId == '') {
 	echo "</table>";
 ?>
 	<input type="hidden" name='proc_fg'>
-	<input type="hidden" name='today' value='<?=$today?>'>
+	<input type="hidden" name='save_date' value='<?=$search_date?>'>
 	<input type="hidden" name='tot_cnt' value='<?=$d?>'>
 </form>
 <?php
@@ -356,6 +354,13 @@ function toggleImage(imgId, code) {
     } else {
         img.src = candleURL;
     }
+}
+
+
+// 종목명 클릭 시 팝업창
+function openStockPopup(code, name) {
+    var url = "/modules/market/stock_report_popup.php?code=" + encodeURIComponent(code) + "&name=" + encodeURIComponent(name);
+    window.open(url, 'StockDetail',  'width=2400, height=1400');
 }
 </script>
 </body>

@@ -12,8 +12,14 @@ function formatAmount(amount) {
 
 $(document).ready(function() {
     // HTML 요소에서 data-code와 data-name 값을 가져옵니다.
-    var code = $('#container').data('code');
-    var name = $('#container').data('name');
+    var code = $('#chart-container').data('code');
+    var name = $('#chart-container').data('name');
+
+    // 기본 설정 값
+    var selectedDefault = 2;
+    // chart-container에서 selected 값을 가져옴 (없으면 기본값 2로 설정)
+    var selectedValue = $('#chart-container').data('selected') || selectedDefault;
+
 // 기존 데이터 로드
 $.getJSON('/boot/common/ajax/ajaxHighcharts.php', { code: code, name: name }, function(response) {
     if (response.message) {
@@ -296,9 +302,9 @@ $.getJSON('/boot/common/ajax/ajaxHighcharts.php', { code: code, name: name }, fu
             }
         }
         // Highcharts 차트를 생성합니다.
-        var chart = Highcharts.stockChart('container', {
+        var chart = Highcharts.stockChart('chart-container', {
             rangeSelector: {
-                selected: 2, // 6개월 기본 조회로 설정
+                selected: selectedValue , // 동적으로 생성. 기본 6개월 조회로 설정
                 buttons: [{
                     type: 'month',
                     count: 1,

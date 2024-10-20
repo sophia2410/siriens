@@ -8,7 +8,6 @@ from datetime import datetime # 날짜와 시간을 다루기 위한 모듈
 config = configparser.ConfigParser()
 config.read('E:/Project/202410/www/boot/common/db/database_config.ini')
 
-# MySQL 데이터베이스에 연결합니다. 연결 정보는 자신의 환경에 맞게 수정하세요.
 db = pymysql.connect(
     host=config.get('database', 'host'),
     user=config.get('database', 'user'),

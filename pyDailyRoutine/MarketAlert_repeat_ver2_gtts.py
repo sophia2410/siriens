@@ -53,7 +53,7 @@ async def fetch_and_announce_alerts():
 
                     cursor.execute('''
                     SELECT 
-                        w.theme, s.code, s.name, last_min, minute_cnt,
+                        w.sector, s.code, s.name, last_min, minute_cnt,
                         ROUND(volume_sign_last_min * amount_last_min / 100, 0) AS amount_last_min,
                         ROUND(volume_sign_last_1min * amount_last_1min / 100, 0) AS amount_last_1min,
                         ROUND(amount_acc_day / 100, 0) amount_acc_day,
@@ -69,12 +69,12 @@ async def fetch_and_announce_alerts():
                             IFNULL(MAX(CASE WHEN minute = t.last_1min THEN acc_trade_amount ELSE NULL END) - MAX(CASE WHEN minute <= t.last_2min THEN acc_trade_amount ELSE 0 END), 0) AS amount_last_1min,
                             IFNULL(MAX(CASE WHEN minute <= t.last_min THEN acc_trade_amount ELSE NULL END), 0) AS amount_acc_day,
                             (
-                            SELECT m2.rate
-                            FROM kiwoom_realtime_minute m2
-                            WHERE m2.code = m.code AND 
-                                STR_TO_DATE(CONCAT(m2.date, m2.minute), '%%Y%%m%%d%%H%%i') <= t.specific_datetime
-                            ORDER BY STR_TO_DATE(CONCAT(m2.date, m2.minute), '%%Y%%m%%d%%H%%i') DESC
-                            LIMIT 1
+                                SELECT m2.rate
+                                FROM kiwoom_realtime_minute m2
+                                WHERE m2.code = m.code 
+                                AND CONCAT(m2.date, LPAD(m2.minute, 4, '0')) <= DATE_FORMAT(t.specific_datetime, '%%Y%%m%%d%%H%%i')
+                                ORDER BY CONCAT(m2.date, LPAD(m2.minute, 4, '0')) DESC 
+                                LIMIT 1
                             ) AS rate -- 주어진 시간 이전의 가장 최근 rate
                         FROM
                             kiwoom_realtime_minute m
@@ -98,7 +98,7 @@ async def fetch_and_announce_alerts():
                         ON
                             s.code = g.code
                         JOIN
-                            (SELECT code, MIN(theme) theme FROM watchlist_sophia WHERE realtime_yn = 'Y' or sector in( '5 끼있는친구들1', '6 끼있는친구들2') GROUP BY code) w
+                            (SELECT code, MIN(group_label) sector FROM v_market_event GROUP BY code) w
                         ON
                             w.code = g.code
                         WHERE
@@ -106,22 +106,22 @@ async def fetch_and_announce_alerts():
                             amount_last_min > 500 AND
                             ROUND(volume_sign_last_min * amount_last_min / 100, 0) > 0 AND 
                             ROUND(volume_sign_last_1min * amount_last_1min / 100, 0) >= 0
-                        ORDER BY theme, amount_acc_day DESC, rate DESC;
+                        ORDER BY sector, amount_acc_day DESC, rate DESC;
                     ''', (test_datetime,))
                     results = cursor.fetchall()
 
-                    # Group results by theme
+                    # Group results by sector
                     grouped_results = {}
                     for result in results:
-                        theme = result['theme'].decode('utf-8')
-                        if theme not in grouped_results:
-                            grouped_results[theme] = []
-                        grouped_results[theme].append(result)
+                        sector = result['sector'].decode('utf-8')
+                        if sector not in grouped_results:
+                            grouped_results[sector] = []
+                        grouped_results[sector].append(result)
                         
                     audio_messages = []
 
-                    # Generate and send messages for each theme
-                    for theme, items in grouped_results.items():
+                    # Generate and send messages for each sector
+                    for sector, items in grouped_results.items():
                         messages = []
                         for item in items:
                             date = current_time.strftime('%Y%m%d')
@@ -129,7 +129,7 @@ async def fetch_and_announce_alerts():
                             code = item['code'].decode('utf-8')
                             name = item['name'].decode('utf-8')
                             rate = item['rate']
-                            rounded_rate = round(rate, 0)
+                            rounded_rate = round(rate, 0) if rate is not None else 0  # None일 경우 0으로 대체
                             minute_cnt = item['minute_cnt']
                             acc_amount = item['amount_acc_day']
                             amount_last_min = item['amount_last_min']
@@ -154,8 +154,8 @@ async def fetch_and_announce_alerts():
                             message = f"[{name_str}] {rate}%, {amount_last_min_str}/{acc_amount}억, {minute_cnt}건"
                             messages.append(message)
                         
-                        # Join messages for the same theme
-                        final_message = f"{message_minute} [{theme}]\n" + "\n".join(messages)
+                        # Join messages for the same sector
+                        final_message = f"{message_minute} [{sector}]\n" + "\n".join(messages)
                         print(f"알림 전송: {final_message}")
                         await send_alert(bot, chat_id, final_message, parse_mode='HTML')
 

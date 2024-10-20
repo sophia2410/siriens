@@ -36,9 +36,9 @@ $sophia_review = isset($overview_row) ? $overview_row['sophia_review'] : '';
 $market_overview = isset($overview_row) ? $overview_row['market_overview'] : '';
 $us_market_overview = isset($overview_row) ? $overview_row['us_market_overview'] : '';
 $other_market_overview = isset($overview_row) ? $overview_row['other_market_overview'] : '';
-$morning_report_title = isset($overview_row) ? $overview_row['morning_report_title'] : '';
+$morning_report_title = isset($overview_row) ? "【 ".$overview_row['morning_report_title']." 】": '';
 $morning_news_link = isset($overview_row) ? $overview_row['morning_news_link'] : '';
-$evening_report_title = isset($overview_row) ? $overview_row['evening_report_title'] : '';
+$evening_report_title = isset($overview_row) ? "【 ".$overview_row['evening_report_title']." 】" : '';
 
 // Fetch group data
 $group_query = "
@@ -64,6 +64,7 @@ $group_query = "
         FROM v_market_event
         WHERE date = '$report_date'
     ) AS tg
+    WHERE (tg.stock_change > 15 OR tg.stock_amount > 500)
     ORDER BY tg.hot_theme DESC,        -- 핫테마 우선 정렬
             tg.max_amount_group DESC,  -- 그룹 거래대금 우선 정렬
             tg.keyword_group_name ASC, -- 키워드 이름 순서로 정렬
@@ -239,7 +240,7 @@ $issueResult = $issueQuery->get_result();
             grid-template-columns: 2fr 3fr 1fr;
             gap: 10px;
             padding: 10px;
-            width: 99%;
+            width: 100%;
         }
 
         #controls {
@@ -325,25 +326,17 @@ $issueResult = $issueQuery->get_result();
             /* display: inline; 한 줄로 표시 */
             font-size: 20px;
             font-weight: bold;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
             color: #242;
         }
 
         textarea {
-            height: 80px; /* 텍스트 입력 영역의 높이를 크게 조정 */
+            height: 75px; /* 텍스트 입력 영역의 높이를 크게 조정 */
             margin-bottom: 15px;
         }
 
-        textarea.large {
-            height: 150px; /* 텍스트 입력 영역의 높이를 크게 조정 */
-        }
-
-        textarea.middle {
-            height: 100px; /* 텍스트 입력 영역의 높이를 크게 조정 */
-        }
-
         textarea.small {
-            height: 50px; /* 텍스트 입력 영역의 높이를 크게 조정 */
+            height: 45px; /* 텍스트 입력 영역의 높이를 크게 조정 */
         }
 
         #middle-content {
@@ -356,7 +349,7 @@ $issueResult = $issueQuery->get_result();
             padding: 10px;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
             margin-bottom: 25px; /* 카드 간의 세로 간격 */
-            margin-right: 25px;  /* 카드 간의 가로 간격 */
+            margin-right: 20px;  /* 카드 간의 가로 간격 */
             width: 100%;
             box-sizing: border-box;
             min-width: 300px; /* 카드의 최소 너비 설정 */
@@ -564,22 +557,20 @@ $issueResult = $issueQuery->get_result();
         </p>
 
         <div class="flex-header">
-            <h3>US Market Overview</h3>
+            <h4>US Market Overview</h4>
             <button class="button-small" onclick="saveReport()">Save Report</button>
         </div>
         <textarea id="us_market_overview"><?= htmlspecialchars($us_market_overview) ?></textarea>
-        <h3>Other Market Overview</h3>
+        <h4>Other Market Overview</h4>
         <textarea class="small" id="other_market_overview"><?= htmlspecialchars($other_market_overview) ?></textarea>
-        <h3>Market Overview</h3>
+        <h4>Market Overview</h4>
         <textarea id="market_overview"><?= htmlspecialchars($market_overview) ?></textarea>
-        
-        <hr>
         
         <p class="report-content"><?= htmlspecialchars($evening_report_title) ?></p>
 
-        <h3>Market Review</h3>
+        <h4>Market Review</h4>
         <textarea id="market_review"><?= htmlspecialchars($market_review) ?></textarea>
-        <h3>Sophia Review</h3>
+        <h4>Sophia Review</h4>
         <textarea id="sophia_review"><?= htmlspecialchars($sophia_review) ?></textarea>
 
         <!-- Add the "Today's Themes" section here -->
@@ -622,7 +613,7 @@ $issueResult = $issueQuery->get_result();
         foreach ($group_data as $group => $stocks): ?>
             <div class="group-card">
                 <!-- 그룹 라벨을 먼저 출력 -->
-                <h3><?= htmlspecialchars($group) ?></h3>
+                <h3>［<?= htmlspecialchars($group) ?>］</h3>
 
                 <?php foreach ($stocks as $stock): ?>
                     <?php if ($stock['remaining_keywords'] !== $current_keyword): ?>

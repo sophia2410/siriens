@@ -35,6 +35,7 @@ scrap/*
 bak/
 image/
 Z-orgPage/
+tinymce/
 .idea/
 *.ini
 *.txt

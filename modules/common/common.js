@@ -43,6 +43,13 @@ function Common_InitializeCommonFeatures() {
     // 예: 날짜 선택기 초기화, 공통 이벤트 핸들러 설정 등
 }
 
+// 종목명 클릭 시 팝업창
+function Common_OpenStockPopup(code, name) {
+    var url = "/modules/market/stock_report_popup.php?code=" + encodeURIComponent(code) + "&name=" + encodeURIComponent(name);
+    window.open(url, 'StockDetail',  'width=2400, height=1400');
+}
+
+
 // 종목 검색
 async function Common_SearchStock(event, input, callback = null) {
     if (event.key === 'Enter') { // 엔터 키가 눌렸을 때만 처리
@@ -68,7 +75,7 @@ async function Common_SearchStock(event, input, callback = null) {
 
 async function Common_FetchStocks(query) {
     try {
-        const response = await fetch(`fetch_autocomplete.php?type=stocks&q=${encodeURIComponent(query)}`);
+        const response = await fetch(`/modules/market/fetch_autocomplete.php?type=stocks&q=${encodeURIComponent(query)}`);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }

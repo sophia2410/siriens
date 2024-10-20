@@ -135,7 +135,7 @@ if($pgmId == ''){
 		$realtime_data = "";
 		if($row['trade_date'] != '') {
 			$realtime_data = "<font class='h5'>".number_format($row['acc_trade_amount'])."억  &nbsp ".$row['trade_rate_str']." </font> &nbsp";
-			$realtime_data .= "<font class='text-dark'>".number_format($row['trade_price'])."&nbsp ".number_format($row['market_cap'],2)."&nbsp ".$row['trade_date']."</font> ";
+			$realtime_data .= "<font class='text-dark'>".number_format($row['market_cap'])."&nbsp ".$row['trade_date']."</font> ";
 		}
 		
 		// 모차십 0일차 등록건이 있는 경우 건수 표시되게 함.

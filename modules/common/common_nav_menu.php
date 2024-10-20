@@ -94,8 +94,9 @@ if($_SERVER["HTTP_HOST"] == 'localhost') {
         <li><a href="<?=$PATH?>modules/market/issue_register.php"><i class="fas fa-edit"></i> <span>이슈 등록</span></a></li>
         <li><a href="<?=$PATH?>modules/market/event_register_by_stock.php"><i class="fas fa-edit"></i> <span>이벤트 등록<br>[ by Stock ]</span></a></li>
         <li><a href="<?=$PATH?>modules/market/event_register.php"><i class="fas fa-edit"></i> <span>이벤트 등록</span></a></li>
-        <li><a href="<?=$PATH?>modules/market/stock_event_list.php"><i class="fas fa-search"></i> <span>종목 조회</span></a></li>
+        <li><a href="<?=$PATH?>modules/market/stock_event_list.php"><i class="fas fa-search"></i> <span>종목 이벤트<br>조회</span></a></li>
         <li><a href="<?=$PATH?>modules/market/keyword_group_list.php"><i class="fas fa-search"></i> <span>키워드 그룹</span></a></li>
+        <li><a href="<?=$PATH?>modules/market/continuous_buying_monthly.php"><i class="fas fa-search"></i> <span>연속매수 조회</span></a></li>
 
         <!-- Sidebar Divider -->
         <hr class="sidebar-divider">
@@ -112,16 +113,18 @@ if($_SERVER["HTTP_HOST"] == 'localhost') {
 
         <li><a href="<?=$PATH?>boot/siriens/stock.php"><i class="fas fa-tags"></i> <span>종목 상세</span></a></li>
         <li><a href="<?=$PATH?>boot/siriens/mochaten.php?mainF=siriens&user=sophia"><i class="fas fa-tags"></i> <span>모차십</span></a></li>
-        <li><a href="<?=$PATH?>boot/watchlist/0dayStocks.php"><i class="fas fa-tags"></i> <span>0일차 종목</span></a></li>
-        <li><a href="<?=$PATH?>boot/watchlist/sophiaWatchlist.php"><i class="fas fa-tags"></i> <span>Sophia 관.종.</span></a></li>
-        <li><a href="<?=$PATH?>boot/watchlist/aStarWatchlist.php"><i class="fas fa-tags"></i> <span>aStar 관.종.</span></a></li>
+        <!-- <li><a href="<?=$PATH?>boot/watchlist/0dayStocks.php"><i class="fas fa-tags"></i> <span>0일차 종목</span></a></li> -->
+        <!-- <li><a href="<?=$PATH?>boot/watchlist/sophiaWatchlist.php"><i class="fas fa-tags"></i> <span>Sophia 관.종.</span></a></li>
+        <li><a href="<?=$PATH?>boot/watchlist/aStarWatchlist.php"><i class="fas fa-tags"></i> <span>aStar 관.종.</span></a></li> -->
 
         <!-- Sidebar Divider -->
         <hr class="sidebar-divider">
         <!-- Sidebar Heading -->
         <div class="sidebar-heading">Get Data</div>
 
-        <li><a href="<?=$PATH?>modules/market/trade_journal.php"><i class="fas fa-tags"></i> <span>매매일지 등록</span></a></li>
+        <!-- <li><a href="<?=$PATH?>modules/market/trade_journal.php"><i class="fas fa-tags"></i> <span>매매일지 등록</span></a></li> -->
+        <li><a href="<?=$PATH?>modules/growth/thought_register.php"><i class="fas fa-tags"></i> <span>Thought</span></a></li>
+        <li><a href="<?=$PATH?>modules/growth/trade_register.php"><i class="fas fa-tags"></i> <span>매매기록</span></a></li>
         <li><a href="<?=$PATH?>boot/siriens/getSignalReport.php"><i class="fas fa-tags"></i> <span>이브닝 등록</span></a></li>
     </ul>
 </div>

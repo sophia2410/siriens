@@ -160,18 +160,32 @@ $defaultSellDate = date('Y-m-t', strtotime($defaultBuyDate)); // 선택한 월�
         <div id="content-wrapper">
             <h2>달력 조회</h2>
             <div id="calendar">
-                <?php
-                // 선택된 년도와 월에 맞는 달력 생성
-                $days_in_month = cal_days_in_month(CAL_GREGORIAN, $selectedMonth, $selectedYear);
+            <?php
+            // 선택된 년도와 월에 맞는 달력 생성
+            $days_in_month = cal_days_in_month(CAL_GREGORIAN, $selectedMonth, $selectedYear);
+            $first_day_of_month = date('w', strtotime("$selectedYear-$selectedMonth-01")); // 첫 번째 날의 요일 (0 = 일요일, 1 = 월요일)
 
-                echo "<table>";
-                echo "<tr>";
-                for ($day = 1; $day <= $days_in_month; $day++) {
-                    $date = sprintf('%04d-%02d-%02d', $selectedYear, $selectedMonth, $day);
+            // 요일 헤더 출력 (월, 화, 수, 목, 금)
+            echo "<table style='width: 100%;'>";
+            echo "<tr><th>월</th><th>화</th><th>수</th><th>목</th><th>금</th></tr>";
+            echo "<tr>";
 
-                    // 등록된 종목들 가져오기
-                    $sql = "SELECT * FROM stock_trades WHERE '$date' BETWEEN buy_date AND sell_date";
-                    $result = $mysqli->query($sql);
+            // 첫 번째 주의 월요일까지 빈 셀 추가 (월요일=1, 화요일=2, ..., 일요일=0)
+            if ($first_day_of_month > 1) {
+                for ($i = 1; $i < $first_day_of_month; $i++) {
+                    echo "<td style='vertical-align: top;'></td>"; // 첫 번째 요일 전까지 빈 셀 추가
+                }
+            }
+
+            // 날짜 출력
+            for ($day = 1; $day <= $days_in_month; $day++) {
+                $date = sprintf('%04d-%02d-%02d', $selectedYear, $selectedMonth, $day);
+                $day_of_week = date('w', strtotime($date)); // 해당 날짜의 요일 (0 = 일요일, 1 = 월요일)
+
+                // 월요일(1) ~ 금요일(5)까지만 출력
+                if ($day_of_week >= 1 && $day_of_week <= 5) {
+                    echo "<td style='vertical-align: top;'>";
+                    echo "<strong>$day</strong><br>";
 
                     // market_index 테이블에서 KOSPI, KOSDAQ 지수 가져오기
                     $kospi_query = "SELECT close, close_rate FROM market_index WHERE market_fg = 'KOSPI' AND date = '$date'";
@@ -182,42 +196,48 @@ $defaultSellDate = date('Y-m-t', strtotime($defaultBuyDate)); // 선택한 월�
                     $kospi_data = $kospi_result->fetch_assoc();
                     $kosdaq_data = $kosdaq_result->fetch_assoc();
 
-                    echo "<td>";
-                    echo "<strong>$day</strong><br>";
+                    // 지수가 있을 때만 종목과 지수를 출력
+                    if ($kospi_data || $kosdaq_data) {
+                        // KOSPI 지수 출력 (등락률에 따른 색상 적용)
+                        if ($kospi_data) {
+                            $color = ($kospi_data['close_rate'] >= 0) ? 'red' : 'blue';
+                            echo "<div style='display: flex; justify-content: space-between;'>
+                                    <span>K O S P I</span>
+                                    <span style='color: $color;'>{$kospi_data['close']} ({$kospi_data['close_rate']}%)</span>
+                                </div>";
+                        }
 
-                    // KOSPI 지수 출력 (등락률에 따른 색상 적용)
-                    if ($kospi_data) {
-                        $color = ($kospi_data['close_rate'] >= 0) ? 'red' : 'blue';
-                        echo "<div style='display: flex; justify-content: space-between;'>
-                                <span>K O S P I</span>
-                                <span style='color: $color;'>{$kospi_data['close']} ({$kospi_data['close_rate']}%)</span>
-                              </div>";
-                    }
+                        // KOSDAQ 지수 출력 (등락률에 따른 색상 적용)
+                        if ($kosdaq_data) {
+                            $color = ($kosdaq_data['close_rate'] >= 0) ? 'red' : 'blue';
+                            echo "<div style='display: flex; justify-content: space-between;'>
+                                    <span>KOSDAQ</span>
+                                    <span style='color: $color;'>{$kosdaq_data['close']} ({$kosdaq_data['close_rate']}%)</span>
+                                </div><br>";
+                        }
 
-                    // KOSDAQ 지수 출력 (등락률에 따른 색상 적용)
-                    if ($kosdaq_data) {
-                        $color = ($kosdaq_data['close_rate'] >= 0) ? 'red' : 'blue';
-                        echo "<div style='display: flex; justify-content: space-between;'>
-                                <span>KOSDAQ</span>
-                                <span style='color: $color;'>{$kosdaq_data['close']} ({$kosdaq_data['close_rate']}%)</span>
-                              </div><br>";
-                    }
-
-                    // 등록된 종목 출력
-                    while ($row = $result->fetch_assoc()) {
-                        echo "{$row['stock_name']}<br>";
+                        // 등록된 종목 출력
+                        $sql = "SELECT * FROM stock_trades WHERE '$date' BETWEEN buy_date AND sell_date";
+                        $result = $mysqli->query($sql);
+                        while ($row = $result->fetch_assoc()) {
+                            echo "{$row['stock_name']}<br>";
+                        }
+                    } else {
+                        // 지수가 없는 경우에는 아무것도 출력하지 않음 (종목도 보이지 않게)
+                        echo "휴장일<br>";
                     }
 
                     echo "</td>";
 
-                    // 일주일이 끝나면 새로운 행 시작
-                    if ($day % 7 == 0) {
+                    // 금요일(5)에서 행을 종료하고 새로운 행 시작
+                    if ($day_of_week == 5) {
                         echo "</tr><tr>";
                     }
                 }
-                echo "</tr>";
-                echo "</table>";
-                ?>
+            }
+            echo "</tr>";
+            echo "</table>";
+            ?>
             </div>
         </div>
     </div>

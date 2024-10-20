@@ -12,8 +12,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['process_excel'])) {
     $reportDate = $_GET['report_date'];
 
     // Python 스크립트를 호출하여 엑셀 파일 처리
-	$command = escapeshellcmd("C:/Users/elf96/AppData/Local/Programs/Python/Python39/python.exe E:/Project/202410/www/modules/market/event_upload_excel.py" . escapeshellarg($reportDate));
-
     $command = "C:/Users/elf96/AppData/Local/Programs/Python/Python39/python.exe E:/Project/202410/www/modules/market/event_upload_excel.py ". escapeshellarg($reportDate);
 	$output = shell_exec($command . " 2>&1");
 
@@ -357,7 +355,7 @@ else if ($dataSource === 'excel') {
                                     <input type="text" name="events[<?= htmlspecialchars($event['code']) ?>][code]" value="<?= htmlspecialchars($event['code']) ?>" style='width:70px;' readonly>
                                     <input type="hidden" name="events[<?= htmlspecialchars($event['code']) ?>][name]" value="<?= htmlspecialchars($event['name']) ?>">
                                 </td>
-                                <td class="<?= $stockNameClass; ?>"><?= htmlspecialchars($event['name']) ?></td>
+                                <td class="<?= $stockNameClass; ?>" onclick="Common_OpenStockPopup('<?= htmlspecialchars($event['code']) ?>', '<?= htmlspecialchars($event['name']) ?>');"><?= htmlspecialchars($event['name']) ?></td>
                                 <td class="checkbox-cell">
                                     <label>
                                         <input type="checkbox" name="events[<?= htmlspecialchars($event['code']) ?>][is_leader]" data-original="<?= $event['is_leader'] === '1' ? '1' : '0' ?>" <?= $isLeaderChecked ?> oninput="checkForChanges(this)" >

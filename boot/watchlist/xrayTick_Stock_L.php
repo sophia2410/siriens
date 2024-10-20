@@ -104,7 +104,7 @@ if($code == '') {
 }
 else {
 	// highchart 조회
-	echo "<div id='container' data-code='$code' data-name='$name' style='height: 580px; min-width: 310px;'></div>";
+	echo "<div id='chart-container' data-code='$code' data-name='$name' style='height: 580px; min-width: 310px;'></div>";
     echo "<script src='highchart.js?v=1.0.1'></script>";
 
 	// 공통코드 불러오기
@@ -272,12 +272,12 @@ else {
 				FROM calendar cal
 				LEFT OUTER JOIN 
 					(
-						SELECT xr.code, xr.name, xr.date, dp.close_rate close_rate, dp.close close_amt, round(dp.amount/100000000,0) tot_trade_amt, round(xr.tot_amt/100000000,1) amount, xr.avg_amt, xr.tot_cnt cnt
-						FROM kiwoom_xray_tick_summary xr
-						LEFT OUTER JOIN daily_price dp
+						SELECT dp.code, dp.date, dp.close_rate close_rate, dp.close close_amt, round(dp.amount/100000000,0) tot_trade_amt, round(xr.tot_amt/100000000,1) amount, xr.avg_amt, xr.tot_cnt cnt
+						FROM daily_price dp
+						LEFT OUTER JOIN kiwoom_xray_tick_summary xr
 						ON dp.date = xr.date
 						AND dp.code = xr.code
-						WHERE xr.code = '$code'
+						WHERE dp.code = '$code'
 					) xray
 				ON xray.date = cal.date
 				WHERE cal.date >= (select max(date) from calendar where date <=(select DATE_ADD(now(), INTERVAL -5 MONTH)))
@@ -430,7 +430,7 @@ else {
         <form id="comment-form">
             <input type='hidden' name='code' value='<?php echo $code; ?>'>
             <input type='hidden' name='name' value='<?php echo $name; ?>'>
-            <input type='hidden' name='today' value='<?php echo $today; ?>'>
+            <input type='hidden' name='save_date' value='<?php echo $today; ?>'>
             <input type='hidden' name='proc_fg' value='SC'>
             <div class='form-group' style='display: flex; align-items: center;'>
                 <input type='checkbox' name='pick_yn' value='Y' style='margin-right: 10px;' <?php echo $pick; ?>>

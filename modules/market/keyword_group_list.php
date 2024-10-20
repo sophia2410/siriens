@@ -36,7 +36,7 @@ function render_stock_list($mysqli, $groupName = '', $groupId = '') {
             (SELECT name FROM stock s WHERE s.code = mes.code AND last_yn = 'Y') AS stock_name, 
             MAX(mes.close_rate) AS close_rate, 
             MAX(mes.trade_amount) AS trade_amount, 
-            SUM(mes.trade_amount) AS total_trade_amount, 
+            SUM(mes.trade_amount) OVER(PARTITION BY mes.code) AS total_trade_amount, 
             COUNT(*) AS stock_event_count, 
             COUNT(*) OVER(PARTITION BY mes.code) AS stock_count
         FROM market_events me

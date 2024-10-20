@@ -7,8 +7,6 @@ function Utility_GetAmountClass($amountInBillion) {
         return 'amount-high'; // 1000억 이상
     } elseif ($amountInBillion >= 500) {
         return 'amount-medium'; // 150억 이상
-    } elseif ($amountInBillion >= 100) {
-        return 'amount-low'; // 100억 이상
     } else {
         return 'amount-lowest'; // 100억 미만
     }
@@ -43,8 +41,6 @@ function Utility_GetStockNameAmountClass($amountInBillion) {
         return 'stock-name-high'; // 1000억 이상
     } elseif ($amountInBillion >= 500) {
         return 'stock-name-medium'; // 500억 이상
-    } elseif ($amountInBillion >= 100) {
-        return 'stock-name-low'; // 100억 이상
     } else {
         return 'stock-name-lowest'; // 100억 미만
     }

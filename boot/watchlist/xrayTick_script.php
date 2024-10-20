@@ -12,7 +12,7 @@ if(isset($_POST['proc_fg'])) {
 	if($_POST['proc_fg'] == 'CS') {// 코멘트 저장
 
 		$tot_cnt = $_POST['tot_cnt'];
-		$comment_date = $_POST['today'];
+		$comment_date = $_POST['save_date'];
 
 		// 종목수만큼 돌면서 종목 코멘트 등록
 		for($i=0; $i<$tot_cnt; $i++){
@@ -39,19 +39,19 @@ if(isset($_POST['proc_fg'])) {
 	} else if($_POST['proc_fg'] == 'SC') { // 코멘트 저장 로직 (단일 상품)
         $code = $_POST['code'];
         $name = $_POST['name'];
-        $today = $_POST['today'];
+        $comment_date = $_POST['save_date'];
         $comment = $_POST['comment'];
         $pick_yn = isset($_POST['pick_yn']) ? 'Y' : 'N';
 
-        error_log("Deleting comment for $code on $today");
+        error_log("Deleting comment for $code on $comment_date");
 
         // 기존 코멘트 삭제
-        $qry = "DELETE FROM kiwoom_xtay_tick_comments WHERE comment_date = '$today' AND code = '$code'";
+        $qry = "DELETE FROM kiwoom_xtay_tick_comments WHERE comment_date = '$comment_date' AND code = '$code'";
         if (!$mysqli->query($qry)) {
             $response = ['success' => false, 'message' => 'Error deleting comment: ' . $mysqli->error];
         } else {
             error_log("Inserting new comment for $code");
-            $qry = "INSERT INTO kiwoom_xtay_tick_comments (code, name, pick_yn, comment, comment_date) VALUES ('$code', '$name', '$pick_yn', '$comment', '$today')";
+            $qry = "INSERT INTO kiwoom_xtay_tick_comments (code, name, pick_yn, comment, comment_date) VALUES ('$code', '$name', '$pick_yn', '$comment', '$comment_date')";
             if ($mysqli->query($qry)) {
                 $response = ['success' => true, 'message' => 'Comment saved successfully'];
             } else {
@@ -60,9 +60,9 @@ if(isset($_POST['proc_fg'])) {
         }
     } elseif ($_POST['proc_fg'] == 'DC') { // 코멘트 삭제
         $code = $_POST['code'];
-        $today = $_POST['today'];
+        $comment_date = $_POST['save_date'];
 
-        $qry = "DELETE FROM kiwoom_xtay_tick_comments WHERE comment_date = '$today' AND code = '$code'";
+        $qry = "DELETE FROM kiwoom_xtay_tick_comments WHERE comment_date = '$comment_date' AND code = '$code'";
         if ($mysqli->query($qry)) {
             $response = ['success' => true, 'message' => 'Comment deleted successfully'];
         } else {

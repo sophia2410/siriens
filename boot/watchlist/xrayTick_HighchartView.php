@@ -126,7 +126,7 @@ if($pgmId == '') {
 			// 가장 최근 0일차 상승이유
 			echo "<tr><td>";
 			if($row['group_key_str'] != '') {
-				$info_0day =" <b>(".$row['uprsn'].")</b> ".$row['close_rate_str']." / ".$row['tot_trade_amt_str']."</font>"." &nbsp; ";
+				$info_0day =" <b>(".$row['uprsn'].")</b> ".$row['close_rate_str']." / ".$row['trade_amount_str']."</font>"." &nbsp; ";
 			} else {
 				$info_0day = "<font class='h5'>&nbsp</font>";
 			}
@@ -169,7 +169,7 @@ if($pgmId == '') {
 			echo "</td></tr><tr>";
 
 			$code = $row['code'];  // 현재 행의 코드 사용
-			$zeroday_date = $row['0day_date'];  // 현재 행의 0day일자 사용
+			$zeroday_date = $row['date'];  // 현재 행의 0day일자 사용
 
 			// 종목 이슈 데이터 구해오기 // 0일차 이슈 구해오기
 			$today_issue = '';
@@ -187,7 +187,7 @@ if($pgmId == '') {
 							, CASE WHEN length(A.theme) > 1 && A.theme != A.signal_grp THEN CONCAT(A.theme, ']<BR>') ELSE ']<BR>' END) today_theme
 							, A.title today_issue
 					FROM	signal_evening A
-					WHERE	page_date = (select max(date) from signal_evening where date <= '$search_date' and code = '$code')
+					WHERE	page_date = (select max(page_date) from signal_evening where page_date <= '$search_date' and code = '$code')
 					AND  page_fg = 'E'
 					AND  code =  '$code'" ;
 

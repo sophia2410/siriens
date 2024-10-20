@@ -42,7 +42,34 @@ th {
     background-color: #f2f2f2;
 }
 
+/* 작은 테이블을 위한 스타일 */
+.small-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.small-table th, .small-table td {
+    border: 1px solid #ddd;
+    padding: 4px; /* 패딩을 줄여 더 컴팩트하게 만듦 */
+    text-align: center;
+    font-size: 13px; /* 폰트 크기를 작게 설정 */
+}
+
+.small-table th {
+    background-color: #f4f4f4;
+    font-weight: bold;
+    font-size: 13px;
+}
+
+.small-table td {
+    height: 20px; /* 행 높이를 컴팩트하게 설정 */
+}
+
 /* 기본 강조 스타일 */
+.border-strong {
+    border-top: 2px solid #ccc;
+}
+
 tr.highlighted-row {
     background-color: #e0f7fa; /* 기존 색상 */
 }
@@ -85,6 +112,12 @@ button {
 /* 호버 시 색상 변화 */
 button:hover {
     background-color: #c0392b; /* 기본 호버 색상 */
+}
+
+.tox .tox-button {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    border: 1px solid #ddd !important;
 }
 
 /* 빨간색 버튼 */
@@ -265,28 +298,28 @@ hr {
 
 /* 금액에 따른 스타일 */
 .amount-highest {
-    color: #d32f2f !important;
+    color: #8e24aa !important; /* 진한 보라색 */
     font-weight: bold !important;
     text-align: right !important;
 } /* 2000억 이상 */
 
 .amount-high {
-    color: #fb8c00 !important;
+    color: #c62828 !important; /* 진한 붉은색 */
     font-weight: bold !important;
     text-align: right !important;
 } /* 1000억 이상 */
 
 .amount-medium {
-    color: #ffb300 !important;
+    color: #f57f17 !important; /* 진한 황금색 */
     font-weight: bold !important;
     text-align: right !important;
-} /* 150억 이상 */
+}
 
 .amount-low {
-    color: #ff8a80 !important;
+    color: #e65100 !important; /* 진한 주황색 */
     font-weight: bold !important;
     text-align: right !important;
-} /* 100억 이상 */
+}
 
 .amount-lowest {
     color: inherit;
@@ -302,6 +335,7 @@ hr {
 } /* 종목 등락률 29.5% 이상 */
 
 .close-rate-high {
+    color: #f57f17 !important; /* 진한 황금색 */
     font-weight: bold !important;
     text-align: right !important;
 } /* 종목 등락률 15.0% 이상 */
@@ -313,22 +347,22 @@ hr {
 
 /* 종목명에 따른 스타일 */
 .stock-name-highest {
-    color: #c62828 !important;
+    color: #8e24aa !important; /* 진한 보라색 */
     font-weight: bold !important;
 } /* 종목 등락률 29.5% 이상 or 2000억 이상*/
 
 .stock-name-high {
-    color: #fb8c00 !important;
+    color: #c62828 !important; /* 진한 붉은색 */
     font-weight: bold !important;
 } /* 500억 이상 */
 
 .stock-name-medium {
-    color: #ffb300 !important;
+    color: #f57f17 !important; /* 진한 황금색 */
     font-weight: bold !important;
 } /* 150억 이상 */
 
 .stock-name-low {
-    color: #ff8a80 !important;
+    color: #e65100 !important; /* 진한 주황색 */
     font-weight: bold !important;
 } /* 100억 이상 */
 

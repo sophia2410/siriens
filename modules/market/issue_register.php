@@ -1,7 +1,6 @@
 <?php
 $pageTitle = "이슈 등록"; // 페이지 타이틀 설정
 require($_SERVER['DOCUMENT_ROOT'] . "/modules/common/common_header.php");
-require($_SERVER['DOCUMENT_ROOT'] . "/modules/market/event_register_form.php");
 
 // GET 파라미터로 선택된 날짜를 받아옵니다. 없으면 현재 날짜로 설정
 $dateParam = $_GET['date'] ?? date('Y-m-d');
@@ -23,12 +22,6 @@ $issueResult = $issueQuery->get_result();
 
 <head>
     <style>
-        #container {
-            display: flex;
-            height: 100vh; /* 전체 화면 높이를 활용 */
-            flex-direction: row;
-        }
-
         #issue_register_container {
             flex: 1;
             background-color: #f5f5f5;

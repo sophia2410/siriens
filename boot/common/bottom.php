@@ -26,7 +26,7 @@
     -->
 
     <!-- Bootstrap core JavaScript-->
-    <script src="/boot/common/vendor/jquery/jquery.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="/boot/common/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
 
     <!-- Core plugin JavaScript-->
