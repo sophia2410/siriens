@@ -220,51 +220,61 @@ def crawling_edaily(soup):
     title = title.text.replace('\n','')
 
     name = soup.find("p", class_="reporter_name")
-    name = name.text.replace('\n','').split(' ')
-    name = name[0]
+    if name is not None:
+        name = name.text.replace('\n','').split(' ')
+        name = name[0]
+    else:
+        name = ''
 
     date = soup.find("div", class_="dates")
-    date = date.text.split('수정')
-    date = date[0].replace('\n','').replace('-','').replace('등록 ','')
+    if date is not None:
+        date = date.text.split('수정')
+        date = date[0].replace('\n','').replace('-','').replace('등록 ','')
 
-    if '오전 10' in date:
-        date = date.replace('오전 ','')
-    elif '오전 11' in date:
-        date = date.replace('오전 ','')
-    elif '오전 12' in date:
-        date = date.replace('오전 12','00')
-    elif '오전 ' in date:
-        date = date.replace('오전 ','0')
-    elif '오후 1' in date:
-        date = date.replace('오후 1','13')
-    elif '오후 2' in date:
-        date = date.replace('오후 2','14')
-    elif '오후 3' in date:
-        date = date.replace('오후 3','15')
-    elif '오후 4' in date:
-        date = date.replace('오후 4','16')
-    elif '오후 5' in date:
-        date = date.replace('오후 5','17')
-    elif '오후 6' in date:
-        date = date.replace('오후 6','18')
-    elif '오후 7' in date:
-        date = date.replace('오후 7','19')
-    elif '오후 8' in date:
-        date = date.replace('오후 8','20')
-    elif '오후 9' in date:
-        date = date.replace('오후 9','21')
-    elif '오후 10' in date:
-        date = date.replace('오후 10','22')
-    elif '오후 11' in date:
-        date = date.replace('오후 11','23')
-    elif '오후 12' in date:
-        date = date.replace('오후 12','12')
+        if '오전 10' in date:
+            date = date.replace('오전 ','')
+        elif '오전 11' in date:
+            date = date.replace('오전 ','')
+        elif '오전 12' in date:
+            date = date.replace('오전 12','00')
+        elif '오전 ' in date:
+            date = date.replace('오전 ','0')
+        elif '오후 1' in date:
+            date = date.replace('오후 1','13')
+        elif '오후 2' in date:
+            date = date.replace('오후 2','14')
+        elif '오후 3' in date:
+            date = date.replace('오후 3','15')
+        elif '오후 4' in date:
+            date = date.replace('오후 4','16')
+        elif '오후 5' in date:
+            date = date.replace('오후 5','17')
+        elif '오후 6' in date:
+            date = date.replace('오후 6','18')
+        elif '오후 7' in date:
+            date = date.replace('오후 7','19')
+        elif '오후 8' in date:
+            date = date.replace('오후 8','20')
+        elif '오후 9' in date:
+            date = date.replace('오후 9','21')
+        elif '오후 10' in date:
+            date = date.replace('오후 10','22')
+        elif '오후 11' in date:
+            date = date.replace('오후 11','23')
+        elif '오후 12' in date:
+            date = date.replace('오후 12','12')
 
-    time = date[9:14]
-    date = date[0:8]
+        time = date[9:14]
+        date = date[0:8]
+    else:
+        time = ''
+        date = ''
 
     content = soup.find("div", class_="news_body")
-    content = content.text.strip()
+    if content is not None:
+        content = content.text.strip()
+    else:
+        content = ''
 
     rt = [publisher, title, name, date, time, content]
     return rt

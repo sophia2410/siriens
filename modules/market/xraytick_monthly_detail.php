@@ -56,19 +56,19 @@ while ($calendarRow = $calendarResult->fetch_assoc()) {
                 ks.name,
                 COUNT(DISTINCT ks.date) AS occurrence_days
             FROM 
-                kiwoom_xray_tick_summary ks
+                xraytick_summary ks
             JOIN (
                 SELECT date
                 FROM calendar
                 WHERE date <= ?
                 ORDER BY date DESC
-                LIMIT 12
+                LIMIT 15
             ) rd ON ks.date = rd.date
-            WHERE ks.tot_amt >= 300000000
+            WHERE ks.tot_amt >= 1000000000
             GROUP BY 
                 ks.code, ks.name
             HAVING 
-                COUNT(DISTINCT ks.date) >= 7
+                COUNT(DISTINCT ks.date) >= 10
         ) A
         LEFT JOIN stock_sector ss ON A.code = ss.code
     ";
@@ -147,7 +147,7 @@ foreach ($sectorDataByDate as $date => &$sectorsData) {
 <div id="container">
     <div id="content-area">
         <div class="filters">
-            <form method="GET" action="continuous_buying.php" id="searchForm" style="display: flex; align-items: center;">
+            <form method="GET" action="xraytick_monthly_detail.php" id="searchForm" style="display: flex; align-items: center;">
                 <!-- 조회 월 -->
                 <label for="queryMonth">조회 월:</label>
                 <input type="month" id="queryMonth" name="month" value="<?php echo $reportMonth; ?>" />

@@ -352,8 +352,8 @@ if __name__ == '__main__':
         to_date = from_date  # 동일한 날짜로 설정
 
     # # 특정일은 intervals 가 안돌아서... 위 일단 막고 아래 코드로.. //24.08.16
-    # from_date = '2024-09-25'
-    # to_date = '2024-09-25'
+    from_date = '2024-01-12'
+    to_date = '2024-01-12'
     dbu.pykrxMarket_execute(from_date, to_date, adjusted=True)
 
 # 2024.07.07 

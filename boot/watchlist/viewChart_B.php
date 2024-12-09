@@ -149,7 +149,13 @@ if($pgmId == ''){
 					<div class='row no-gutters align-items-center'>
 						<div class='col mr-0'>
 							<div class='font-weight-bold text-primary text-uppercase mb-1' style='height:35px; line-height:35px;'>$mochaten_cnt
-								<font class='h4'><span class='draggable' id=stock_nm$d draggable='true'><b>[[".$row['name']."]]</b></span><a href='../siriens/stock_B.php?code=".$row['code']."&name=".$row['name']."&brWidth=2500' onclick='window.open(this.href, \'stock\', 'width=2500px,height=850,scrollbars=1,resizable=yes');return false;' target='_blank'>..</a></font> &nbsp;".$realtime_data."
+								<font class='h4'>
+								<span class='draggable' id=stock_nm$d draggable='true'>
+								<a href='/modules/market/stock_report_popup.php?code=".$row['code']."&name=".$row['name']."&brWidth=2500' onclick='window.open(this.href, \'stock\', 'width=2500px,height=850,scrollbars=1,resizable=yes');return false;' target='_blank'>
+								<b>".$row['name']."</b>
+								</a>
+								</span>
+								</font> &nbsp;".$realtime_data."
 							</div>
 							<div class='font-weight-bold mb-1 style='margin: 0;'>
 								$info_0day

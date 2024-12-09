@@ -127,7 +127,7 @@ else {
         ON b.code = a.code
         LEFT JOIN keyword_groups c
         ON c.group_id = b.group_id
-        ORDER BY SUM(amount) OVER (PARTITION BY c.group_name) DESC, a.amount DESC
+        ORDER BY SUM(amount) OVER (PARTITION BY c.group_name) DESC, a.close_rate DESC
     ";
 
     // Database_logQuery($alternative_query,[]);
@@ -138,67 +138,44 @@ else {
         $group_data[$row['group_label']][] = $row;
     }
 }
-// Fetch Today Watchlist
-$today_watchlist_query = "
+// Fetch recent 5 days themes and stocks
+$recent_themes_query = "
     SELECT 
         CASE 
             WHEN me.group_label = me.theme THEN me.group_label 
             ELSE CONCAT(me.group_label, ' ', me.theme) 
         END AS theme,   -- group_label 과 theme 값을 연결하여 하나의 값으로 계산
-        s.code, 
-        s.name, 
-        mes.trade_amount,  -- 종목별 가장 높은 거래대금
-        mes.close_rate,       -- 종목별 가장 높은 등락률
-        mes.stock_comment,
-        tj.status,
-        CASE
-            WHEN tj.status = 'focus' THEN '<span style=\"color: #e03e2d;\"><strong>(F)</strong></span>' 
-            WHEN tj.status = 'watch_short' THEN '<span style=\"color: #843fa1;\"><strong>(W/S)</strong></span>' 
-            WHEN tj.status = 'watch_long' THEN '<span style=\"color: #169179;\"><strong>(W-L)</strong></span>' 
-            ELSE '' 
-        END AS status_str,
-        DATE_FORMAT(tj.journal_date, '%m-%d') journal_date_str
-    FROM
-    (    SELECT 
-            status, 
-            code,
-            journal_date
-        FROM 
-            status_snapshot
-        WHERE 
-            snapshot_date = '$report_date'  -- 조회할 특정 날짜
-
-        UNION ALL
-
-        SELECT 
-            status, 
-            code,
-            journal_date
-        FROM 
-            journal_feature
-        WHERE 
-            '$report_date' NOT IN (SELECT DISTINCT snapshot_date FROM status_snapshot)
-            AND status != 'normal'
-    ) tj
-    JOIN stock s ON tj.code = s.code AND s.last_yn = 'Y'
-    LEFT JOIN 
-        market_event_stocks mes 
-        ON tj.code = mes.code AND tj.journal_date = mes.date
-    LEFT JOIN
+        mes.code, 
+        mes.name, 
+        MAX(mes.trade_amount) AS max_trade_amount,  -- 종목별 가장 높은 거래대금
+        MAX(mes.close_rate) AS max_close_rate,       -- 종목별 가장 높은 등락률
+        MAX(mes.stock_comment) AS stock_comment
+    FROM 
         market_events me
+    JOIN 
+        market_event_stocks mes 
         ON mes.event_id = me.event_id
+    JOIN 
+        (SELECT date
+         FROM calendar
+         WHERE date <= '$report_date'
+		 ORDER BY date DESC
+         LIMIT 7) c
+        ON c.date = me.date 
+    WHERE (mes.is_leader = '1' OR mes.is_watchlist = '1')
+    GROUP BY 
+        me.theme, mes.code, mes.name
     ORDER BY 
-        FIELD(tj.status, 'focus', 'watch_short', 'watch_long'), 
-        MAX(tj.journal_date) OVER (PARTITION BY me.theme) DESC,  -- 최근 테마순
-        tj.journal_date DESC, -- 최근 거래일 순
-        mes.trade_amount DESC -- 거래대금 높은 순
+        MAX(me.date) OVER (PARTITION BY theme) DESC,        -- 가장 최근 테마 기준 정렬
+        me.theme,                 -- 테마 순
+        MAX(mes.close_rate) DESC  -- 테마 내에서 등락률 기준 역순 정렬
     ";
 
-// Database_logQuery($today_watchlist_query, [$report_date]);
-$today_watchlist_result = $mysqli->query($today_watchlist_query);
-$today_watchlist = [];
-while($row = $today_watchlist_result->fetch_assoc()) {
-    $today_watchlist[$row['status']][] = $row;
+// Database_logQuery($recent_themes_query, [$report_date]);
+$recent_themes_result = $mysqli->query($recent_themes_query);
+$recent_themes = [];
+while($row = $recent_themes_result->fetch_assoc()) {
+    $recent_themes[$row['theme']][] = $row;
 }
 
 // Fetch stocks with more than 20% change
@@ -302,7 +279,7 @@ $issueResult = $issueQuery->get_result();
         }
         #index-section {
             margin-top: 0;
-            flex: 1 1 70%; /* 지수 섹션의 넓이를 80%로 설정 */
+            flex: 1 1 80%; /* 지수 섹션의 넓이를 80%로 설정 */
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -538,11 +515,6 @@ $issueResult = $issueQuery->get_result();
                         다음 &gt;&gt;
                     </button>
                 <?php endif; ?>
-
-                <!-- To-Do Button with task count -->
-                <button class="button-yellow" onclick="openChecklistPopup()">
-                    TO-DO (<span id="todo-count">0/0</span>)
-                </button>
             </div>
         </div>
 
@@ -588,18 +560,18 @@ $issueResult = $issueQuery->get_result();
             <h4>US Market Overview</h4>
             <button class="button-small" onclick="saveReport()">Save Report</button>
         </div>
-        <textarea id="us_market_overview" spellcheck="false"><?= htmlspecialchars($us_market_overview) ?></textarea>
+        <textarea id="us_market_overview"><?= htmlspecialchars($us_market_overview) ?></textarea>
         <h4>Other Market Overview</h4>
-        <textarea class="small" id="other_market_overview" spellcheck="false"><?= htmlspecialchars($other_market_overview) ?></textarea>
+        <textarea class="small" id="other_market_overview"><?= htmlspecialchars($other_market_overview) ?></textarea>
         <h4>Market Overview</h4>
-        <textarea id="market_overview" spellcheck="false"><?= htmlspecialchars($market_overview) ?></textarea>
+        <textarea id="market_overview"><?= htmlspecialchars($market_overview) ?></textarea>
         
         <p class="report-content"><?= htmlspecialchars($evening_report_title) ?></p>
 
         <h4>Market Review</h4>
-        <textarea id="market_review" spellcheck="false"><?= htmlspecialchars($market_review) ?></textarea>
+        <textarea id="market_review"><?= htmlspecialchars($market_review) ?></textarea>
         <h4>Sophia Review</h4>
-        <textarea id="sophia_review" spellcheck="false"><?= htmlspecialchars($sophia_review) ?></textarea>
+        <textarea id="sophia_review"><?= htmlspecialchars($sophia_review) ?></textarea>
 
         <!-- Add the "Today's Themes" section here -->
         <hr>
@@ -678,18 +650,18 @@ $issueResult = $issueQuery->get_result();
 
     <!-- Recent Themes and Stocks -->
     <div id="right-content">
-        <h3>Today WatchList</h3>
+        <h3>최근 7일간의 주도주 및 관심종목</h3>
         <div class="recent-themes-container">
             <div class="theme-list">
-            <?php foreach($today_watchlist as $theme => $stocks): ?>
+            <?php foreach($recent_themes as $theme => $stocks): ?>
                 <div class="theme-card">
                     <h4><?= htmlspecialchars($theme) ?></h4>
                     <div class="stock-list">
                         <?php foreach ($stocks as $stock): ?>
                             <div class="stock-item">
-                                <?=$stock['status_str']?><span class="stock-name"><?= htmlspecialchars($stock['name']) ?> </span>
-                                <?=$stock['journal_date_str']?> <span class="stock-change"><?= number_format($stock['close_rate'], 2) ?>% </span>
-                                <span class="stock-amount"><?= number_format($stock['trade_amount']) ?>억</span>
+                                <span class="stock-name"><?= htmlspecialchars($stock['name']) ?> </span>
+                                <span class="stock-change"><?= number_format($stock['max_close_rate'], 2) ?>% </span>
+                                <span class="stock-amount"><?= number_format($stock['max_trade_amount']) ?>억</span>
                             </div>
                             <p class="stock-comment"><?= htmlspecialchars($stock['stock_comment']) ?></p>
                         <?php endforeach; ?>
@@ -789,32 +761,6 @@ $issueResult = $issueQuery->get_result();
             '&sophia_review=' + encodeURIComponent(sophia_review)
         );
     }
-    
-    function openKeywordPopup(keyword) {
-        const url = `keyword_group_list.php?keyword=${encodeURIComponent(keyword)}`;
-        window.open(url, '_blank');
-    }
-
-    // Function to open the checklist popup
-    function openChecklistPopup() {
-        window.open('../growth/checklist_task_register.php', '_blank', 'width=1200,height=600');
-    }
-
-    // Function to fetch and display the to-do count
-    function fetchTodoCount() {
-        const xhr = new XMLHttpRequest();
-        xhr.open('GET', 'fetch_todo_count.php?date=<?= $report_date ?>', true);
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState == 4 && xhr.status == 200) {
-                const response = JSON.parse(xhr.responseText);
-                document.getElementById('todo-count').textContent = `${response.completed}/${response.total}`;
-            }
-        };
-        xhr.send();
-    }
-
-    // Call fetchTodoCount on page load
-    document.addEventListener('DOMContentLoaded', fetchTodoCount);
 
     window.onload = function() {
         var reportDate = getParameterByName('report_date');
@@ -824,6 +770,11 @@ $issueResult = $issueQuery->get_result();
                 search(); // 날짜 자동 선택 시 검색 트리거
             }
         }
+    }
+    
+    function openKeywordPopup(keyword) {
+        const url = `keyword_group_list.php?keyword=${encodeURIComponent(keyword)}`;
+        window.open(url, '_blank');
     }
 </script>
 

@@ -2,7 +2,7 @@
 function loadTinyMCE($selector = '#thought', $height = 700) {
     echo "
     <!-- TinyMCE JS 파일 포함 -->
-    <script src='/modules/common/tinymce/js/tinymce/tinymce.min.js' referrerpolicy='origin'></script>
+    <script src='/tinymce/js/tinymce/tinymce.min.js' referrerpolicy='origin'></script>
     <script>
         var plugins = [
                 'anchor', 'autolink', 'charmap', 'codesample', 'emoticons', 'image', 'link', 'lists', 'media', 'searchreplace', 'table', 'visualblocks', 'wordcount',
@@ -16,7 +16,7 @@ function loadTinyMCE($selector = '#thought', $height = 700) {
             content_css: false,  // TinyMCE에서 자동으로 로드하는 스타일 비활성화
             menubar: false,
             plugins: plugins,
-            content_css: '/modules/common/tinymce/tinymce-my-styles.css',
+            content_css: '/tinymce/tinymce-my-styles.css',
             toolbar: edit_toolbar,
             tinycomments_mode: 'embedded',
             tinycomments_author: 'Author name'

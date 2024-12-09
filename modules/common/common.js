@@ -49,6 +49,11 @@ function Common_OpenStockPopup(code, name) {
     window.open(url, 'StockDetail',  'width=2400, height=1400');
 }
 
+// 종목명 클릭 시 종목 일지 등록 팝업창
+function Common_OpenStockJournalPopup(code, name) {
+    var url = "/modules/growth/journal_feature_register.php?stock_name=" + encodeURIComponent(name);
+    window.open(url, '_blank');
+}
 
 // 종목 검색
 async function Common_SearchStock(event, input, callback = null) {

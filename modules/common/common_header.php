@@ -17,6 +17,6 @@
     <link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
 
     <!-- TinyMCE CSS 파일 포함 -->
-    <link rel='stylesheet' href='/modules/common/tinymce/js/tinymce/skins/content/default/content.min.css'>
+    <link rel='stylesheet' href='/tinymce/js/tinymce/skins/content/default/content.min.css'>
 </head>
 <!-- body 태그는 개별 페이지에서 시작 -->

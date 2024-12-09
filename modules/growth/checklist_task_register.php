@@ -1,6 +1,6 @@
 <?php
 $pageTitle = "체크리스트 관리"; 
-require($_SERVER['DOCUMENT_ROOT'] . "/modules/common/common_header.php");
+require($_SERVER['DOCUMENT_ROOT'] . "/modules/common/common_header_sub.php");
 
 $dateParam = $_GET['date'] ?? date('Y-m-d');
 
@@ -106,7 +106,7 @@ $weeklyChecklists = $weeklyQuery->get_result();
 </head>
 
 <body>
-<div id="container">
+<div>
     <h2>체크리스트 관리 - <?= htmlspecialchars($dateParam); ?></h2>
 
     <div class="navigation-buttons">
@@ -122,7 +122,7 @@ $weeklyChecklists = $weeklyQuery->get_result();
 
     <script>
         function openChecklistItemPopup() {
-            window.open('checklist_item_register.php', '체크리스트 항목 등록', 'width=600,height=400');
+            window.open('checklist_item_register.php', '체크리스트 항목 등록', 'width=1000,height=600');
         }
     </script>
 

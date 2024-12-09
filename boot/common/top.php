@@ -41,6 +41,7 @@
     <!script src="js/tui-grid.js"><!/script>
     <script src="https://uicdn.toast.com/grid/latest/tui-grid.js"></script>
     <script src="<?=$PATH?>/boot/common/js/common.js"></script>
+    <link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
     <style>
     /* modules 의 메뉴바를 쓰기 위해 임의로 컨테이너 margin 설정 */
     #content-wrapper {

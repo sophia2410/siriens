@@ -3,10 +3,13 @@
 import yfinance as yf
 import pymysql
 import configparser
+from pytz import timezone
+import pandas as pd
 from datetime import datetime, timedelta
 
 # 1. 종목의 티커를 생성하는 함수 (코스피: .KS, 코스닥: .KQ)
 def create_ticker(code, market_fg):
+    code = code.decode('utf-8')  # 바이트 스트링을 문자열로 변환
     market_fg = market_fg.decode('utf-8')  # 바이트 스트링을 문자열로 변환
     if market_fg == 'KOSPI':  # 코스피 종목
         return code + ".KS"
@@ -16,28 +19,54 @@ def create_ticker(code, market_fg):
         raise ValueError(f"Unknown market type for code {code} with market flag {market_fg}")
 
 # 2. 수정주가 이벤트(배당, 주식 분할)를 확인하는 함수
-def check_adjustment_events(ticker):
+def check_adjustment_events(db_conn, ticker, code):
     stock = yf.Ticker(ticker)
+    code_str = code.decode('utf-8')
 
-    # 배당(Dividends) 데이터 가져오기
-    dividends = stock.dividends
+        # stock.info  # 종목에 대한 기본 정보 (딕셔너리 형태)
+        # stock.history(period="5d") # 최근 주가 데이터 확인 (기본적으로 마지막 5일)
+        # stock.dividends # 배당 데이터
+        # stock.splits # 주식 분할 데이터
+        # stock.financials # 재무제표
+        # stock.balance_sheet # 밸런스 시트
+        # stock.cashflow # 현금 흐름표 (연간)
+        # stock.history(period="1d")['Close'][-1]  # 마지막 종가 출력 # 최근 주가 및 가격 
 
     # 주식 분할(Splits) 데이터 가져오기
-    splits = stock.splits
+    splits = stock.splits if isinstance(stock.splits, pd.Series) else pd.Series()
+    
+    # 현재 시간에 시간대 정보를 추가 (예: 'Asia/Seoul' 또는 다른 적절한 시간대)
+    current_time = datetime.now(timezone('Asia/Seoul'))
 
-    # 최근 30일 내 배당 이벤트 확인
-    last_dividend_date = dividends.index[-1] if not dividends.empty else None
-    dividend_event = last_dividend_date and last_dividend_date >= (datetime.now() - timedelta(days=30))
-
-    # 최근 30일 내 주식 분할 이벤트 확인
+    # 최근 365일 내 주식 분할 이벤트 확인
     last_split_date = splits.index[-1] if not splits.empty else None
-    split_event = last_split_date and last_split_date >= (datetime.now() - timedelta(days=30))
+    print(f"[DEBUG] Last split date for {code_str}: {last_split_date}")
+    split_event = last_split_date and last_split_date >= (current_time - timedelta(days=41))
+    print(f"[DEBUG] Split event occurred within last 365 days: {split_event}")
 
     # 이벤트가 있으면 True와 이벤트 날짜 및 종류 반환
-    if dividend_event:
-        return True, last_dividend_date, '배당'
-    elif split_event:
-        return True, last_split_date, '주식 분할'
+    # 이미 처리된 이벤트인지 확인
+    if split_event:
+        cursor = db_conn.cursor()
+        query = """
+        SELECT COUNT(*) 
+        FROM stock_adjustment_history 
+        WHERE code = %s AND event_date = %s
+        """
+        print(f"[DEBUG] Executing query: {query}")
+        print(f"[DEBUG] Query parameters: code = {code_str}, event_date = {last_split_date}")
+
+        cursor.execute(query, (code_str, last_split_date))
+        result = cursor.fetchone()
+
+        # 이벤트가 이미 처리된 경우 False 반환
+        if result[0] > 0:
+            print(f"[DEBUG] Already Processing: {split_event}")
+            return False, None, None
+
+        # 이벤트가 처리되지 않은 경우 True 반환
+        return True, last_split_date, '주식분할/증자'
+    
     return False, None, None
 
 # 3. daily_price 테이블에서 해당 코드의 최소일자와 최대일자를 구하는 함수
@@ -80,9 +109,9 @@ def update_adjusted_price_to_db(db_conn, data, code):
         SET close = %s, open = %s, high = %s, low = %s, volume = %s, is_adjusted = 1
         WHERE code = %s AND date = %s
         """
-        cursor.execute(update_query_daily_price, (
-            adj_close, open_price, high_price, low_price, volume, code, date
-        ))
+        # cursor.execute(update_query_daily_price, (
+        #     adj_close, open_price, high_price, low_price, volume, code, date
+        # ))
 
         # daily_pykrx 테이블 업데이트
         update_query_daily_pykrx = """
@@ -90,22 +119,26 @@ def update_adjusted_price_to_db(db_conn, data, code):
         SET close = %s, open = %s, high = %s, low = %s, volume = %s, is_adjusted = 1
         WHERE code = %s AND date = %s
         """
-        cursor.execute(update_query_daily_pykrx, (
-            adj_close, open_price, high_price, low_price, volume, code, date
-        ))
+        # cursor.execute(update_query_daily_pykrx, (
+        #     adj_close, open_price, high_price, low_price, volume, code, date
+        # ))
 
-    db_conn.commit()
+    # db_conn.commit()
 
 # 6. 수정 이력을 기록하는 함수
 def log_adjustment_history(db_conn, code, event_type, event_date, min_date, max_date, remarks=None):
     cursor = db_conn.cursor()
 
+    # event_date의 시간대 정보를 제거하여 MySQL에 맞는 형식으로 변환
+    if event_date.tzinfo is not None:
+        event_date = event_date.astimezone(timezone('UTC')).replace(tzinfo=None)
+
     insert_query = """
     INSERT INTO stock_adjustment_history (code, event_type, event_date, min_date, max_date, remarks)
     VALUES (%s, %s, %s, %s, %s, %s)
     """
-    cursor.execute(insert_query, (code, event_type, event_date, min_date, max_date, remarks))
-    db_conn.commit()
+    # cursor.execute(insert_query, (code, event_type, event_date, min_date, max_date, remarks))
+    # db_conn.commit()
 
 # 7. 설정 파일을 읽고 데이터베이스 연결 생성
 config = configparser.ConfigParser()
@@ -121,7 +154,7 @@ db = pymysql.connect(
 
 # 8. kiwoom_stock 테이블에서 종목 코드와 시장 구분을 가져오기
 cursor = db.cursor(pymysql.cursors.DictCursor)
-query_kiwoom_stock = "SELECT code, market_fg FROM kiwoom_stock"
+query_kiwoom_stock = "SELECT code, market_fg FROM kiwoom_stock WHERE market_fg IN ('KOSPI', 'KOSDAQ')"
 cursor.execute(query_kiwoom_stock)
 stocks = cursor.fetchall()
 
@@ -134,10 +167,10 @@ for stock in stocks:
     ticker = create_ticker(code, market_fg)
 
     # 수정주가 발생 이벤트가 있는지 확인 (배당, 주식 분할 등)
-    event_occurred, event_date, event_type = check_adjustment_events(ticker)
+    event_occurred, event_date, event_type = check_adjustment_events(db, ticker, code)
     
     if event_occurred:
-        print(f"수정주가 이벤트 발생: {code}, 이벤트 종류: {event_type}, 이벤트 날짜: {event_date}")
+        print(f"수정주가 이벤트 발생---------------------------------------------------------------------------: {code}, 이벤트 종류: {event_type}, 이벤트 날짜: {event_date}")
 
         # 이벤트가 발생한 경우 해당 종목의 수정주가 업데이트
         min_date, max_date = get_min_max_date(db, code)
@@ -145,7 +178,8 @@ for stock in stocks:
         update_adjusted_price_to_db(db, adjusted_data, code)
 
         # 수정 이력 기록
-        log_adjustment_history(db, code, event_type, event_date, min_date, max_date)    else:
+        log_adjustment_history(db, code, event_type, event_date, min_date, max_date)
+    else:
         print(f"수정주가 이벤트 없음: {code}")
 
 # 10. 데이터베이스 연결 종료

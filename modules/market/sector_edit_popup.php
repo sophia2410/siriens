@@ -30,7 +30,7 @@ if ($sector_group === '기타') {
     // 기타 섹터를 눌렀을 때 stock_sector에 등록되지 않은 종목과 이미 기타로 등록된 종목 조회
     $query = "
         SELECT ks.code, ks.name, IFNULL(ss.sector, '') AS sector, IFNULL(ss.sector_group, '') AS sector_group
-        FROM kiwoom_xray_tick_summary ks
+        FROM xraytick_summary ks
         LEFT JOIN stock_sector ss ON ks.code = ss.code
         WHERE (ss.sector_group IS NULL OR ss.sector_group = '') -- stock_sector에 없거나 기타로 등록된 종목
         AND ks.tot_amt >= 300000000
@@ -48,7 +48,7 @@ if ($sector_group === '기타') {
         JOIN stock s ON ss.code = s.code AND s.last_yn = 'Y'
         JOIN (
             SELECT ks.code
-            FROM kiwoom_xray_tick_summary ks
+            FROM xraytick_summary ks
             WHERE ks.tot_amt >= 300000000
             AND ks.date BETWEEN ? AND ?
             GROUP BY ks.code, ks.name

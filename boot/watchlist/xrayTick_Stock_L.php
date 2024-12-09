@@ -272,12 +272,36 @@ else {
 				FROM calendar cal
 				LEFT OUTER JOIN 
 					(
-						SELECT dp.code, dp.date, dp.close_rate close_rate, dp.close close_amt, round(dp.amount/100000000,0) tot_trade_amt, round(xr.tot_amt/100000000,1) amount, xr.avg_amt, xr.tot_cnt cnt
-						FROM daily_price dp
-						LEFT OUTER JOIN kiwoom_xray_tick_summary xr
-						ON dp.date = xr.date
-						AND dp.code = xr.code
-						WHERE dp.code = '$code'
+						SELECT code, 
+							date,
+							MAX(close) AS close_amt, 
+							MAX(close_rate) AS close_rate, 
+							MAX(high_rate) AS high_rate, 
+							MAX(low_rate) AS low_rate, 
+							SUM(tot_trade_amt) AS tot_trade_amt, 
+							SUM(avg_amt) AS avg_amt, 
+							SUM(amount) AS amount, 
+							SUM(cnt) AS cnt
+						FROM (
+							SELECT code, date, close, close_rate, high_rate, low_rate, 
+								ROUND(amount / 100000000, 0) AS tot_trade_amt, 
+								NULL AS avg_amt,
+								NULL AS amount,
+								NULL AS cnt
+							FROM daily_price 
+							WHERE code = '$code'
+
+							UNION
+
+							SELECT code, date, NULL AS close, NULL AS close_rate, NULL AS high_rate, NULL AS low_rate, 
+								NULL AS tot_trade_amt, 
+								avg_amt,
+								ROUND(tot_amt / 100000000, 1) AS amount, 
+								tot_cnt AS cnt
+							FROM xraytick_summary
+							WHERE code = '$code'
+						) AS combined_data
+						GROUP BY code, date
 					) xray
 				ON xray.date = cal.date
 				WHERE cal.date >= (select max(date) from calendar where date <=(select DATE_ADD(now(), INTERVAL -5 MONTH)))
@@ -403,7 +427,7 @@ else {
 	$today = date('Ymd');
 
     // 등록 코멘트 불러오기
-    $query = "SELECT comment, pick_yn, comment_date FROM kiwoom_xtay_tick_comments WHERE code = '$code' AND comment_date = '$today'";
+    $query = "SELECT comment, pick_yn, comment_date FROM xraytick_review_comments WHERE code = '$code' AND comment_date = '$today'";
     $result = $mysqli->query($query);
     if ($row = $result->fetch_assoc()) {
         $comment = $row['comment'];
@@ -414,7 +438,7 @@ else {
     }
 
     // 최근 코멘트를 가져와서 표시하는 부분 추가
-    $query = "SELECT comment, pick_yn, comment_date FROM kiwoom_xtay_tick_comments WHERE code = '$code' AND comment_date < '$today' ORDER BY comment_date LIMIT 3";
+    $query = "SELECT comment, pick_yn, comment_date FROM xraytick_review_comments WHERE code = '$code' AND comment_date < '$today' ORDER BY comment_date LIMIT 3";
     $result = $mysqli->query($query);
 ?>
     <div class="comment-section" style='border-bottom: 1px solid #ddd;'>

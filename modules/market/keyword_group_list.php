@@ -26,7 +26,12 @@ $criteriaValue = $_GET['group_id'] ?? '';
 
 // 종목리스트
 function render_stock_list($mysqli, $groupName = '', $groupId = '') {
-    $groupCondition = ($groupId !== '') ? "kg.group_id = ?" : "kg.group_name LIKE CONCAT('%', ?, '%')";
+    $groupCondition = "kg.group_name = 'XXX'"; // 전체 조회 방지용..
+    if($groupId !== '') {
+        $groupCondition = "kg.group_id = ?";
+     } elseif ($groupName !== '') {
+        $groupCondition = "kg.group_name LIKE CONCAT('%', ?, '%')";
+     }
 
     $stockQuery = $mysqli->prepare("
         SELECT 
@@ -49,7 +54,7 @@ function render_stock_list($mysqli, $groupName = '', $groupId = '') {
 
     if ($groupId !== '') {
         $stockQuery->bind_param('i', $groupId);
-    } else {
+    } elseif ($groupName !== '') {
         $stockQuery->bind_param('s', $groupName);
     }
 

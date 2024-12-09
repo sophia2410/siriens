@@ -24,13 +24,13 @@ if(isset($_POST['proc_fg'])) {
 			$pick_yn = (isset($_POST[$pick])) ? $_POST[$pick] : "N";
 
 			// 변경이나 삭제 반영을 위해 우선 지우고 다시 등록 처리
-			$qry = "DELETE FROM kiwoom_xtay_tick_comments WHERE comment_date = '$comment_date' AND code = '{$_POST[$code]}'";
+			$qry = "DELETE FROM xraytick_review_comments WHERE comment_date = '$comment_date' AND code = '{$_POST[$code]}'";
 			echo $qry."<br><br>";
 			$mysqli->query($qry);
 
 			// 등록 정보가 있는 경우만 저장
 			if($pick_yn == 'Y' || $_POST[$comment] != '') {
-				$qry = "INSERT INTO kiwoom_xtay_tick_comments (code, name, pick_yn, comment, comment_date) VALUES ('{$_POST[$code]}', '{$_POST[$name]}', '{$pick_yn}', '{$_POST[$comment]}', '{$comment_date}')";
+				$qry = "INSERT INTO xraytick_review_comments (code, pick_yn, comment, comment_date) VALUES ('{$_POST[$code]}', '{$pick_yn}', '{$_POST[$comment]}', '{$comment_date}')";
 				echo $qry."<br><br>";
 				$mysqli->query($qry);
 			}
@@ -46,12 +46,12 @@ if(isset($_POST['proc_fg'])) {
         error_log("Deleting comment for $code on $comment_date");
 
         // 기존 코멘트 삭제
-        $qry = "DELETE FROM kiwoom_xtay_tick_comments WHERE comment_date = '$comment_date' AND code = '$code'";
+        $qry = "DELETE FROM xraytick_review_comments WHERE comment_date = '$comment_date' AND code = '$code'";
         if (!$mysqli->query($qry)) {
             $response = ['success' => false, 'message' => 'Error deleting comment: ' . $mysqli->error];
         } else {
             error_log("Inserting new comment for $code");
-            $qry = "INSERT INTO kiwoom_xtay_tick_comments (code, name, pick_yn, comment, comment_date) VALUES ('$code', '$name', '$pick_yn', '$comment', '$comment_date')";
+            $qry = "INSERT INTO xraytick_review_comments (code, pick_yn, comment, comment_date) VALUES ('$code', '$pick_yn', '$comment', '$comment_date')";
             if ($mysqli->query($qry)) {
                 $response = ['success' => true, 'message' => 'Comment saved successfully'];
             } else {
@@ -62,7 +62,7 @@ if(isset($_POST['proc_fg'])) {
         $code = $_POST['code'];
         $comment_date = $_POST['save_date'];
 
-        $qry = "DELETE FROM kiwoom_xtay_tick_comments WHERE comment_date = '$comment_date' AND code = '$code'";
+        $qry = "DELETE FROM xraytick_review_comments WHERE comment_date = '$comment_date' AND code = '$code'";
         if ($mysqli->query($qry)) {
             $response = ['success' => true, 'message' => 'Comment deleted successfully'];
         } else {
@@ -104,7 +104,7 @@ if(isset($_POST['proc_fg'])) {
     
         $query = "
             SELECT AVG(avg_amt) as average_amount
-            FROM kiwoom_xray_tick_summary
+            FROM xraytick_summary
             WHERE code = '$code'
             AND date BETWEEN '$start_date' AND '$end_date'
         ";

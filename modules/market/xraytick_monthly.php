@@ -41,7 +41,7 @@ $previousMonthsQuery = "
             ELSE ss.sector_group 
         END AS sector_group
     FROM 
-        kiwoom_xray_tick_summary ks
+        xraytick_summary ks
     LEFT JOIN stock_sector ss ON ks.code = ss.code
     WHERE 
         ks.tot_amt >= 1000000000
@@ -72,7 +72,7 @@ $currentMonthQuery = "
             ELSE ss.sector_group 
         END AS sector_group
     FROM 
-        kiwoom_xray_tick_summary ks
+        xraytick_summary ks
     LEFT JOIN stock_sector ss ON ks.code = ss.code
     WHERE 
         ks.tot_amt >= 1000000000
@@ -155,7 +155,7 @@ while ($row = $currentMonthResult->fetch_assoc()) {
 <div id="container">
     <div id="content-area">
         <div class="filters">
-            <form method="GET" action="continuous_buying_monthly.php" id="searchForm" style="display: flex; align-items: center;">
+            <form method="GET" action="xraytick_monthly.php" id="searchForm" style="display: flex; align-items: center;">
                 <!-- 조회 연도 -->
                 <label for="queryYear">조회 연도:</label>
                 <input type="number" id="queryYear" name="year" value="<?php echo $reportYear; ?>" />

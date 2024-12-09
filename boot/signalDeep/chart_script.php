@@ -6,7 +6,7 @@ header('Content-Type: application/json');
 // '003160' 종목의 데이터를 가져오는 SQL 쿼리
 $sql = "SELECT mo.date, mo.open, mo.high, mo.low, mo.close, mo.volume, mo.amount, xr.tot_amt AS xray_amount
         FROM market_ohlcv mo
-        LEFT OUTER JOIN kiwoom_xray_tick_summary xr
+        LEFT OUTER JOIN xraytick_summary xr
         ON xr.date = mo.date
         AND xr.code = mo.code
         WHERE mo.code = '003160'

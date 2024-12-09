@@ -87,7 +87,7 @@ if($pgmId == '') {
 		}
 
 		// 가장 최근 0일차 상승이유
-		echo "<tr><td>";
+		echo "<tr><td rowspan=2>";
 		if($row['group_key_str'] != '') {
 			$info_0day =" <b>(".$row['uprsn'].")</b> ".$row['close_rate_str']." / ".$row['trade_amount_str']."</font>"." &nbsp; ";
 		} else {
@@ -117,6 +117,12 @@ if($pgmId == '') {
 				<div class='col mr-0'>
 					<div class='font-weight-bold text-primary text-uppercase mb-1' style='height:35px; line-height:35px;'>$mochaten_cnt
 						<font class='h4'><a href=\"javascript:void(0);\" onclick=\"openStockPopup('{$row['code']}', '{$stock_name}')\">".$stock_name."</a></b></span></font> $xray_tick_detail &nbsp;".$realtime_data."
+					</div>
+					<div class='font-weight-bold mb-1 style='margin: 0;'>
+						$info_0day
+					</div>
+					<div style='margin: 0; width:610px;'>
+						<img class='img-fluid' id='stockChart_$d' src='https://ssl.pstatic.net/imgfinance/chart/item/candle/day/{$row['code']}.png?sidcode=1705826920773' width='600'>
 					</div>
 				</div>
 			</div>";
@@ -179,8 +185,7 @@ if($pgmId == '') {
 			// }
 		// }
 
-		echo "<td width=75%>$info_0day.$today_issue</td></tr>";
-		echo "<tr><td colspan=2>";
+		echo "<td width=60%>$today_issue</td></tr><tr><td>";
 
 		// X-RAY 순간체결 거래량 쿼리 실행
 		$query2 = "SELECT cal.date, DATE_FORMAT(cal.date, '%m-%d') mm_dd, xray.close_rate, xray.high_rate, xray.low_rate, xray.trade_amount, xray.amount, xray.cnt

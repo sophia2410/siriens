@@ -19,7 +19,7 @@ while ($row = $result->fetch_assoc()) {
     $stock_comment .= $row['comment'];
 }
 
-// 최근 15일간의 등락률과 거래대금 조회 (가로로 풀어서 표시)
+// 최근 150일간의 등락률과 거래대금 조회 (가로로 풀어서 표시)
 $recent_changes = [];
 $query = "
     SELECT cal.date, DATE_FORMAT(cal.date, '%m-%d') mm_dd, xray.close_rate, xray.high_rate, xray.low_rate, xray.trade_amount, xray.amount, xray.cnt
@@ -27,6 +27,11 @@ $query = "
         SELECT date
         FROM calendar
         WHERE date <= '$report_date'
+        AND date >= (
+            SELECT MIN(date)
+            FROM daily_price
+            WHERE code = '$code'
+        )
         ORDER BY date DESC
         LIMIT 150
     ) cal
@@ -36,7 +41,7 @@ $query = "
             ROUND(xr.tot_amt / 100000000, 1) amount,  
             xr.tot_cnt cnt
         FROM daily_price dp
-        LEFT OUTER JOIN kiwoom_xray_tick_summary xr
+        LEFT OUTER JOIN xraytick_summary xr
         ON dp.date = xr.date
         AND dp.code = xr.code
         WHERE dp.code = '$code'
@@ -90,19 +95,25 @@ while ($row = $result->fetch_assoc()) {
     <div id="chart-section">
         <h2><?php echo $name; ?></h2>
         <!-- 차트를 표시할 div -->
-        <div id="chart-container" data-code='<?php echo $code; ?>' data-name='<?php echo $name; ?>' data-selected="5" style="height: 580px; min-width: 310px;"></div>
+        <div id="chart-container" data-code='<?php echo $code; ?>' data-name='<?php echo $name; ?>' data-selected="3" style="height: 580px; min-width: 310px;"></div>
     </div>
 
     <!-- 최근 등락률 (가로로 표시) -->
     <div id="price-section">
         <h3>최근 등락률 및 거래대금</h3>
         <div class="scrollable-x-content"> <!-- 가로 스크롤 추가 -->
-            <table class="small-table">
+            <table class="small-table" style="color:#5a5c69;">
                 <thead>
                     <tr>
                         <?php foreach ($recent_changes as $change): ?>
                             <th style="width:100px"><?= $change['mm_dd'] ?></th>
                         <?php endforeach; ?>
+                        <?php
+                            // 부족한 <th> 셀을 빈칸으로 채우기
+                            $remaining_th = 21 - count($recent_changes);
+                            for ($i = 0; $i < $remaining_th; $i++): ?>
+                                <th style="width:100px"></th>
+                        <?php endfor; ?>
                     </tr>
                 </thead>
                 <tbody>
@@ -110,15 +121,30 @@ while ($row = $result->fetch_assoc()) {
                         <?php foreach ($recent_changes as $change): ?>
                             <td class="<?= Utility_GetCloseRateClass($change['close_rate']) ?>" style="width:100px"><?= $change['close_rate'] ?>%</td>
                         <?php endforeach; ?>
+                        <?php
+                            // 부족한 <td> 셀을 빈칸으로 채우기
+                            $remaining_th = 21 - count($recent_changes);
+                            for ($i = 0; $i < $remaining_th; $i++): ?>
+                                <td rowspan=6 style="width:100px"></td>
+                        <?php endfor; ?>
                     </tr>
                     <tr>
                         <?php foreach ($recent_changes as $change): ?>
-                            <td><?= $change['high_rate'] ?> / <?= $change['low_rate'] ?></td>
+                            <td style='font-size:11px'><?= $change['high_rate'] ?> / <?= $change['low_rate'] ?></td>
                         <?php endforeach; ?>
                     </tr>
                     <tr>
                         <?php foreach ($recent_changes as $change): ?>
-                            <td class="<?= Utility_GetAmountClass($change['trade_amount']) ?>"><?= number_format($change['trade_amount']) ?>억</td>
+                            <?php
+                                // 총 거래대금에 따라 스타일 적용
+                                if($change['trade_amount'] >= 1000)
+                                    $tot_amt_style =  "background-color:#ffccd5;";
+                                elseif ($change['trade_amount'] >= 500)
+                                    $tot_amt_style = "background-color:#fde2e4;";
+                                else
+                                    $tot_amt_style = "";
+                            ?>
+                            <td style="text-align: right; <?= $tot_amt_style ?>"><?= number_format($change['trade_amount']) ?>억</td>
                         <?php endforeach; ?>
                     </tr>
                     <tr class="border-strong">
@@ -128,7 +154,17 @@ while ($row = $result->fetch_assoc()) {
                     </tr>
                     <tr>
                         <?php foreach ($recent_changes as $change): ?>
-                            <td class="<?= Utility_GetAmountClass($change['amount']) ?>"><?= number_format($change['amount']) ?>억</td>
+
+                            <?php
+                                // xray 거래대금에 따라 스타일 적용
+                                if($change['amount'] > 500)
+                                    $amt_style = "input-background-yellow amount-high";
+                                elseif($change['amount'] > 100)
+                                    $amt_style = "amount-high";
+                                else
+                                    $amt_style = "";
+                            ?>
+                            <td class="<?= $amt_style ?>" style="text-align: right;"><?= number_format($change['amount']) ?>억</td>
                         <?php endforeach; ?>
                     </tr>
                 </tbody>

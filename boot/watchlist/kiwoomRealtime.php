@@ -8,10 +8,10 @@
 
 <body id="page-top">
 <!-- Page Wrapper -->
-<div id="wrapper">
+<div id="wrapper" class="d-flex flex-column">
 
 <!-- Content Wrapper -->
-<div id="content-wrapper" class="d-flex flex-column">
+<!-- <div id="content-wrapper"> -->
 
 <!-- Main Content -->
 <div id="content">

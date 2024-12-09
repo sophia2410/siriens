@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ");
         $stmt->bind_param('ssi', $checklistTitle, $checklistType, $displayOrder);
         $stmt->execute();
-        echo "<script>alert('체크리스트 항목이 등록되었습니다.'); window.location.href='checklist_item_register.php';</script>";
+        echo "<script>window.location.href='checklist_item_register.php';</script>";
     } elseif ($action === 'update') {
         // 체크리스트 항목 수정 로직
         $checklistId = $_POST['checklist_id'];
@@ -26,7 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ");
         $stmt->bind_param('ssii', $checklistTitle, $checklistType, $displayOrder, $checklistId);
         $stmt->execute();
-        echo "<script>alert('체크리스트 항목이 수정되었습니다.'); window.location.href='checklist_item_register.php';</script>";
+        echo "<script>window.location.href='checklist_item_register.php';</script>";
     } elseif (isset($_POST['status'])) {
         // 일별 체크리스트 저장 로직
         foreach ($_POST['status'] as $checklistId => $dates) {
@@ -42,7 +42,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt->execute();
             }
         }
-        echo "<script>alert('일별 체크리스트 수행 상태가 저장되었습니다.'); window.location.href='checklist_task_register.php';</script>";
+        echo "<script>
+                alert('일별 체크리스트 수행 상태가 저장되었습니다.'); 
+                window.opener.fetchTodoCount();
+                window.location.href='checklist_task_register.php';
+             </script>";
     } elseif (isset($_POST['weekly_status'])) {
         // 주간 체크리스트 저장 로직
         $weekEnd = $_POST['week_end'];
@@ -67,6 +71,6 @@ if ($_GET['action'] === 'delete') {
     $stmt = $mysqli->prepare("DELETE FROM checklists WHERE checklist_id = ?");
     $stmt->bind_param('i', $checklistId);
     $stmt->execute();
-    echo "<script>alert('체크리스트 항목이 삭제되었습니다.'); window.location.href='checklist_item_register.php';</script>";
+    echo "<script>window.location.href='checklist_item_register.php';</script>";
 }
 ?>

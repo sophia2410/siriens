@@ -27,7 +27,7 @@ $endDate = $row['end_date'];
 if ($criteria == 'all') {
     $whereCriteria = "(mes.trade_amount > 500 OR mes.close_rate > 10)";
 } else {
-    $whereCriteria = "(mes.trade_amount > 1000 OR mes.is_leader = '1' OR mes.is_watchlist = '1')";
+    $whereCriteria = "((mes.trade_amount > 1000 AND mes.close_rate > 10) OR (mes.trade_amount > 300 AND mes.close_rate > 29.5) OR mes.is_leader = '1' OR mes.is_watchlist = '1')";
 }
 
 // 과거일자 순으로 종목 등장 순서 카운팅
@@ -103,7 +103,7 @@ $theme_query = "
         is_leader DESC,
         is_watchlist DESC,
         close_rate DESC;  -- 등락률 높은 순으로 정렬";
-
+// echo "<pre>$theme_query</pre>";
 $theme_result = $mysqli->query($theme_query);
 
 $index_query = "
@@ -162,6 +162,8 @@ while ($row = $theme_result->fetch_assoc()) {
     $groups[$group_label][$keyword_group_name][$event_date][] = [
         'theme' => $theme,
         'stock_name' => $stock_name . $stock_appearance_by_date[$stock_code][$event_date],  // Append the appearance order to the stock name
+        'name' => $stock_name,
+        'code' => $stock_code,
         'close_rate' => number_format($row['close_rate'], 2) . "%",
         'trade_amount' => number_format($row['trade_amount']) . "억",
         'close_rate_css' => $row['close_rate'],
@@ -267,7 +269,10 @@ while ($row = $theme_result->fetch_assoc()) {
                                         // 금액에 따른 스타일 클래스
                                         $amountClass = Utility_GetAmountClass($entry['trade_amount_css']);
                                         ?>
-                                        <span class="<?= $watchListClass ?> <?= $leaderClass ?>"><?= $entry['stock_name'] ?></span>
+                                        <span class="<?= $watchListClass ?> <?= $leaderClass ?>"
+                                              onclick="Common_OpenStockJournalPopup('<?php echo $entry['code']; ?>', '<?php echo $entry['name']; ?>')">
+                                              <?= $entry['stock_name'] ?>
+                                        </span>
                                         (<span class="<?= $closeRateClass ?>"><?= htmlspecialchars($entry['close_rate']) ?></span>, <span class="<?= $amountClass ?>"><?= htmlspecialchars($entry['trade_amount']) ?></span>)
                                     </div>
                                 <?php endforeach; ?>
@@ -282,5 +287,8 @@ while ($row = $theme_result->fetch_assoc()) {
     </tbody>
 </table>
 
+<?php
+require($_SERVER['DOCUMENT_ROOT'] . "/modules/common/common_footer.php");
+?>
 </body>
 </html>

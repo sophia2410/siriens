@@ -197,6 +197,127 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $mysqli->rollback();
                 echo "Error: " . $e->getMessage();
             }
+        } elseif ($action === 'register_hot_stocks') {
+            $reportDate = $selected_date;
+        
+            // 조건에 맞는 종목 조회
+            $query = "
+                SELECT mes.code, mes.event_id, mes.date, mes.close_rate, mes.trade_amount, kg.group_name
+                FROM market_event_stocks mes
+                JOIN market_events me ON mes.event_id = me.event_id
+                LEFT JOIN keyword_groups kg ON me.keyword_group_id = kg.group_id
+                WHERE mes.date = ?
+                AND ((mes.trade_amount > 1000 AND mes.close_rate > 10) OR (mes.trade_amount > 300 AND mes.close_rate > 29.5))
+            ";
+        
+            $stmt = $mysqli->prepare($query);
+            $stmt->bind_param('s', $reportDate);
+            $stmt->execute();
+            $result = $stmt->get_result();
+        
+            // Hot 종목 업데이트 및 hot_stock_count 계산
+            $updateQuery = "
+                UPDATE market_event_stocks mes
+                SET mes.is_hot_stock = 'Y', 
+                    mes.hot_stock_count = (
+                        SELECT IFNULL(MAX(inner_mes.hot_stock_count), 0) + 1
+                        FROM market_event_stocks inner_mes
+                        WHERE inner_mes.code = mes.code
+                        AND inner_mes.date BETWEEN DATE_SUB(mes.date, INTERVAL 1 MONTH) AND mes.date
+                        AND inner_mes.is_hot_stock = 'Y'
+                    )
+                WHERE mes.event_id = ? AND mes.code = ?
+            ";
+        
+            $updateStmt = $mysqli->prepare($updateQuery);
+        
+            while ($row = $result->fetch_assoc()) {
+                $code = $row['code'];
+                $eventId = $row['event_id'];
+                $date = $row['date'];
+                $closeRate = $row['close_rate'];
+                $tradeAmount = NUMBER_FORMAT($row['trade_amount']);
+                $groupName = $row['group_name'];
+        
+                // hot_stock_count 업데이트
+                $updateStmt->bind_param('ss', $eventId, $code);
+                $updateStmt->execute();
+        
+                // hot_stock_count 값 가져오기
+                $hotStockCountQuery = "
+                    SELECT hot_stock_count
+                    FROM market_event_stocks
+                    WHERE event_id = ? AND code = ? AND date = ?
+                ";
+                $hotStockCountStmt = $mysqli->prepare($hotStockCountQuery);
+                $hotStockCountStmt->bind_param('sss', $eventId, $code, $date);
+                $hotStockCountStmt->execute();
+                $hotStockCountResult = $hotStockCountStmt->get_result();
+                $hotStockCountRow = $hotStockCountResult->fetch_assoc();
+                $hotStockCount = $hotStockCountRow['hot_stock_count'];
+        
+                // 새로운 comment 생성
+                $newComment = "<strong>{$date} ({$hotStockCount}) / {$groupName} / {$closeRate}% / {$tradeAmount}억</strong>";
+        
+                if ($hotStockCount == 1) {
+                    // hot_stock_count가 1인 경우, 새로운 데이터 그대로 삽입
+                    $insertQuery = "
+                        INSERT INTO journal_feature (journal_date, code, type, comment)
+                        VALUES (?, ?, 'hot', COMPRESS(?))
+                    ";
+                    $insertStmt = $mysqli->prepare($insertQuery);
+                    $insertStmt->bind_param('sss', $date, $code, $newComment);
+                    $insertStmt->execute();
+                } else {
+                    // hot_stock_count가 2 이상인 경우 기존 comment를 가져와 합침
+                    $selectCommentQuery = "
+                        SELECT UNCOMPRESS(comment) AS comment 
+                        FROM journal_feature 
+                        WHERE code = ? AND type = 'hot' 
+                        ORDER BY journal_date DESC 
+                        LIMIT 1
+                    ";
+                    $selectCommentStmt = $mysqli->prepare($selectCommentQuery);
+                    $selectCommentStmt->bind_param('s', $code);
+                    $selectCommentStmt->execute();
+                    $commentResult = $selectCommentStmt->get_result();
+                    $previousCommentRow = $commentResult->fetch_assoc();
+        
+                    $previousComment = $previousCommentRow ? $previousCommentRow['comment'] : '';
+                    $combinedComment = $newComment;
+                    if (!empty($previousComment)) {
+                        $combinedComment .= "<p>&nbsp;</p>" . $previousComment;
+                    }
+        
+                    // 기존 데이터 삭제
+                    $deleteQuery = "
+                        DELETE FROM journal_feature 
+                        WHERE code = ? AND type = 'hot'
+                    ";
+                    $deleteStmt = $mysqli->prepare($deleteQuery);
+                    $deleteStmt->bind_param('s', $code);
+                    $deleteStmt->execute();
+        
+                    // 새로운 데이터 삽입
+                    $insertQuery = "
+                        INSERT INTO journal_feature (journal_date, code, type, comment)
+                        VALUES (?, ?, 'hot', COMPRESS(?))
+                    ";
+                    $insertStmt = $mysqli->prepare($insertQuery);
+                    $insertStmt->bind_param('sss', $date, $code, $combinedComment);
+                    $insertStmt->execute();
+                }
+            }
+        
+            try {
+                // 커밋
+                if (!$mysqli->commit()) {
+                    throw new Exception("Commit failed: " . $mysqli->error);
+                }
+            } catch (Exception $e) {
+                $mysqli->rollback();
+                echo "Error: " . $e->getMessage();
+            }
         }
 
         // 등록 처리 후 리다이렉트

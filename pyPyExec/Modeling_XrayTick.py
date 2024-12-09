@@ -33,10 +33,10 @@ def load_data(engine, start_date, end_date):
     """
     df_daily_price = pd.read_sql(query_daily_price, engine, parse_dates=['date'])
 
-    # kiwoom_xray_tick_summary 데이터 로드
+    # xraytick_summary 데이터 로드
     query_tick_summary = f"""
     SELECT code, date, name, tot_volume, tot_amt, avg_amt
-    FROM kiwoom_xray_tick_summary
+    FROM xraytick_summary
     WHERE date BETWEEN '{start_date}' AND '{end_date}'
     """
     df_tick_summary = pd.read_sql(query_tick_summary, engine, parse_dates=['date'])

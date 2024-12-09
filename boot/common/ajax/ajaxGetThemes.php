@@ -1,5 +1,4 @@
 <?php
-
 mb_internal_encoding("UTF-8");
 require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 
@@ -11,7 +10,7 @@ $source = isset($_GET['source']) ? $_GET['source'] : 'market_events';
 if ($source === 'watchlist_sophia') {
     // Fetch themes from watchlist_sophia
     $query = "SELECT min(sort_theme) AS id, theme AS name FROM watchlist_sophia WHERE sector = '2 최근테마' GROUP BY theme ORDER BY sort_theme";
-} else {
+} elseif ($source === 'market_events') {
     // Default to fetching themes from market_events
     $query = "SELECT 
                 mi.group_label AS name,
@@ -22,13 +21,23 @@ if ($source === 'watchlist_sophia') {
             JOIN 
                 market_event_stocks mis ON mis.event_id = mi.event_id
             WHERE
-                mi.date >= DATE_SUB(CURDATE(), INTERVAL 1 MONTH)
+                mi.date >= DATE_SUB(CURDATE(), INTERVAL 10 Day)
             GROUP BY 
                 mi.group_label
             ORDER BY 
                 hot_theme DESC,
                 max_date DESC,
                 name ASC";
+} elseif ($source === 'keywords') {
+    $search_str = $_GET['query'];
+    // Fetch Keyword
+    $query = "SELECT keyword
+            FROM 
+                keyword
+            WHERE
+                keyword like '%$search_str%'
+            ORDER BY 
+                keyword";
 }
 
 $result = $mysqli->query($query);

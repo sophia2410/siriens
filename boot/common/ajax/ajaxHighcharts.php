@@ -18,7 +18,7 @@ $sql = "SELECT mo.date,
                CASE WHEN mo.open = 0 THEN mo.close ELSE mo.low END  AS low, 
                mo.close, mo.close_rate, mo.volume, mo.amount, xr.tot_amt AS xray_amount
         FROM daily_price mo
-        LEFT OUTER JOIN kiwoom_xray_tick_summary xr
+        LEFT OUTER JOIN xraytick_summary xr
         ON xr.date = mo.date
         AND xr.code = mo.code
         WHERE mo.code = ?

@@ -1,13 +1,45 @@
 <?php
 // 조건에 따른 종목 구해오기
 function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $group_label, $theme, $category, $buy_cnt, $buy_period, $zeroday_view, $chart_status, $frequency, $trade_qry, $trade_table, $base_date) {
-	if($pgmId == '0dayStocks') { //0dayStocks.php
+	if($pgmId == 'Pick') { // event_register.php
+		$filename = $pgmId;
+		$file_orderby = "ORDER BY V.group_key, V.code";
+
+		$query = "SELECT RTRIM(CONCAT(A.status)) AS group_key
+						, RTRIM(CONCAT(' [ ' , A.status,' ] ')) AS group_key_str
+						, B.date date
+						, A.code 
+						, S.name
+						, A.type AS uprsn
+						, CASE WHEN B.close_rate >= 0 THEN CONCAT('<font color=red> ▲',B.close_rate,'% </font>') ELSE  CONCAT('<font color=blue> ▼',ABS(B.close_rate),'% </font>') END close_rate_str
+						, CASE WHEN B.trade_amount >= 1000 THEN CONCAT('<font color=red><b>',FORMAT(B.trade_amount,0),'억</b></font>') ELSE  CONCAT(B.trade_amount,'억') END trade_amount_str
+						, B.trade_amount
+						$trade_qry
+						, M.mochaten_cnt
+					FROM (SELECT status, type, code
+						  FROM journal_feature jf
+						  WHERE status != 'normal'
+						  GROUP BY status, code
+						 ) A
+					LEFT OUTER JOIN (SELECT * FROM v_market_event WHERE (date, code) IN (SELECT MAX(date), code FROM market_event_stocks  GROUP BY code)) B
+					ON A.code = B.code
+					LEFT OUTER JOIN $trade_table Z
+					ON Z.code = A.code
+					AND Z.date = '$base_date'
+					LEFT OUTER JOIN (SELECT code, count(*) mochaten_cnt FROM mochaten WHERE cha_fg = 'MC000' GROUP BY code) M
+					ON M.code = A.code
+					JOIN stock S
+					ON A.code = S.code
+					AND S.last_yn = 'Y'
+					ORDER BY A.status, A.code";
+	} elseif($pgmId == '0dayStocksMarketEvent') { //0dayStocks.php
 		$filename = $pgmId."_".$increase_rate;
 		$file_orderby = "ORDER BY V.date DESC , V.trade_amount DESC";
 
-		// 0일차 관종 목록 구해오기
+		//  마켓 이벤트 특정 상승률, 거래대금 종목 골라오기
 		if($increase_rate == '29.5') $sub_where = "AND B.close_rate >= $increase_rate";
-		else $sub_where = "AND ( (B.close_rate >= 29.5 AND B.trade_amount > 100) OR (B.close_rate >= $increase_rate AND B.trade_amount > 500) OR (B.close_rate >= 15 AND B.trade_amount > $trade_amt) )"; // 상한가 100억이상, 20% 500억 이상, 15% 1000억 이상
+		// else $sub_where = "AND ( (B.close_rate >= 29.5 AND B.trade_amount > 100) OR (B.close_rate >= $increase_rate AND B.trade_amount > 500) OR (B.close_rate >= 15 AND B.trade_amount > $trade_amt) )"; // 상한가 100억이상, 20% 500억 이상, 15% 1000억 이상
+		else $sub_where = "AND ( (B.close_rate >= 29.5 AND B.trade_amount > 100) OR (B.close_rate >= $increase_rate AND B.trade_amount > $trade_amt) )"; // 상한가 300억이상, 10% 1000억 이상, 타이트하게 변경
 
 		$query = "	SELECT A.date group_key
 						, CONCAT(' &nbsp; <font color=gray>', B.date,'</font>') group_key_str
@@ -25,13 +57,13 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $group_label
 						, R.group_sum
 						$trade_qry
 						, M.mochaten_cnt
-					FROM (SELECT date FROM calendar WHERE date <= '$search_date' ORDER BY date desc LIMIT 15) A
+					FROM (SELECT date FROM calendar WHERE date <= '$search_date' ORDER BY date desc LIMIT 20) A
 					INNER JOIN v_market_event B
 					ON A.date = B.date
 					$sub_where
 					INNER JOIN (	SELECT G.group_label, G.theme, SUM(G.trade_amount) AS group_sum, MAX(G.date) AS group_max_date
 									FROM v_market_event G
-									INNER JOIN (SELECT date FROM calendar WHERE date <= '$search_date' ORDER BY date desc LIMIT 15) S
+									INNER JOIN (SELECT date FROM calendar WHERE date <= '$search_date' ORDER BY date desc LIMIT 20) S
 									ON S.date = G.date
 									GROUP BY G.group_label, G.theme
 								) R
@@ -39,7 +71,7 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $group_label
 					AND B.theme  = R.theme
 					INNER JOIN (	SELECT G.group_label, SUM(G.trade_amount) AS group_label_sum, MAX(G.date) AS group_label_max_date
 									FROM v_market_event G
-									INNER JOIN (SELECT date FROM calendar WHERE date <= '$search_date' ORDER BY date desc LIMIT 15) S
+									INNER JOIN (SELECT date FROM calendar WHERE date <= '$search_date' ORDER BY date desc LIMIT 20) S
 									ON S.date = G.date
 									GROUP BY G.group_label
 								) X
@@ -50,7 +82,51 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $group_label
 					LEFT OUTER JOIN (SELECT code, count(*) mochaten_cnt FROM mochaten WHERE cha_fg = 'MC000' GROUP BY code) M
 					ON M.code = B.code
 					ORDER BY B.date DESC, B.trade_amount DESC";
-	} else if($pgmId == 'mochaten') { // 모차십
+	} elseif($pgmId == '0dayStocksMochaten') { //0dayStocks.php
+		$filename = $pgmId;
+		$file_orderby = "ORDER BY V.group_key_str DESC , V.tot_trade_amt DESC";
+
+		$query = "	SELECT A.date group_key
+						, CONCAT(' &nbsp; <font color=gray>', B.0day_date,'</font>') group_key_str
+						, A.date
+						, B.code
+						, B.name
+						, '' stock_comment
+						, CASE WHEN B.close_rate >= 0 THEN CONCAT('<font color=red> ▲',B.close_rate,'% </font>') ELSE  CONCAT('<font color=blue> ▼',ABS(B.close_rate),'% </font>') END close_rate_str
+						, CASE WHEN B.tot_trade_amt >= 1000 THEN CONCAT('<font color=red><b>',FORMAT(B.tot_trade_amt,0),'억</b></font>') ELSE  CONCAT(B.tot_trade_amt,'억') END trade_amount_str
+						, B.tot_trade_amt
+						, CASE WHEN B.theme is null OR  B.theme = '' THEN B.sector ELSE B.theme END uprsn
+						, B.stock_keyword
+						, X.sector_max_date
+						, X.sector_sum
+						, R.group_sum
+						$trade_qry
+						, M.mochaten_cnt
+					FROM (SELECT date FROM calendar WHERE date <= '$search_date' ORDER BY date desc LIMIT 20) A
+					INNER JOIN 0day_stocks B
+					ON A.date = B.0day_date AND B.tot_trade_amt >= 400
+					INNER JOIN (	SELECT G.sector, G.theme, SUM(G.tot_trade_amt) AS group_sum, MAX(G.0day_date) AS group_max_date
+									FROM 0day_stocks G
+									INNER JOIN (SELECT date FROM calendar WHERE date <= '$search_date' ORDER BY date desc LIMIT 20) S
+									ON S.date = G.0day_date
+									GROUP BY G.sector, G.theme
+								) R
+					ON B.sector = R.sector
+					AND B.theme  = R.theme
+					INNER JOIN (	SELECT G.sector, SUM(G.tot_trade_amt) AS sector_sum, MAX(G.0day_date) AS sector_max_date
+									FROM 0day_stocks G
+									INNER JOIN (SELECT date FROM calendar WHERE date <= '$search_date' ORDER BY date desc LIMIT 20) S
+									ON S.date = G.0day_date
+									GROUP BY G.sector
+								) X
+					ON B.sector = X.sector
+					LEFT OUTER JOIN $trade_table Z
+					ON Z.code = B.code
+					AND Z.date = '$base_date'
+					LEFT OUTER JOIN (SELECT code, count(*) mochaten_cnt FROM mochaten WHERE cha_fg = 'MC000' GROUP BY code) M
+					ON M.code = B.code
+					ORDER BY B.0day_date DESC, B.tot_trade_amt DESC";
+	} elseif($pgmId == 'mochaten') { // 모차십
 		$filename = $pgmId."_".$search_date;
 		$file_orderby = "ORDER BY V.cha_fg, V.trade_amount DESC";
 
@@ -93,7 +169,7 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $group_label
 					LEFT OUTER JOIN (SELECT code, count(*) mochaten_cnt FROM mochaten WHERE cha_fg = 'MC000' GROUP BY code) M
 					ON M.code = Q.code
 					ORDER BY cha_fg, trade_amount DESC";
-	} else if($pgmId == 'marketIssue') { // issue_register.php
+	} elseif($pgmId == 'marketEvent') { // event_register.php
 		$filename = $pgmId."_".$theme."_".$group_label;
 		$file_orderby = "ORDER BY V.group_key, V.is_leader, V.is_watchlist DESC";
 
@@ -124,7 +200,55 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $group_label
 					LEFT OUTER JOIN (SELECT code, count(*) mochaten_cnt FROM mochaten WHERE cha_fg = 'MC000' GROUP BY code) M
 					ON M.code = A.code
 					ORDER BY A.keyword_group_name, A.is_leader DESC, A.is_watchlist DESC";
-	} else if($pgmId == 'sophiaWatchlist') { // sophiaWatchlist.php
+	} elseif($pgmId == 'keyword') { // event_register.php
+		$filename = $pgmId."_".$theme."_".$group_label;
+		$file_orderby = "ORDER BY V.group_key, V.is_leader, V.is_watchlist DESC";
+
+		$query = "SELECT RTRIM(CONCAT(A.keyword_group_name)) AS group_key
+						, RTRIM(CONCAT(' [ ' , A.keyword_group_name,' ] ')) AS group_key_str
+						, A.date date
+						, A.code 
+						, A.name
+						, A.group_label, A.theme, A.is_leader, A.is_watchlist, A.stock_comment
+						, A.group_label AS uprsn
+						, CASE WHEN B.close_rate >= 0 THEN CONCAT('<font color=red> ▲',B.close_rate,'% </font>') ELSE  CONCAT('<font color=blue> ▼',ABS(B.close_rate),'% </font>') END close_rate_str
+						, CASE WHEN B.trade_amount >= 1000 THEN CONCAT('<font color=red><b>',FORMAT(B.trade_amount,0),'억</b></font>') ELSE  CONCAT(B.trade_amount,'억') END trade_amount_str
+						, B.trade_amount
+						$trade_qry
+						, M.mochaten_cnt
+					FROM (SELECT 
+							vmi.group_label,
+							vmi.keyword_group_name,
+							vmi.theme,
+							vmi.code,
+							vmi.name,
+							vmi.date,
+							vmi.is_leader,
+							vmi.is_watchlist,
+							vmi.stock_comment
+						FROM 
+							v_market_event vmi
+						JOIN 
+							(SELECT code, name, MAX(date) AS max_date
+							FROM v_market_event
+							WHERE keyword_group_name LIKE '%$theme%'
+							GROUP BY code, name) latest 
+						ON 
+							vmi.code = latest.code 
+							AND vmi.name = latest.name 
+							AND vmi.date = latest.max_date
+						WHERE 
+							vmi.keyword_group_name LIKE '%$theme%'
+						 ) A
+					LEFT OUTER JOIN (SELECT * FROM v_market_event WHERE (date, code) IN (SELECT MAX(date), code FROM market_event_stocks  GROUP BY code)) B
+					ON A.code = B.code
+					LEFT OUTER JOIN $trade_table Z
+					ON Z.code = A.code
+					AND Z.date = '$base_date'
+					LEFT OUTER JOIN (SELECT code, count(*) mochaten_cnt FROM mochaten WHERE cha_fg = 'MC000' GROUP BY code) M
+					ON M.code = A.code
+					ORDER BY A.keyword_group_name, A.is_leader DESC, A.is_watchlist DESC";
+	} elseif($pgmId == 'sophiaWatchlist') { // sophiaWatchlist.php
 		$filename = $pgmId."_".$group_label."_".$theme;
 		$file_orderby = "ORDER BY V.sort_theme, V.sort_stock";
 
@@ -153,7 +277,7 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $group_label
 					AND A.theme LIKE CASE WHEN '$theme' != '' THEN '%".$theme."%' ELSE '%' END
 					AND A.category LIKE CASE WHEN '$category' != '' THEN '%".$category."%' ELSE '%' END
 					ORDER BY A.sector, A.sort_theme, A.sort_stock";
-	} else if($pgmId == 'aStarWatchlist') { // aStarWatchlist.php
+	} elseif($pgmId == 'aStarWatchlist') { // aStarWatchlist.php
 		$filename = $pgmId."_".$group_label."_".$theme;
 		$file_orderby = "ORDER BY V.sort_theme, V.stock_idx";
 
@@ -181,7 +305,7 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $group_label
 					WHERE A.group_label = '$group_label'
 					AND A.theme LIKE CASE WHEN '$theme' != '' THEN '%".$theme."%' ELSE '%' END
 					ORDER BY A.group_label, A.sort_theme, A.stock_idx";
-	} else if($pgmId == 'IPOstock') { // 신규주
+	} elseif($pgmId == 'IPOstock') { // 신규주
 		$filename = $pgmId."_".$search_date;
 		$file_orderby = "ORDER BY V.uprsn DESC";
 
@@ -216,7 +340,7 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $group_label
 					LEFT OUTER JOIN (SELECT code, count(*) mochaten_cnt FROM mochaten WHERE cha_fg = 'MC000' GROUP BY code) M
 					ON M.code = A.code
 					ORDER BY A.listing_date DESC";
-	} else if($pgmId == 'xraytick') { // xraytick
+	} elseif($pgmId == 'xraytick') { // xraytick
 		$filename = $pgmId."_".$search_date;
 		$file_orderby = "ORDER BY V.amount DESC";
 
@@ -236,7 +360,7 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $group_label
 					FROM (SELECT
 						  	date, code, name, round(tot_amt/100000000,1) amount,  tot_cnt cnt
 						  FROM
-						  	kiwoom_xray_tick_summary
+						  	xraytick_summary
 						  WHERE
 						  	date BETWEEN DATE_SUB('{$search_date}', INTERVAL 20 DAY) AND '{$search_date}'
 						 ) A
@@ -249,7 +373,7 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $group_label
 					ON M.code = A.code
 					WHERE A.date = '$search_date'
 					ORDER BY A.amount DESC";
-	} else if($pgmId == 'buyStreak') { // xraytick
+	} elseif($pgmId == 'buyStreak') { // xraytick
 		$filename = $pgmId."_".$search_date;
 		$file_orderby = "ORDER BY V.group_key DESC, V.trade_amount DESC ";
 
@@ -276,7 +400,7 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $group_label
 								ks.name,
 								COUNT(DISTINCT ks.date) AS occurrence_days
 							FROM
-								kiwoom_xray_tick_summary ks
+								xraytick_summary ks
 							JOIN (
 								SELECT date
 								FROM calendar
@@ -299,7 +423,7 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $group_label
 					ON M.code = A.code
 					$sub_where
 					ORDER BY A.occurrence_days DESC, B.trade_amount DESC";
-	}  else if($pgmId == 'buyStreakMonthly') { // xraytick 월별 조회 방식 고민 중.. 이건 2개월 이전부터 누계를 보는 방식
+	}  elseif($pgmId == 'buyStreakMonthly') { // xraytick 월별 조회 방식 고민 중.. 이건 2개월 이전부터 누계를 보는 방식
 		$filename = $pgmId."_".$search_date;
 		$file_orderby = "ORDER BY V.sector_counts DESC, V.group_key DESC, V.occurrence_days DESC ";
 
@@ -345,7 +469,7 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $group_label
 										ks.name, 
 										COUNT(DISTINCT ks.date) AS occurrence_days
 									FROM 
-										kiwoom_xray_tick_summary ks
+										xraytick_summary ks
 									WHERE 
 										ks.tot_amt >= 1000000000
 										AND ks.date BETWEEN DATE_SUB(DATE_FORMAT(STR_TO_DATE('{$search_date}', '%Y-%m-%d'), '%Y-%m-01'), INTERVAL 1 MONTH) 
@@ -365,7 +489,7 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $group_label
 					LEFT OUTER JOIN (SELECT code, count(*) mochaten_cnt FROM mochaten WHERE cha_fg = 'MC000' GROUP BY code) M
 					ON M.code = A.code
 					ORDER BY A.sector_counts DESC, group_key DESC, B.trade_amount DESC";
-	}  else if($pgmId == 'buyStreakMonthly_bak') { // xraytick 월별 조회 방식 고민 중.. 이건 2개월 전부터 1개월 단위 횟수를 보는 방식
+	}  elseif($pgmId == 'buyStreakMonthly_bak') { // xraytick 월별 조회 방식 고민 중.. 이건 2개월 전부터 1개월 단위 횟수를 보는 방식
 		$filename = $pgmId."_".$search_date;
 		$file_orderby = "ORDER BY V.group_key DESC, V.trade_amount DESC ";
 
@@ -410,7 +534,7 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $group_label
 										ks.name, 
 										COUNT(DISTINCT ks.date) AS occurrence_days
 									FROM 
-										kiwoom_xray_tick_summary ks
+										xraytick_summary ks
 									WHERE 
 										ks.tot_amt >= 1000000000
 										AND ks.date BETWEEN DATE_SUB(DATE_FORMAT(STR_TO_DATE('{$search_date}', '%Y-%m-%d'), '%Y-%m-01'), INTERVAL 2 MONTH) 
@@ -426,7 +550,7 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $group_label
 										ks.name, 
 										COUNT(DISTINCT ks.date) AS occurrence_days
 									FROM 
-										kiwoom_xray_tick_summary ks
+										xraytick_summary ks
 									WHERE 
 										ks.tot_amt >= 1000000000
 										AND ks.date BETWEEN DATE_FORMAT(STR_TO_DATE('{$search_date}', '%Y-%m-%d'), '%Y-%m-01')
@@ -446,7 +570,7 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $group_label
 					LEFT OUTER JOIN (SELECT code, count(*) mochaten_cnt FROM mochaten WHERE cha_fg = 'MC000' GROUP BY code) M
 					ON M.code = A.code
 					ORDER BY sector, month, group_key_str DESC, B.trade_amount DESC";
-	} else if($pgmId == 'chartStatus') { // xraytick
+	} elseif($pgmId == 'chartStatus') { // xraytick
 		$filename = $pgmId."_".$search_date;
 		$file_orderby = "ORDER BY V.status_date DESC";
 
@@ -537,7 +661,7 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $group_label
 					AND ((A.base_price < MA.avg_close AND A.exp_price >= MA.avg_close) OR 
 						A.exp_price BETWEEN MA.avg_close * 0.97 AND MA.avg_close * 1.03)
 					ORDER BY group_key, A.rate DESC";
-	} else if($pgmId == 'kiwoomapi_opt10029') { // 예상체결 // kiwoomOpt10029.php
+	} elseif($pgmId == 'kiwoomapi_opt10029') { // 예상체결 // kiwoomOpt10029.php
 		$filename = $pgmId."_예상체결";
 		if($group_label=='(미등록)'){
 			$file_orderby  = "ORDER BY V.market_fg, V.rate DESC";
@@ -579,7 +703,7 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $group_label
 					AND S.market_fg IN ('KOSPI','KOSDAQ')
 					$where
 					$query_orderby";
-	} else if($pgmId == 'watchlist') {  // 0-Day Stock // watchlist.php
+	} elseif($pgmId == 'watchlist') {  // 0-Day Stock // watchlist.php
 
 		if($search_date == '') { // 전체 차트 보기 클릭. 한달전 차트까지 섹터, 테마별로 보여주기
 			$search_date = date('Y-m-d');

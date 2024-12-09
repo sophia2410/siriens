@@ -106,7 +106,7 @@ db = pymysql.connect(
 )
 
 # 7. 종목 코드 입력 및 데이터베이스에서 정보 가져오기
-code = "028300" 
+code = "457190" 
 min_date, max_date, market_fg = get_min_max_date_and_market(db, code)
 
 # 8. 시장 구분에 따른 티커 생성

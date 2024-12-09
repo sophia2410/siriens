@@ -282,6 +282,7 @@ else if ($dataSource === 'excel') {
                 <!-- 우측: 선택 종목 일괄 저장 버튼 -->
                 <div style="text-align: right;">
                     <button type="button" id="saveButton" onclick="saveSelectedStocks()">선택 종목 저장</button>
+                    <button type="button" id="hotStockButton" onclick="registerHotStocks()">Hot 종목 등록</button>
                 </div>
             </div>
         </form>
@@ -297,14 +298,14 @@ else if ($dataSource === 'excel') {
                         <th width=250>키워드</th>
                         <th width=150>테마</th>
                         <th width=70>핫테마</th>
-                        <th width=100>코드</th>
-                        <th width=200>종목명</th>
-                        <th width=70>주도주</th>
-                        <th width=70>관.종</th>
                         <th width=80>등락률</th>
                         <th width=90>거래대금</th>
+                        <th width=180>종목명</th>
                         <th>종목코멘트</th>
-                        <th width=100>등록일</th>
+                        <th width=80>코드</th>
+                        <th width=70>주도주</th>
+                        <th width=70>관.종</th>
+                        <!-- <th width=100>등록일</th> -->
                     </tr>
                 </thead>
                 <tbody>
@@ -351,11 +352,20 @@ else if ($dataSource === 'excel') {
                                         Hot
                                     </label>
                                 </td>
+                                <td class="<?= $closeRateClass; ?>"><?= number_format($event['close_rate'], 2) ?> %</td>
+                                <td class="<?= $amountClass; ?>"><?= number_format($event['trade_amount']) ?> 억</td>
+                                <td class="<?= $stockNameClass; ?>"><?= htmlspecialchars($event['name']) ?></td>
                                 <td>
+                                    <input type="text" name="events[<?= htmlspecialchars($event['code']) ?>][comment]" placeholder="종목 코멘트 입력" 
+                                    onfocus="fetchStockComment(this)" 
+                                    value="<?= htmlspecialchars($event['stock_comment']) ?>" 
+                                    data-original="<?= htmlspecialchars($event['stock_comment']) ?>" 
+                                    oninput="checkForChanges(this)" autocomplete="off">
+                                </td>
+                                <td onclick="Common_OpenStockPopup('<?= htmlspecialchars($event['code']) ?>', '<?= htmlspecialchars($event['name']) ?>');">
                                     <input type="text" name="events[<?= htmlspecialchars($event['code']) ?>][code]" value="<?= htmlspecialchars($event['code']) ?>" style='width:70px;' readonly>
                                     <input type="hidden" name="events[<?= htmlspecialchars($event['code']) ?>][name]" value="<?= htmlspecialchars($event['name']) ?>">
                                 </td>
-                                <td class="<?= $stockNameClass; ?>" onclick="Common_OpenStockPopup('<?= htmlspecialchars($event['code']) ?>', '<?= htmlspecialchars($event['name']) ?>');"><?= htmlspecialchars($event['name']) ?></td>
                                 <td class="checkbox-cell">
                                     <label>
                                         <input type="checkbox" name="events[<?= htmlspecialchars($event['code']) ?>][is_leader]" data-original="<?= $event['is_leader'] === '1' ? '1' : '0' ?>" <?= $isLeaderChecked ?> oninput="checkForChanges(this)" >
@@ -368,16 +378,7 @@ else if ($dataSource === 'excel') {
                                         W.L
                                     </label>
                                 </td>
-                                <td class="<?= $closeRateClass; ?>"><?= number_format($event['close_rate'], 2) ?> %</td>
-                                <td class="<?= $amountClass; ?>"><?= number_format($event['trade_amount']) ?> 억</td>
-                                <td>
-                                    <input type="text" name="events[<?= htmlspecialchars($event['code']) ?>][comment]" placeholder="종목 코멘트 입력" 
-                                    onfocus="fetchStockComment(this)" 
-                                    value="<?= htmlspecialchars($event['stock_comment']) ?>" 
-                                    data-original="<?= htmlspecialchars($event['stock_comment']) ?>" 
-                                    oninput="checkForChanges(this)" autocomplete="off">
-                                </td>
-                                <td><?= htmlspecialchars($event['date']) ?></td>
+                                <!-- <td><?= htmlspecialchars($event['date']) ?></td> -->
                             </tr>
                         <?php endforeach; ?>
                     <?php endforeach; ?>
@@ -467,53 +468,77 @@ function checkForChanges(input) {
 }
 
 function saveSelectedStocks() {
-        // 선택된 종목이 있는지 확인
-        const selectedStocks = document.querySelectorAll('input[name="selected_stocks[]"]:checked');
+    // 선택된 종목이 있는지 확인
+    const selectedStocks = document.querySelectorAll('input[name="selected_stocks[]"]:checked');
 
-        if (selectedStocks.length === 0) {
-            alert("저장할 종목을 선택해 주세요.");
-            return; // 선택된 종목이 없으면 함수 종료
+    if (selectedStocks.length === 0) {
+        alert("저장할 종목을 선택해 주세요.");
+        return; // 선택된 종목이 없으면 함수 종료
+    }
+
+    let hasEmptyKeyword = false; // 키워드 미입력 체크용 플래그
+
+    // 선택된 종목의 키워드 필드를 체크
+    selectedStocks.forEach(function(stockCheckbox) {
+        const stockCode = stockCheckbox.value;
+        const keywordInput = document.querySelector(`input[name="events[${stockCode}][keyword]"]`);
+
+        if (!keywordInput || keywordInput.value.trim() === '') {
+            hasEmptyKeyword = true;
+            // 키워드가 비어 있으면 경고 표시 (빨간 테두리)
+            keywordInput.style.border = '2px solid red';
+        } else {
+            // 정상 입력된 경우 원래 상태로 복구
+            keywordInput.style.border = '';
         }
+    });
 
-        let hasEmptyKeyword = false; // 키워드 미입력 체크용 플래그
+    // 키워드가 입력되지 않은 종목이 있는 경우 경고 메시지 출력
+    if (hasEmptyKeyword) {
+        alert("모든 종목의 키워드를 입력해 주세요.");
+        return;
+    }
 
-        // 선택된 종목의 키워드 필드를 체크
-        selectedStocks.forEach(function(stockCheckbox) {
-            const stockCode = stockCheckbox.value;
-            const keywordInput = document.querySelector(`input[name="events[${stockCode}][keyword]"]`);
-
-            if (!keywordInput || keywordInput.value.trim() === '') {
-                hasEmptyKeyword = true;
-                // 키워드가 비어 있으면 경고 표시 (빨간 테두리)
-                keywordInput.style.border = '2px solid red';
-            } else {
-                // 정상 입력된 경우 원래 상태로 복구
-                keywordInput.style.border = '';
-            }
-        });
-
-        // 키워드가 입력되지 않은 종목이 있는 경우 경고 메시지 출력
-        if (hasEmptyKeyword) {
-            alert("모든 종목의 키워드를 입력해 주세요.");
-            return;
-        }
-
-        // 사용자에게 확인 메시지
-        if (confirm("선택한 종목을 저장하시겠습니까?")) {
-            const saveForm = document.getElementById('saveForm');
-            if (saveForm) {
-                saveForm.submit(); // 폼 제출
-            } else {
-                console.error("폼을 찾을 수 없습니다.");
-            }
+    // 사용자에게 확인 메시지
+    if (confirm("선택한 종목을 저장하시겠습니까?")) {
+        const saveForm = document.getElementById('saveForm');
+        if (saveForm) {
+            saveForm.submit(); // 폼 제출
+        } else {
+            console.error("폼을 찾을 수 없습니다.");
         }
     }
+}
 
 
 // 엑셀 데이터 처리 후 종목 저장 버튼을 활성화하는 로직
 if ("<?= $dataSource ?>" === "excel") {
     document.getElementById("saveButton").disabled = false;
 }
+
+function registerHotStocks() {
+    if (confirm("Hot 종목을 등록하시겠습니까?")) {
+        const reportDate = document.getElementById('report_date').value;
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", "event_process.php", true);
+        xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState === 4 && xhr.status === 200) {
+                const response = xhr.responseText;
+                if (response.includes("success")) {
+                    alert("Hot 종목이 성공적으로 등록되었습니다.");
+                    location.reload();
+                } else {
+                    alert("Hot 종목 등록 중 오류가 발생했습니다.");
+                }
+            }
+        };
+
+        xhr.send("action=register_hot_stocks&report_date=" + encodeURIComponent(reportDate));
+    }
+}
+
 </script>
 
 </body>

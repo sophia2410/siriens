@@ -10,7 +10,7 @@ $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 $start = ($page - 1) * $perPage;
 
 // 카테고리 목록 불러오기
-$categoryQuery = "SELECT cd, nm FROM comm_cd WHERE l_cd = 'TH000'";
+$categoryQuery = "SELECT cd, nm FROM comm_cd WHERE l_cd = 'TH000' ORDER BY cd";
 $categories = $mysqli->query($categoryQuery);
 
 // 카테고리 필터링 및 생각 목록 불러오기
@@ -222,7 +222,7 @@ require($_SERVER['DOCUMENT_ROOT'] . "/modules/common/common_footer.php");
     // 수정된 데이터를 TinyMCE에 로드하는 부분
     function loadThoughtData(thoughtId) {
         var xhr = new XMLHttpRequest();
-        xhr.open("GET", "fetch_thought.php?thought_id=" + thoughtId, true);
+        xhr.open("GET", "fetch_thought.php?thought_id=" + thoughtId + "&type=thought", true);
         xhr.onload = function() {
             if (xhr.status === 200) {
                 var thought = JSON.parse(xhr.responseText);

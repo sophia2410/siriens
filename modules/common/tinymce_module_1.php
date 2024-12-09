@@ -1,7 +1,7 @@
 <?php
 function loadTinyMCE($selector = '#thought', $height = 700) {
     echo "
-    <script src='/modules/common/tinymce/js/tinymce/tinymce.min.js' referrerpolicy='origin'></script>
+    <script src='/tinymce/js/tinymce/tinymce.min.js' referrerpolicy='origin'></script>
     <script>
         var plugins = [
             'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'print', 'preview', 'anchor',

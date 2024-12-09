@@ -9,7 +9,7 @@ $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 $start = ($page - 1) * $perPage;
 
 // 카테고리 목록 불러오기
-$categoryQuery = "SELECT cd, nm FROM comm_cd WHERE l_cd = 'TH000'";
+$categoryQuery = "SELECT cd, nm FROM comm_cd WHERE l_cd = 'TH000' ORDER BY cd";
 $categories = $mysqli->query($categoryQuery);
 
 ?>
