@@ -1,9 +1,7 @@
 <?php
-$pageTitle = "마켓 리포트"; // 페이지별 타이틀 설정
-require($_SERVER['DOCUMENT_ROOT']."/modules/common/common_header.php");
-
-require($_SERVER['DOCUMENT_ROOT']."/modules/market/event_register_form.php");
-require($_SERVER['DOCUMENT_ROOT']."/modules/market/event_list.php");
+$pageTitle = "매매/복기 등록 관리";
+require($_SERVER['DOCUMENT_ROOT'] . "/modules/common/common_header.php");
+require($_SERVER['DOCUMENT_ROOT'] . "/modules/common/tinymce_module.php");
 
 $report_date = isset($_GET['report_date']) ? $_GET['report_date'] : date('Y-m-d', time());
 
@@ -26,8 +24,34 @@ $next_date_result = $mysqli->query($next_date_query);
 $next_date_row = $next_date_result->fetch_assoc();
 $next_date = isset($next_date_row['date']) ? $next_date_row['date'] : null;
 
+// Fetch KOSPI and KOSDAQ index data
+$index_query = "
+    SELECT market_fg, close, 
+           close_rate, 
+           ROUND(amount / 1000000000000, 2) AS amount_in_trillion
+    FROM market_index 
+    WHERE (market_fg IN ('S&P 500', 'NASDAQ') AND date = (
+                    -- S&P 500과 NASDAQ의 전 거래일 데이터를 가져옴
+                    SELECT MAX(c.date) 
+                    FROM calendar c 
+                    WHERE c.date < '$report_date'
+               ))
+       OR (market_fg NOT IN ('S&P 500', 'NASDAQ') AND date = '$report_date')
+    ORDER BY market_fg ASC;
+";
 
-// Fetch market comment, overview and titles
+$index_result = $mysqli->query($index_query);
+
+$index_data = [];
+while ($row = $index_result->fetch_assoc()) {
+    $index_data[$row['market_fg']] = [
+        'close' => $row['close'],
+        'close_rate' => $row['close_rate'],
+        'amount_in_trillion' => $row['amount_in_trillion']
+    ];
+}
+
+// Market Report
 $overview_query = "SELECT market_review, market_overview, morning_report_title, morning_news_link, evening_report_title FROM market_report WHERE date = '$report_date'";
 $overview_result = $mysqli->query($overview_query);
 $overview_row = $overview_result->fetch_assoc();
@@ -101,7 +125,7 @@ else {
                    CASE WHEN close_rate > 15 THEN '1' ELSE '0' END is_watchlist
             FROM v_daily_price
             WHERE date = '$report_date'
-            AND ((amount > 10 AND close_rate > 20) OR (amount > 300 AND close_rate > 5))
+            AND ((amount > 100 AND close_rate > 20) OR (amount > 300 AND close_rate > 10))
             ORDER BY close_rate DESC
         ) a
         LEFT JOIN 
@@ -135,129 +159,19 @@ else {
         $group_data[$row['group_label']][] = $row;
     }
 }
-// Fetch Today Watchlist
-$today_watchlist_query = "
-    SELECT 
-        CASE 
-            WHEN me.group_label = me.theme THEN me.group_label 
-            ELSE CONCAT(me.group_label, ' ', me.theme) 
-        END AS theme,   -- group_label 과 theme 값을 연결하여 하나의 값으로 계산
-        s.code, 
-        s.name, 
-        mes.trade_amount,  -- 종목별 가장 높은 거래대금
-        mes.close_rate,       -- 종목별 가장 높은 등락률
-        mes.stock_comment,
-        tj.status,
-        CASE
-            WHEN tj.status = 'focus' THEN '<span style=\"color: #e03e2d;\"><strong>(F)</strong></span>' 
-            WHEN tj.status = 'watch_short' THEN '<span style=\"color: #843fa1;\"><strong>(W/S)</strong></span>' 
-            WHEN tj.status = 'watch_long' THEN '<span style=\"color: #169179;\"><strong>(W-L)</strong></span>' 
-            ELSE '' 
-        END AS status_str,
-        DATE_FORMAT(tj.journal_date, '%m-%d') journal_date_str
-    FROM
-    (    SELECT 
-            status, 
-            code,
-            journal_date
-        FROM 
-            status_snapshot
-        WHERE 
-            snapshot_date = '$report_date'  -- 조회할 특정 날짜
 
-        UNION ALL
-
-        SELECT 
-            status, 
-            code,
-            journal_date
-        FROM 
-            journal_feature
-        WHERE 
-            '$report_date' NOT IN (SELECT DISTINCT snapshot_date FROM status_snapshot)
-            AND status != 'normal'
-    ) tj
-    JOIN stock s ON tj.code = s.code AND s.last_yn = 'Y'
-    LEFT JOIN 
-        market_event_stocks mes 
-        ON tj.code = mes.code AND tj.journal_date = mes.date
-    LEFT JOIN
-        market_events me
-        ON mes.event_id = me.event_id
-    ORDER BY 
-        FIELD(tj.status, 'focus', 'watch_short', 'watch_long'), 
-        MAX(tj.journal_date) OVER (PARTITION BY me.theme) DESC,  -- 최근 테마순
-        tj.journal_date DESC, -- 최근 거래일 순
-        mes.trade_amount DESC -- 거래대금 높은 순
-    ";
-
-// Database_logQuery($today_watchlist_query, [$report_date]);
-$today_watchlist_result = $mysqli->query($today_watchlist_query);
-$today_watchlist = [];
-while($row = $today_watchlist_result->fetch_assoc()) {
-    $today_watchlist[$row['status']][] = $row;
-}
-
-// Fetch stocks with more than 20% change
-$stocks_20_query = "
-    SELECT name, dp.close_rate stock_change
-    FROM v_market_event vme
-	JOIN daily_price dp ON dp.date = vme.date AND dp.code = vme.code AND dp.close_rate > 20
-    WHERE vme.date BETWEEN DATE_ADD('$report_date', INTERVAL -5 DAY) AND '$report_date'
-    ORDER BY dp.close_rate DESC";
-$stocks_20_result = $mysqli->query($stocks_20_query);
-$stocks_20 = [];
-while($row = $stocks_20_result->fetch_assoc()) {
-    $stocks_20[] = $row;
-}
-
-// Fetch KOSPI and KOSDAQ index data
-$index_query = "
-    SELECT market_fg, close, 
-           close_rate, 
-           ROUND(amount / 1000000000000, 2) AS amount_in_trillion
-    FROM market_index 
-    WHERE (market_fg IN ('S&P 500', 'NASDAQ') AND date = (
-                    -- S&P 500과 NASDAQ의 전 거래일 데이터를 가져옴
-                    SELECT MAX(c.date) 
-                    FROM calendar c 
-                    WHERE c.date < '$report_date'
-               ))
-       OR (market_fg NOT IN ('S&P 500', 'NASDAQ') AND date = '$report_date')
-    ORDER BY market_fg ASC;
-";
-
-$index_result = $mysqli->query($index_query);
-
-$index_data = [];
-while ($row = $index_result->fetch_assoc()) {
-    $index_data[$row['market_fg']] = [
-        'close' => $row['close'],
-        'close_rate' => $row['close_rate'],
-        'amount_in_trillion' => $row['amount_in_trillion']
-    ];
-}
-
-// Fetch Market Issues
-$issueQuery = $mysqli->prepare("
-    SELECT mi.*, kg.group_name 
-    FROM market_issues mi 
-    LEFT JOIN keyword_groups kg 
-    ON mi.issue_id = kg.group_id 
-    WHERE mi.date = ?
-    ORDER BY kg.group_name ASC
-");
-$issueQuery->bind_param('s', $report_date);
-$issueQuery->execute();
-$issueResult = $issueQuery->get_result();
 ?>
 
 <head>
-    <!-- 페이지 전용 스타일 -->
-    <style>
+
+<style>
+        form {
+            display: contents; /* 레이아웃에 영향을 주지 않음 */
+        }
+
         #wrapper {
             display: grid;
-            grid-template-columns: 2fr 3fr 1fr;
+            grid-template-columns: 4fr 4fr 3fr;
             gap: 10px;
             padding: 10px;
             width: 100%;
@@ -336,7 +250,7 @@ $issueResult = $issueQuery->get_result();
         #left-content, #middle-content, #right-content {
             background-color: white;
             border: 1px solid #ddd;
-            padding: 20px;
+            padding: 15px;
             height: calc(100vh - 150px) !important; /* 원하는 높이로 설정 (헤더, 인덱스 등 다른 요소들을 고려해서 조정) */
             overflow-y: auto !important; /* 세로 스크롤이 생기게 설정 */
             box-sizing: border-box; /* 패딩이 포함된 높이를 정확하게 계산 */
@@ -349,6 +263,7 @@ $issueResult = $issueQuery->get_result();
             margin-bottom: 15px;
             color: #242;
         }
+
         .report-content-input {
             display: inline-block; /* 한 줄로 표시 */
             font-size: 20px;
@@ -361,16 +276,8 @@ $issueResult = $issueQuery->get_result();
             width: 100%; /* 박스 크기 조정 */
             box-sizing: border-box; /* 패딩과 테두리 포함한 크기 계산 */
         }
-        textarea {
-            height: 250px; /* 텍스트 입력 영역의 높이를 크게 조정 */
-            margin-bottom: 15px;
-        }
 
-        textarea.small {
-            height: 45px; /* 텍스트 입력 영역의 높이를 크게 조정 */
-        }
-
-        #middle-content {
+        #right-content {
             display: block; /* Masonry.js 적용을 위해 block 설정 */
         }
 
@@ -380,11 +287,11 @@ $issueResult = $issueQuery->get_result();
             padding: 10px;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
             margin-bottom: 25px; /* 카드 간의 세로 간격 */
-            margin-right: 20px;  /* 카드 간의 가로 간격 */
+            margin-right: 15px;  /* 카드 간의 가로 간격 */
             width: 100%;
             box-sizing: border-box;
-            min-width: 300px; /* 카드의 최소 너비 설정 */
-            max-width: 360px; /* 카드의 최대 너비 설정 */
+            min-width: 280px; /* 카드의 최소 너비 설정 */
+            max-width: 290px; /* 카드의 최대 너비 설정 */
         }
 
         .keyword-row h4 {
@@ -438,92 +345,9 @@ $issueResult = $issueQuery->get_result();
             color: #999;
             margin-top: 5px;
         }
-
-        /* 테마별 카드의 스타일 */
-        .recent-themes-container {
-            background-color: #f4f4f9; /* Subtle background difference */
-            padding: 12px;
-            border-radius: 8px;
-        }
-
-        .theme-list {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-            justify-content: space-between;
-        }
-
-        .theme-card {
-            background-color: #fff;
-            border: 1px solid #ddd;
-            padding: 15px;
-            width: 100%;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            transition: background-color 0.3s ease;
-        }
-
-        .theme-card:hover {
-            background-color: #f0f8ff;
-        }
-
-        .stock-list {
-            margin-top: 10px;
-        }
-
-        hr {
-            border: none;
-            border-top: 2px solid #ccc;
-            margin: 15px; /* 수평선 위아래 간격 */
-        }
-
-        /* Container for the Today's Issue title and Add Theme button */
-        .flex-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        /* 이슈 리스트 */
-        #issue_list_container {
-            padding: 10px;
-            overflow-y: auto;
-        }
-
-        .issue-card {
-            padding: 10px;
-            background-color: #f8f8f8;
-            margin-bottom: 10px;
-            border: 1px solid #ddd;
-        }
-
-        .issue-title {
-            font-weight: bold;
-            font-size: 1.2em;
-        }
-
-        .issue-link {
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            max-width: 400px;
-            display: inline-block;
-        }
-
-        .issue-keywords {
-            color: #333;
-            font-weight: bold;
-            margin-top: 10px;
-        }
-
-        .issue-keywords span {
-            background-color: #e0e7ff;
-            padding: 5px;
-            border-radius: 4px;
-            margin-right: 5px;
-            display: inline-block;
-        }
     </style>
 </head>
+
 
 <body>
 <div id="container">
@@ -535,22 +359,19 @@ $issueResult = $issueQuery->get_result();
             <div id="date-navigation">
                 <!-- 이전 날짜 버튼 -->
                 <?php if ($previous_date): ?>
-                    <button class="nav-button" onclick="window.location.href='market_report.php?report_date=<?= $previous_date ?>'">
+                    <button class="nav-button" onclick="window.location.href='market_report_register.php?report_date=<?= $previous_date ?>'">
                         &lt;&lt; 이전
                     </button>
                 <?php endif; ?>
 
                 <!-- 다음 날짜 버튼 -->
                 <?php if ($next_date): ?>
-                    <button class="nav-button" onclick="window.location.href='market_report.php?report_date=<?= $next_date ?>'">
+                    <button class="nav-button" onclick="window.location.href='market_report_register.php?report_date=<?= $next_date ?>'">
                         다음 &gt;&gt;
                     </button>
                 <?php endif; ?>
 
-                <!-- To-Do Button with task count -->
-                <button class="button-yellow" onclick="openChecklistPopup()">
-                    TO-DO (<span id="todo-count">0/0</span>)
-                </button>
+                <button class="button-green" onclick="saveReport()">Save Report</button>
             </div>
         </div>
 
@@ -584,20 +405,21 @@ $issueResult = $issueQuery->get_result();
             ?>
         </div>
     </div>
-    <!-- Morning Report 제목 -->
+
     <div id="left-content">
+        <!-- 마켓 오버뷰 -->
+        <label for="market_overview">마켓 오버뷰:</label>
         <p class="report-content">
             <a href="<?= htmlspecialchars($morning_news_link) ?>" target="_blank" class="no-underline">
                 <?= htmlspecialchars($morning_report_title) ?>
             </a>
         </p>
+        <textarea class="editor" name="market_overview" id="market_overview" rows="10"></textarea>
+    </div>
 
-        <div class="flex-header">
-            <h4>Market Overview</h4>
-            <button class="button-small" onclick="saveReport()">Save Report</button>
-        </div>
-        <textarea id="market_overview" spellcheck="false"><?= htmlspecialchars($market_overview) ?></textarea>
-
+    <div id="middle-content">
+        <!-- 마켓 리뷰 -->
+        <label for="market_review">마켓 리뷰:</label>
         <?php if ($evening_report_title === ''): ?>
             <!-- 입력 박스를 출력 -->
             <p><input type="text" class="report-content-input" id="evening_report_title" placeholder="저녁 리포트 제목을 입력하세요" /></p>
@@ -605,43 +427,17 @@ $issueResult = $issueQuery->get_result();
             <!-- 기존 텍스트를 출력 -->
             <p class="report-content"><?= htmlspecialchars($evening_report_title) ?></p>
         <?php endif; ?>
-
-        <h4>Market Review</h4>
-        <textarea id="market_review" spellcheck="false"><?= htmlspecialchars($market_review) ?></textarea>
-
-        <!-- Add the "Today's Themes" section here -->
-        <hr>
-
-        <!-- Today's Themes Section -->
-        <div class="flex-header">
-            <h3>Today's Issues</h3>
-            <button class="button-small button-green" onclick="window.open('issue_register.php?date=<?= htmlspecialchars($report_date) ?>', '_blank')">Add Issues</button>
-        </div>
-        <!-- 이슈 리스트 -->
-        <div id="issue_list_container">
-            <?php while ($issue = $issueResult->fetch_assoc()): ?>
-                <div class="issue-card">
-                <div class="issue-title"><?= htmlspecialchars($issue['issue_title'], ENT_QUOTES | ENT_HTML401); ?></div>
-                <p>링크: <a href="<?= htmlspecialchars($issue['issue_link'], ENT_QUOTES | ENT_HTML401); ?>" target="_blank" class="issue-link">
-                    <?= htmlspecialchars($issue['issue_link'], ENT_QUOTES | ENT_HTML401); ?>
-                </a></p>
-                <p class="issue-keywords">
-                    <?php foreach (Utility_GgetIssueKeywords($report_date, $issue['issue_id']) as $keyword): ?>
-                        <span>
-                            <a href="javascript:void(0);" class="no-underline"
-                                onclick="openKeywordPopup('<?= htmlspecialchars($keyword['keyword'], ENT_QUOTES | ENT_HTML401); ?>');">
-                                #<?= htmlspecialchars($keyword['keyword'], ENT_QUOTES | ENT_HTML401); ?>
-                                <?= $keyword['stock_cnt']; ?>
-                            </a>
-                        </span>
-                    <?php endforeach; ?>
-                </p>
-            </div>
-            <?php endwhile; ?>
-        </div>
+        <textarea class="editor" name="market_review" id="market_review" rows="10"></textarea>
+        <?php loadTinyMCE('.editor', 1000); ?>
+        <?php loadTinyMCEScripts(); ?>
     </div>
+    
+    <form id="report_form" action="market_process.php" method="POST">
+
+    </form>
+
     <!-- Group and Stock Events (Masonry 적용) -->
-    <div id="middle-content">
+    <div id="right-content">
         <?php 
         $current_group_label = '';  // 현재 출력 중인 group_label
         $current_keyword = '';  // 현재 출력 중인 theme
@@ -683,150 +479,82 @@ $issueResult = $issueQuery->get_result();
             </div>
         <?php endforeach; ?>
     </div>
-
-    <!-- Recent Themes and Stocks -->
-    <div id="right-content">
-        <h3>Today WatchList</h3>
-        <div class="recent-themes-container">
-            <div class="theme-list">
-            <?php foreach($today_watchlist as $theme => $stocks): ?>
-                <div class="theme-card">
-                    <h4><?= htmlspecialchars($theme) ?></h4>
-                    <div class="stock-list">
-                        <?php foreach ($stocks as $stock): ?>
-                            <div class="stock-item">
-                                <?=$stock['status_str']?><span class="stock-name"><?= htmlspecialchars($stock['name']) ?> </span>
-                                <?=$stock['journal_date_str']?> <span class="stock-change"><?= number_format($stock['close_rate'], 2) ?>% </span>
-                                <span class="stock-amount"><?= number_format($stock['trade_amount']) ?>억</span>
-                            </div>
-                            <p class="stock-comment"><?= htmlspecialchars($stock['stock_comment']) ?></p>
-                        <?php endforeach; ?>
-                    </div>
-                </div>
-            <?php endforeach; ?>
-            </div>
-        </div>
-    </div>
-
-    <!-- 20% 이상 종목 -->
-    <!-- <div class="card stocks-20-section">
-        <h3>20% 이상 종목</h3>
-        <table>
-            <thead>
-                <tr>
-                    <th>종목</th>
-                    <th>변동</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach($stocks_20 as $stock): ?>
-                    <tr>
-                        <td><?= htmlspecialchars($stock['name']) ?></td>
-                        <td><?= htmlspecialchars($stock['stock_change']) ?>%</td>
-                    </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
-    </div> -->
 </div>
 </div>
+
+<?php
+require($_SERVER['DOCUMENT_ROOT'] . "/modules/common/common_footer.php");
+?>
 
 <!-- Masonry.js 라이브러리 추가 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/masonry/4.2.2/masonry.pkgd.min.js"></script>
 
 <!-- Masonry.js를 활용한 레이아웃 초기화 -->
 <script>
-    var elem = document.querySelector('#middle-content');
+    function search() {
+        var selectedDate = document.getElementById('report_date').value;
+        window.location.href = 'market_report_register.php?report_date=' + selectedDate;
+    }
+
+    var elem = document.querySelector('#right-content');
     var msnry = new Masonry(elem, {
         itemSelector: '.group-card', // 카드 셀렉터
         columnWidth: '.group-card',  // 카드의 너비를 기준으로 배치
         percentPosition: true        // 퍼센트 기반의 배치
     });
 
-    function search() {
-        var selectedDate = document.getElementById('report_date').value;
-        window.location.href = 'market_report.php?report_date=' + selectedDate;
-    }
-
     function saveReport() {
-        var report_date_element = document.getElementById('report_date');
-        var market_overview_element = document.getElementById('market_overview');
-        var market_review_element = document.getElementById('market_review');
-        var evening_title_element = document.getElementById('evening_report_title');
+        var form = document.getElementById('report_form');
+        var market_overview = tinymce.get('market_overview').getContent();
+        var market_review = tinymce.get('market_review').getContent();
+        var evening_report_title = document.getElementById('evening_report_title') ? 
+                                document.getElementById('evening_report_title').value : "";
 
-        if (!report_date_element || !market_overview_element || !market_review_element) {
-            console.error('One or more required elements are not found.');
-            return;
-        }
-
-        var report_date = report_date_element.value;
-        var market_overview = market_overview_element.value;
-        var market_review = market_review_element.value;
-        var evening_report_title = evening_title_element ? evening_title_element.value : "";
+        // 로딩 표시 추가
+        document.body.style.cursor = 'wait'; // 로딩 중 커서 변경
 
         var xhr = new XMLHttpRequest();
         xhr.open('POST', 'market_process.php?action=save_report', true);
         xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+
         xhr.onreadystatechange = function () {
             if (xhr.readyState == 4) {
+                document.body.style.cursor = 'default'; // 로딩 완료 후 커서 복구
+
                 if (xhr.status == 200) {
-                    var response = JSON.parse(xhr.responseText); // JSON 응답을 파싱
+                    var response = JSON.parse(xhr.responseText);
+
                     if (response.status === 'success') {
-                        alert(response.message); // 성공 메시지 표시
+                        // 성공 처리 후 리로드
+                        alert(response.message);
+
+                        // 현재 URL 처리
+                        var url = new URL(window.location.href);
+                        url.searchParams.set('report_date', document.getElementById('report_date').value); // report_date 값 설정
+                        window.location.href = url.toString(); // 업데이트된 URL로 이동
                     } else {
-                        alert('Error: ' + response.message); // 오류 메시지 표시
+                        alert('Error: ' + response.message);
                     }
                 } else {
-                    alert('Server error: ' + xhr.status); // HTTP 상태 코드에 따른 오류 표시
+                    alert('서버 오류: ' + xhr.status);
                 }
             }
         };
 
-        // 데이터를 전송할 때 각 필드를 포함해서 보내는지 확인합니다.
+        // 데이터 전송
         xhr.send(
-            '&report_date=' + encodeURIComponent(report_date) + 
-            '&market_overview=' + encodeURIComponent(market_overview) + 
-            '&market_review=' + encodeURIComponent(market_review) + 
+            'report_date=' + encodeURIComponent(document.getElementById('report_date').value) +
+            '&market_overview=' + encodeURIComponent(market_overview) +
+            '&market_review=' + encodeURIComponent(market_review) +
             '&evening_report_title=' + encodeURIComponent(evening_report_title)
         );
     }
-    
-    function openKeywordPopup(keyword) {
-        const url = `keyword_group_list.php?keyword=${encodeURIComponent(keyword)}`;
-        window.open(url, '_blank');
-    }
-
-    // Function to open the checklist popup
-    function openChecklistPopup() {
-        window.open('../growth/checklist_task_register.php', '_blank', 'width=1200,height=600');
-    }
-
-    // Function to fetch and display the to-do count
-    function fetchTodoCount() {
-        const xhr = new XMLHttpRequest();
-        xhr.open('GET', 'fetch_todo_count.php?date=<?= $report_date ?>', true);
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState == 4 && xhr.status == 200) {
-                const response = JSON.parse(xhr.responseText);
-                document.getElementById('todo-count').textContent = `${response.completed}/${response.total}`;
-            }
-        };
-        xhr.send();
-    }
-
-    // Call fetchTodoCount on page load
-    document.addEventListener('DOMContentLoaded', fetchTodoCount);
 
     window.onload = function() {
-        var reportDate = getParameterByName('report_date');
-        if (!reportDate) {
-            var select = document.getElementById('report_date');
-            if (select.options.length > 0) {
-                search(); // 날짜 자동 선택 시 검색 트리거
-            }
-        }
+        setTimeout(function () {
+            setTinyMCEContent('market_overview',<?= json_encode($market_overview) ?>);
+            setTinyMCEContent('market_review',<?= json_encode($market_review) ?>);
+        }, 100); // 초기화 대기
     }
 </script>
-
 </body>
-</html>

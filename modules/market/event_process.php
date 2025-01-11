@@ -208,6 +208,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 LEFT JOIN keyword_groups kg ON me.keyword_group_id = kg.group_id
                 WHERE mes.date = ?
                 AND ((mes.trade_amount > 1000 AND mes.close_rate > 10) OR (mes.trade_amount > 300 AND mes.close_rate > 29.5))
+                AND hot_stock_count is null
             ";
         
             $stmt = $mysqli->prepare($query);
@@ -238,6 +239,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $closeRate = $row['close_rate'];
                 $tradeAmount = NUMBER_FORMAT($row['trade_amount']);
                 $groupName = $row['group_name'];
+
+                // **1. journal_feature에 동일 날짜 및 코드 존재 여부 체크**
+                $checkQuery = "
+                    SELECT COUNT(*) AS cnt 
+                    FROM journal_feature
+                    WHERE journal_date = ? AND code = ? AND type = 'hot'
+                ";
+                $checkStmt = $mysqli->prepare($checkQuery);
+                $checkStmt->bind_param('ss', $date, $code);
+                $checkStmt->execute();
+                $checkResult = $checkStmt->get_result();
+                $checkRow = $checkResult->fetch_assoc();
+                
+                if ($checkRow['cnt'] > 0) {
+                    // 이미 등록된 경우 다음 데이터 처리
+                    continue;
+                }
         
                 // hot_stock_count 업데이트
                 $updateStmt->bind_param('ss', $eventId, $code);
@@ -308,7 +326,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     $insertStmt->execute();
                 }
             }
-        
+
+            // 0day_stocks 데이터 등록. mochaten 데이터 구하지 않아서 여기서 대신 등록하도록 수정 2024.12.20
+            $insertQuery = "
+                INSERT IGNORE INTO 0day_stocks 
+                    (0day_date, code, name, regi_reason, close_rate, volume, tot_trade_amt, sector, theme, keyword_group, stock_keyword, tracking_yn, tracking_start_date, create_dtime)
+                SELECT 
+                    vme.date AS 0day_date, 
+                    vme.code, 
+                    s.name AS name, 
+                    '0일차' AS regi_reason, 
+                    vme.close_rate, 
+                    ROUND(vme.volume/1000,0) AS volume, 
+                    vme.trade_amount AS tot_trade_amt, 
+                    vme.group_label,
+                    vme.theme,
+                    vme.keyword_group_name,
+                    vme.stock_comment,
+                    'Y' AS tracking_yn, 
+                    vme.date AS tracking_start_date, 
+                    NOW() AS create_dtime
+                FROM v_market_event vme
+                LEFT JOIN stock s ON vme.code = s.code AND s.last_yn = 'Y'
+                WHERE vme.date = ?
+                AND ((vme.trade_amount > 500 AND vme.close_rate > 15) OR (vme.trade_amount > 150 AND vme.close_rate > 29.5))
+            ";
+            $insertStmt = $mysqli->prepare($insertQuery);
+            $insertStmt->bind_param('s', $reportDate);
+            $insertStmt->execute();
+                    
             try {
                 // 커밋
                 if (!$mysqli->commit()) {

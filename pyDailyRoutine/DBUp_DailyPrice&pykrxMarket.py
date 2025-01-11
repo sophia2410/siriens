@@ -241,10 +241,10 @@ class DBUpdater:
                            f" FROM daily_price X LEFT OUTER JOIN daily_price Y "\
                            f" ON Y.code = X.code AND Y.date = (SELECT MAX(date) FROM calendar WHERE date < '{proc_date}') "\
                            f" WHERE X.date = '{proc_date}') B ON B.code = A.code "\
-                           f" SET A.pre_close = B.pre_close, A.open_rate = ROUND((A.open-B.pre_close)/B.pre_close*100, 2), "\
-                           f" A.high_rate = ROUND((A.high-B.pre_close)/B.pre_close*100, 2), "\
-                           f" A.low_rate = ROUND((A.low-B.pre_close)/B.pre_close*100, 2), "\
-                           f" A.close_rate = ROUND((A.close-B.pre_close)/B.pre_close*100, 2) "\
+                           f" SET A.pre_close = B.pre_close, A.open_rate = ROUND((A.open-B.pre_close) / NULLIF(B.pre_close, 0)*100, 2), "\
+                           f" A.high_rate = ROUND((A.high-B.pre_close) / NULLIF(B.pre_close, 0)*100, 2), "\
+                           f" A.low_rate = ROUND((A.low-B.pre_close) / NULLIF(B.pre_close, 0)*100, 2), "\
+                           f" A.close_rate = ROUND((A.close-B.pre_close) / NULLIF(B.pre_close, 0)*100, 2) "\
                            f" WHERE A.date = '{proc_date}'"
                     logging.debug(f'{sql1}')
                     curs.execute(sql1)

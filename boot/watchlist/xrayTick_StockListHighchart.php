@@ -86,48 +86,13 @@ if($pgmId == '') {
 			echo "<tr><td colspan=2 class='table-danger'><b>▷ ".$row['group_key_str']."</b></td></tr>";
 		}
 
-		// 가장 최근 0일차 상승이유
 		echo "<tr><td rowspan=2>";
-		if($row['group_key_str'] != '') {
-			$info_0day =" <b>(".$row['uprsn'].")</b> ".$row['close_rate_str']." / ".$row['trade_amount_str']."</font>"." &nbsp; ";
-		} else {
-			$info_0day = "<font class='h5'>&nbsp</font>";
-		}
-		
-		// 종목 거래내역 // 장중 - 실시간데이터, 이외 - 마감데이터, 예상체결 - 예상체결데이터
-		$realtime_data = "";
-		if($row['trade_date'] != '') {
-			$realtime_data = "<font class='h5'>".number_format($row['acc_trade_amount'])."억  &nbsp ".$row['trade_rate_str']." </font> &nbsp";
-			$realtime_data .= "<font class='text-dark'>".number_format($row['market_cap'])."억 &nbsp ".$row['trade_date']."</font> ";
-		}
 
-		// 모차십 0일차 등록건이 있는 경우 건수 표시되게 함.
-		$mochaten_cnt = '';
-		if($row['mochaten_cnt'] > 0) {
-			$mochaten_cnt = '<font color=red>('.$row['mochaten_cnt'].')</font>';
-		}
-
-		$stock_name = $row['name'];
-
-		//그래프를 잘 보기 위해 팝업으로 연결
-		$xray_tick_detail = "<a href='#' onclick=\"window.open('../watchlist/xrayTick_Stock_L.php?page_fg=popup&code=".$row['code']."&name=".$stock_name."', 'stock', 'width=1400,height=1800,left=680,top=0,screenX=680,screenY=0,scrollbars=yes'); return false;\" target='_blank'>(+)</a>";
-
-		// echo "<div class='col-xl-3 col-md-6 mb-4' style='margin: 0; margin-left:10px margin-right:10px'>
-		echo "<div class='row no-gutters align-items-center'>
-				<div class='col mr-0'>
-					<div class='font-weight-bold text-primary text-uppercase mb-1' style='height:35px; line-height:35px;'>$mochaten_cnt
-						<font class='h4'><a href=\"javascript:void(0);\" onclick=\"openStockPopup('{$row['code']}', '{$stock_name}')\">".$stock_name."</a></b></span></font> $xray_tick_detail &nbsp;".$realtime_data."
-					</div>
-					<div class='font-weight-bold mb-1 style='margin: 0;'>
-						$info_0day
-					</div>
-					<div style='margin: 0; width:610px;'>
-						<img class='img-fluid' id='stockChart_$d' src='https://ssl.pstatic.net/imgfinance/chart/item/candle/day/{$row['code']}.png?sidcode=1705826920773' width='600'>
-					</div>
-				</div>
-			</div>";
+			// 전체 HTML 출력
+			echo generateStockHtml($row, false, 'commonStockLink');
 				
 		$pre_group  = $row['group_key'];
+		$stock_name = $row['name'];
 
 		echo "</td>";
 
@@ -397,7 +362,7 @@ function saveComment() {
 // 종목명 클릭 시 팝업창
 function openStockPopup(code, name) {
     var url = "/modules/market/stock_report_popup.php?code=" + encodeURIComponent(code) + "&name=" + encodeURIComponent(name);
-    window.open(url, 'StockDetail',  'width=2400, height=1400');
+    window.open(url, '_blank');
 }
 </script>
 </body>

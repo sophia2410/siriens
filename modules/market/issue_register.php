@@ -7,17 +7,36 @@ $dateParam = $_GET['date'] ?? date('Y-m-d');
 
 // 마켓 이슈 불러오기
 $issueQuery = $mysqli->prepare("
-    SELECT mi.*, kg.group_name 
-    FROM market_issues mi 
-    LEFT JOIN keyword_groups kg 
-    ON mi.issue_id = kg.group_id 
+    SELECT mi.issue_id, mi.issue_title, mi.issue_link, mi.issue_content, mi.issue_comment, 'market_issues' AS source
+    FROM market_issues mi
     WHERE mi.date = ?
-    ORDER BY kg.group_name ASC
+    ORDER BY mi.issue_title ASC
 ");
 $issueQuery->bind_param('s', $dateParam);
 $issueQuery->execute();
 $issueResult = $issueQuery->get_result();
 
+// signals 조회
+$signalQuery = $mysqli->prepare("
+    SELECT s.signal_id AS issue_id, s.title AS issue_title, s.link AS issue_link, s.content AS issue_content, s.keyword AS issue_keyword, 'signals' AS source
+    FROM signals s
+    WHERE s.news_date = ?
+    ORDER BY s.title ASC
+");
+$signalQuery->bind_param('s', $dateParam);
+$signalQuery->execute();
+$signalResult = $signalQuery->get_result();
+
+
+// 이미지 링크를 확인하고 변환하는 함수
+function convertImageLinks($content) {
+    // HTML 엔티티 디코딩
+    $content = htmlspecialchars_decode($content);
+    // 이미지 URL을 찾아서 <a> 태그와 <img> 태그로 변환 (클릭 시 원본 이미지 링크 열기)
+    $pattern = '/(https?:\/\/[^\s]+?\.(?:jpg|jpeg|png|gif)(?:\?[^\s]*)?)/i';
+    $content = preg_replace($pattern, '<a href="$1" target="_blank"><img src="$1" alt="이미지" style="max-width:500px; max-height:300px; width:auto; height:auto;"></a>', $content);
+    return nl2br($content); // 줄바꿈 처리
+}
 ?>
 
 <head>
@@ -57,6 +76,15 @@ $issueResult = $issueQuery->get_result();
             background-color: #f8f8f8;
             margin-bottom: 15px;
             border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .market-issue {
+            background-color: #f8f8f8;
+        }
+
+        .signal-issue {
+            background-color: #e8f5e9;
         }
 
         .issue-title {
@@ -94,6 +122,12 @@ $issueResult = $issueQuery->get_result();
             margin-right: 5px;
             display: inline-block;
         }
+
+        .issue-comment {
+            margin-top: 10px;
+            margin-left: 20px;
+            font-size: 0.9em; /* 더 작게 조절 */
+        }
     </style>
 </head>
 
@@ -111,6 +145,7 @@ $issueResult = $issueQuery->get_result();
             <!-- 이슈 등록 폼 -->
             <form id="issueForm" action="issue_process.php" method="POST">
                 <input type="hidden" id="issue_id" name="issue_id">
+                <input type="hidden" id="issue_source" name="issue_source">
                 <input type="hidden" id="issue_date_hidden" name="issue_date" value="<?= htmlspecialchars($dateParam); ?>">
 
                 <label for="issue_title">이슈 제목:</label>
@@ -120,10 +155,19 @@ $issueResult = $issueQuery->get_result();
                 <input type="url" id="issue_link" name="issue_link" autocomplete="off">
 
                 <label for="issue_content">이슈 내용:</label>
-                <textarea id="issue_content" name="issue_content" rows="4"></textarea>
+                <textarea id="issue_content" name="issue_content" rows="10"></textarea>
 
                 <label for="issue_keywords">키워드:</label>
                 <input type="text" id="issue_keywords" name="issue_keywords" placeholder="#키워드1 #키워드2" autocomplete="off">
+
+                <label for="issue_comment">코멘트:</label>
+                <textarea id="issue_comment" name="issue_comment" rows="5"></textarea>
+
+                <div class="event_register_stock_row">
+                    <label for="stock">종목:</label>
+                    <input type="text" id="stock_name" name="stock_name" onkeydown="Common_SearchStock(event, this)" placeholder="종목명/코드" autocomplete="off">
+                    <input type="text" id="stock_code" name="stock_code" readonly placeholder="코드">
+                </div>
 
                 <!-- 수정 모드에서는 등록 버튼 숨김 -->
                 <button type="submit" id="submit_button">등록</button>
@@ -135,13 +179,14 @@ $issueResult = $issueQuery->get_result();
 
         <!-- 이슈 리스트 -->
         <div id="issue_list_container">
+        <!-- market_issues 조회 결과 -->
             <?php while ($issue = $issueResult->fetch_assoc()): ?>
-                <div class="issue-card" onclick="loadIssueData(<?= $issue['issue_id']; ?>)">
-                <div class="issue-title"><?= htmlspecialchars($issue['issue_title'], ENT_QUOTES | ENT_HTML401); ?></div>
+                <div class="issue-card market-issue" onclick="loadIssueData(<?= $issue['issue_id']; ?>, 'market_issues')">
+                <div class="issue-title">[M] <?= htmlspecialchars($issue['issue_title'], ENT_QUOTES | ENT_HTML401); ?></div>
                 <p>링크: <a href="<?= htmlspecialchars($issue['issue_link'], ENT_QUOTES | ENT_HTML401); ?>" target="_blank" class="issue-link">
                     <?= htmlspecialchars($issue['issue_link'], ENT_QUOTES | ENT_HTML401); ?>
                 </a></p>
-                <p class="issue-content"><?= nl2br(htmlspecialchars($issue['issue_content'], ENT_QUOTES | ENT_HTML401)); ?></p>
+                <p class="issue-content"><?= convertImageLinks($issue['issue_content']); ?></p>
                 <p class="issue-keywords">
                     <?php foreach (Utility_GgetIssueKeywords($dateParam, $issue['issue_id']) as $keyword): ?>
                         <span>
@@ -153,7 +198,21 @@ $issueResult = $issueQuery->get_result();
                         </span>
                     <?php endforeach; ?>
                 </p>
+                <p class="issue-comment"><?= convertImageLinks($issue['issue_comment']); ?></p>
             </div>
+            <?php endwhile; ?>
+
+
+            <!-- signals 조회 결과 -->
+            <?php while ($signal = $signalResult->fetch_assoc()): ?>
+                <div class="issue-card signal-issue" onclick="loadIssueData(<?= $signal['issue_id']; ?>, 'signals')">
+                    <div class="issue-title">[S] <?= htmlspecialchars($signal['issue_title'], ENT_QUOTES | ENT_HTML401); ?></div>
+                    <p>링크: <a href="<?= htmlspecialchars($signal['issue_link']); ?>" target="_blank" class="issue-link">
+                        <?= htmlspecialchars($signal['issue_link']); ?>
+                    </a></p>
+                    <p class="issue-content"><?= nl2br(htmlspecialchars($signal['issue_content'])); ?></p>
+                    <p class="issue-keywords"><?= nl2br(htmlspecialchars($signal['issue_keyword'])); ?></p>
+                </div>
             <?php endwhile; ?>
         </div>
     </div>
@@ -164,10 +223,10 @@ require($_SERVER['DOCUMENT_ROOT'] . "/modules/common/common_footer.php");
 <script>
     let isEditMode = false;
 
-    function loadIssueData(issueId) {
+    function loadIssueData(issueId, source) {
         // AJAX 요청으로 데이터를 가져옴
         var xhr = new XMLHttpRequest();
-        xhr.open("GET", "fetch_issue.php?issue_id=" + issueId, true);
+        xhr.open("GET", "fetch_issue.php?issue_id=" + issueId + "&source=" + source, true);
         xhr.onload = function() {
             if (xhr.status === 200) {
                 var issue = JSON.parse(xhr.responseText);
@@ -178,10 +237,18 @@ require($_SERVER['DOCUMENT_ROOT'] . "/modules/common/common_footer.php");
                 document.getElementById('issue_link').value = issue.issue_link;
                 document.getElementById('issue_content').value = issue.issue_content;
                 document.getElementById('issue_keywords').value = issue.keywords;
-                document.getElementById('issue_date_hidden').value = issue.date;  
-                document.getElementById('issue_date').value = issue.date;  
+                document.getElementById('issue_date_hidden').value = issue.date;
+                document.getElementById('issue_date').value = issue.date;
+                document.getElementById('issue_comment').value = issue.issue_comment || '';
 
-                // 수정, 삭제 버튼 보이기
+                // 추가된 종목 코드 및 종목명 처리
+                document.getElementById('stock_code').value = issue.code || '';
+                document.getElementById('stock_name').value = issue.name || '';
+
+                // 소스 저장
+                document.getElementById('issue_source').value = issue.source;
+
+                // 버튼 표시 설정
                 document.getElementById('submit_button').style.display = 'none'; // 등록 버튼 숨김
                 document.getElementById('update_button').style.display = 'inline-block';
                 document.getElementById('delete_button').style.display = 'inline-block';

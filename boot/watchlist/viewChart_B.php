@@ -111,7 +111,6 @@ if($pgmId == ''){
 	$result1->free();
 
 	$j=0;
-	$d=0;
 	$pre_group = '';
 	foreach ($watchlist_data as $row) {
 		// 그룹별 분리표시
@@ -124,51 +123,14 @@ if($pgmId == ''){
 			echo "<div class='row' style='margin-left:10px'> ";
 		}
 
-		// 가장 최근 0일차 상승이유
-		if(isset($row['0day_date'])) {
-			$info_0day =" <b>(".$row['uprsn'].")</b> ".$row['close_rate_str']." / ".$row['tot_trade_amt_str']."</font>"." &nbsp; ".$row['0day_date'];
-		} else {
-			$info_0day = "<font class='h5'>&nbsp</font>";
-		}
-		
-		// 종목 거래내역 // 장중 - 실시간데이터, 이외 - 마감데이터, 예상체결 - 예상체결데이터
-		$realtime_data = "";
-		if($row['trade_date'] != '') {
-			$realtime_data = "<font class='h5'>".number_format($row['acc_trade_amount'])."억  &nbsp ".$row['trade_rate_str']." </font> &nbsp";
-			$realtime_data .= "<font class='text-dark'>".number_format($row['market_cap'])."&nbsp ".$row['trade_date']."</font> ";
-		}
-		
-		// 모차십 0일차 등록건이 있는 경우 건수 표시되게 함.
-		$mochaten_cnt = '';
-		if($row['mochaten_cnt'] > 0) {
-			$mochaten_cnt = '<font color=red>('.$row['mochaten_cnt'].')</font>';
-		}
+		echo "<div class='col-xl-3 col-md-6 mb-4' style='margin: 0;'>";
 
-		// echo "<div class='col-xl-3 col-md-6 mb-4' style='margin: 0; margin-left:10px margin-right:10px'>
-		echo "<div class='$col_st col-md-6 mb-4' style='margin: 0;'>
-					<div class='row no-gutters align-items-center'>
-						<div class='col mr-0'>
-							<div class='font-weight-bold text-primary text-uppercase mb-1' style='height:35px; line-height:35px;'>$mochaten_cnt
-								<font class='h4'>
-								<span class='draggable' id=stock_nm$d draggable='true'>
-								<a href='/modules/market/stock_report_popup.php?code=".$row['code']."&name=".$row['name']."&brWidth=2500' onclick='window.open(this.href, \'stock\', 'width=2500px,height=850,scrollbars=1,resizable=yes');return false;' target='_blank'>
-								<b>".$row['name']."</b>
-								</a>
-								</span>
-								</font> &nbsp;".$realtime_data."
-							</div>
-							<div class='font-weight-bold mb-1 style='margin: 0;'>
-								$info_0day
-							</div>
-							<div style='margin: 0;'>
-								<img class='img-fluid' src='https://ssl.pstatic.net/imgfinance/chart/item/".$chart_url.$row['code'].".png?sidcode=1705826920773'>
-							</div>
-						</div>
-					</div>
-			</div>";
-				
+		// 전체 HTML 출력
+		echo generateStockHtml($row, false, 'commonStockLink', $chart_url);
+
+		echo "</div>";
+
 		$j++;
-		$d++;
 
 		if($j%$row_div == 0) {
 			echo "</div>";

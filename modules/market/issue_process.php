@@ -2,13 +2,16 @@
 require($_SERVER['DOCUMENT_ROOT']."/modules/common/database.php");
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $source = $_POST['issue_source'] ?? 'market_issues'; // 기본값 market_issues
     $issueId = $_POST['issue_id'] ?? null;
     $issueTitle = $_POST['issue_title'];
     $issueLink = $_POST['issue_link'] ?? '';
     $issueContent = $_POST['issue_content'] ?? '';
     $issueDate = $_POST['issue_date'] ?? '';  // issue_date_hidden에서 전달받은 값
     $keywords_input = htmlspecialchars($_POST['issue_keywords'], ENT_QUOTES | ENT_HTML401);  // 특수 문자 처리 추가
-
+    $issueComment = $_POST['issue_comment'] ?? '';
+    $stockCode = $_POST['stock_code'] ?? null;
+    $stockName = $_POST['stock_name'] ?? null;
 
     // action 값이 존재하는지 확인
     $action = isset($_GET['action']) ? $_GET['action'] : 'insert';
@@ -21,40 +24,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $mysqli->autocommit(FALSE);
 
     try {
-        if ($action === 'update' && $issueId) {
-            // 이슈 수정 처리
-            $issueStmt = $mysqli->prepare("UPDATE market_issues SET issue_title = ?, issue_link = ?, issue_content = ?, date = ? WHERE issue_id = ?");
-            $issueStmt->bind_param('ssssi', $issueTitle, $issueLink, $issueContent, $issueDate, $issueId);
-            $issueStmt->execute();
+        if ($action === 'update' && $issueId) { // 이슈 수정
+            if ($stockCode) {
+                // signals 테이블 업데이트
+                $stmt = $mysqli->prepare("UPDATE signals SET title = ?, link = ?, content = ?, news_date = ?, code = ?, name = ?, keyword = ? WHERE signal_id = ?");
+                $stmt->bind_param('sssssssi', $issueTitle, $issueLink, $issueContent, $issueDate, $stockCode, $stockName, $keywords_input, $issueId);
+                $stmt->execute();
+            } else {
 
-            // 기존 키워드 삭제
-            $deleteKeywordStmt = $mysqli->prepare("DELETE FROM keyword_issue_mappings WHERE issue_id = ?");
-            $deleteKeywordStmt->bind_param('i', $issueId);
-            $deleteKeywordStmt->execute();
-            
-            // 새 키워드 처리 (등록과 동일하게)
-            handleKeywords($keywords_input, $issueId);
+                $issueStmt = $mysqli->prepare("UPDATE market_issues SET issue_title = ?, issue_link = ?, issue_content = ?, issue_comment = ?, date = ? WHERE issue_id = ?");
+                $issueStmt->bind_param('sssssi', $issueTitle, $issueLink, $issueContent, $issueComment, $issueDate, $issueId);
+                $issueStmt->execute();
 
-        } elseif ($action === 'delete' && $issueId) {
-            // 기존 키워드 삭제
-            $deleteKeywordStmt = $mysqli->prepare("DELETE FROM keyword_issue_mappings WHERE issue_id = ?");
-            $deleteKeywordStmt->bind_param('i', $issueId);
-            $deleteKeywordStmt->execute();
-            
-            // 이슈 삭제 처리
-            $issueStmt = $mysqli->prepare("DELETE FROM market_issues WHERE issue_id = ?");
-            $issueStmt->bind_param('i', $issueId);
-            $issueStmt->execute();
-
-        } else {
-            // 이슈 등록 처리
-            $issueStmt = $mysqli->prepare("INSERT INTO market_issues (issue_title, issue_link, issue_content, date) VALUES (?, ?, ?, ?)");
-            $issueStmt->bind_param('ssss', $issueTitle, $issueLink, $issueContent, $issueDate);
-            $issueStmt->execute();
-            $issueId = $mysqli->insert_id;
-
-            // 키워드 처리
-            handleKeywords($keywords_input, $issueId);
+                // 기존 키워드 삭제
+                $deleteKeywordStmt = $mysqli->prepare("DELETE FROM keyword_issue_mappings WHERE issue_id = ?");
+                $deleteKeywordStmt->bind_param('i', $issueId);
+                $deleteKeywordStmt->execute();
+                
+                // 새 키워드 처리 (등록과 동일하게)
+                handleKeywords($keywords_input, $issueId);
+            }
+        } elseif ($action === 'delete' && $issueId) { // 이슈 삭제
+            if ($stockCode) {
+                $stmt = $mysqli->prepare("DELETE FROM signals WHERE signal_id = ?");
+                $stmt->bind_param('i', $issueId);
+                $stmt->execute();
+            }
+            else {
+                // 기존 키워드 삭제
+                $deleteKeywordStmt = $mysqli->prepare("DELETE FROM keyword_issue_mappings WHERE issue_id = ?");
+                $deleteKeywordStmt->bind_param('i', $issueId);
+                $deleteKeywordStmt->execute();
+                
+                // 이슈 삭제 처리
+                $issueStmt = $mysqli->prepare("DELETE FROM market_issues WHERE issue_id = ?");
+                $issueStmt->bind_param('i', $issueId);
+                $issueStmt->execute();
+            }
+        } else { // 이슈 등록
+            if ($stockCode) {
+                // signals 테이블 삽입
+                $stmt = $mysqli->prepare("INSERT INTO signals (news_date, title, content, link, code, name, keyword) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                $stmt->bind_param('sssssss', $issueDate, $issueTitle, $issueContent, $issueLink, $stockCode, $stockName, $keywords_input);
+                $stmt->execute();
+            } else {
+                $issueStmt = $mysqli->prepare("INSERT INTO market_issues (issue_title, issue_link, issue_content, issue_comment, date) VALUES (?, ?, ?, ?, ?)");
+                $issueStmt->bind_param('sssss', $issueTitle, $issueLink, $issueContent, $issueComment, $issueDate);
+                $issueStmt->execute();
+                $issueId = $mysqli->insert_id;
+    
+                // 키워드 처리
+                handleKeywords($keywords_input, $issueId);
+            }
         }
         $mysqli->commit();
 

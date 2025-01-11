@@ -103,7 +103,7 @@ foreach ($stocks as $stock) {
             CASE WHEN me.date = ? THEN me.hot_theme ELSE 'N' END AS hot_theme,
             mes.code AS code,
             mes.name AS name,
-            mes.stock_comment AS stock_comment,
+            CASE WHEN me.date = ? THEN mes.stock_comment ELSE '' END AS stock_comment,
             CASE WHEN me.date = ? THEN mes.is_leader ELSE '0' END AS is_leader,
             CASE WHEN me.date = ? THEN mes.is_watchlist ELSE '0' END AS is_watchlist,
             CASE 
@@ -122,7 +122,7 @@ foreach ($stocks as $stock) {
         LIMIT 1
     ";
     $eventStmt = $mysqli->prepare($eventQuery);
-    $eventStmt->bind_param('ssssss', $reportDate, $reportDate, $reportDate, $dataSource, $code, $reportDate);
+    $eventStmt->bind_param('sssssss', $reportDate, $reportDate, $reportDate, $reportDate, $dataSource, $code, $reportDate);
     $eventStmt->execute();
     $eventResult = $eventStmt->get_result();
     

@@ -86,44 +86,15 @@ if($pgmId == '') {
 			echo "<tr><td colspan=2 class='table-danger'><b>▷ ".$row['group_key_str']."</b></td></tr>";
 		}
 
-		// 가장 최근 0일차 상승이유
 		echo "<tr><td>";
-		if($row['group_key_str'] != '') {
-			$info_0day =" <b>(".$row['uprsn'].")</b> ".$row['close_rate_str']." / ".$row['trade_amount_str']."</font>"." &nbsp; ";
-		} else {
-			$info_0day = "<font class='h5'>&nbsp</font>";
-		}
 		
-		// 종목 거래내역 // 장중 - 실시간데이터, 이외 - 마감데이터, 예상체결 - 예상체결데이터
-		$realtime_data = "";
-		if($row['trade_date'] != '') {
-			$realtime_data = "<font class='h5'>".number_format($row['acc_trade_amount'])."억  &nbsp ".$row['trade_rate_str']." </font> &nbsp";
-			$realtime_data .= "<font class='text-dark'>".number_format($row['market_cap'])."억 &nbsp ".$row['trade_date']."</font> ";
-		}
-
-		// 모차십 0일차 등록건이 있는 경우 건수 표시되게 함.
-		$mochaten_cnt = '';
-		if($row['mochaten_cnt'] > 0) {
-			$mochaten_cnt = '<font color=red>('.$row['mochaten_cnt'].')</font>';
-		}
-
-		$stock_name = $row['name'];
-
-		//그래프를 잘 보기 위해 팝업으로 연결
-		$xray_tick_detail = "<a href='#' onclick=\"window.open('../watchlist/xrayTick_Stock_L.php?page_fg=popup&code=".$row['code']."&name=".$stock_name."', 'stock', 'width=1400,height=1800,left=680,top=0,screenX=680,screenY=0,scrollbars=yes'); return false;\" target='_blank'>(+)</a>";
-
-		// echo "<div class='col-xl-3 col-md-6 mb-4' style='margin: 0; margin-left:10px margin-right:10px'>
-		echo "<div class='row no-gutters align-items-center'>
-				<div class='col mr-0'>
-					<div class='font-weight-bold text-primary text-uppercase mb-1' style='height:35px; line-height:35px;'>$mochaten_cnt
-						<font class='h4'><a href=\"javascript:void(0);\" onclick=\"openStockPopup('{$row['code']}', '{$stock_name}')\">".$stock_name."</a></b></span></font> $xray_tick_detail &nbsp;".$realtime_data."
-					</div>
-				</div>
-			</div>";
-				
-		$pre_group  = $row['group_key'];
+			// 전체 HTML 출력
+			echo generateStockHtml($row, true, 'commonStockLink');
 
 		echo "</td>";
+
+		$pre_group  = $row['group_key'];
+		$stock_name = $row['name'];
 
 		$code = $row['code'];  // 현재 행의 코드 사용
 		$zeroday_date = $row['date'];  // 현재 행의 0day일자 사용
@@ -143,20 +114,30 @@ if($pgmId == '') {
 			// 		AND  page_fg = 'E'
 			// 		AND  code =  '$code'" ;
 
-			$query3 = "SELECT CONCAT('[',A.signal_grp
-							, CASE WHEN length(A.theme) > 1 && A.theme != A.signal_grp THEN CONCAT(A.theme, ']<BR>') ELSE ']<BR>' END) today_theme
-							, A.title today_issue
-					FROM	signal_evening A
-					WHERE	page_date = (select max(page_date) from signal_evening where page_date <= '$search_date' and code = '$code')
-					AND  page_fg = 'E'
-					AND  code =  '$code'" ;
+			$query3 = "SELECT CONCAT('[', A.signal_grp,
+									CASE 
+										WHEN LENGTH(A.theme) > 1 AND A.theme != A.signal_grp THEN CONCAT(A.theme, ']<BR>') 
+										ELSE ']<BR>' 
+									END) AS today_theme,
+							A.title AS today_issue
+						FROM signal_evening A
+						WHERE A.page_date <= (SELECT MAX(page_date) 
+											FROM signal_evening 
+											WHERE page_date <= '$search_date' 
+												AND code = '$code')
+						AND A.page_fg = 'E'
+						AND A.code = '$code'
+						ORDER BY A.page_date DESC
+						LIMIT 2" ;
 
 			// echo "<pre>$query3</pre>";
 			$result3 = $mysqli->query($query3);
 
+			$issue_list = [];
 			while($row = $result3->fetch_array(MYSQLI_BOTH)) {
-				$today_issue = $row['today_theme']." <b>".$row['today_issue']."</b>";
+				$issue_list[] = "<b>".$row['today_issue']."</b>";
 			}
+			$today_issue = implode("<br>", $issue_list);
 		}
 
 		// 로딩속도 이슈로 잠시 막아두기 24.06.19
@@ -179,7 +160,7 @@ if($pgmId == '') {
 			// }
 		// }
 
-		echo "<td width=75%>$info_0day.$today_issue</td></tr>";
+		echo "<td width=75%>$today_issue</td></tr>";
 		echo "<tr><td colspan=2>";
 
 		// X-RAY 순간체결 거래량 쿼리 실행
@@ -392,7 +373,7 @@ function saveComment() {
 // 종목명 클릭 시 팝업창
 function openStockPopup(code, name) {
     var url = "/modules/market/stock_report_popup.php?code=" + encodeURIComponent(code) + "&name=" + encodeURIComponent(name);
-    window.open(url, 'StockDetail',  'width=2400, height=1400');
+    window.open(url, '_blank');
 }
 </script>
 </body>

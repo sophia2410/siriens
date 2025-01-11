@@ -23,16 +23,51 @@ if ($type === 'journal' && $journalId) {
         echo json_encode(['message' => 'Invalid request']);
     }
 }elseif ($type === 'trade' && $journalId) {
-    // 특정 매매/복기 데이터를 가져오는 로직
-    $query = "SELECT jt.id, jt.trade_date, jt.type, jt.trade_items, IFNULL(jt.trade_method,'') AS trade_method, IFNULL(jt.profit_loss,'') AS profit_loss, UNCOMPRESS(jt.comment) AS comment FROM journal_trade jt WHERE jt.id = $journalId";
-    $result = $mysqli->query($query);
+    // 상위 테이블 데이터 조회
+    $journalQuery = "
+        SELECT 
+            jt.id AS journal_id, 
+            jt.trade_date, 
+            jt.type, 
+            jt.trade_items, 
+            UNCOMPRESS(jt.comment) AS comment
+        FROM journal_trade jt
+        WHERE jt.id = $journalId";
 
-    if ($result && $result->num_rows > 0) {
-        $response = $result->fetch_assoc();
-        // JSON 형식으로 데이터 반환
+    $journalResult = $mysqli->query($journalQuery);
+
+    if ($journalResult && $journalResult->num_rows > 0) {
+        $journalData = $journalResult->fetch_assoc();
+
+        // 하위 테이블 데이터 조회
+        $detailsQuery = "
+            SELECT 
+                jtd.id AS detail_id, 
+                jtd.profit_loss, 
+                jtd.trade_method
+            FROM journal_trade_details jtd
+            WHERE jtd.journal_id = $journalId";
+        
+        $detailsResult = $mysqli->query($detailsQuery);
+
+        $detailsData = [];
+        if ($detailsResult && $detailsResult->num_rows > 0) {
+            while ($row = $detailsResult->fetch_assoc()) {
+                $detailsData[] = $row;
+            }
+        }
+
+        // 상위 데이터 + 하위 데이터로 JSON 반환
+        $response = [
+            'journal' => $journalData,
+            'details' => $detailsData
+        ];
         echo json_encode($response);
     } else {
-        http_response_code(400); // 잘못된 요청
-        echo json_encode(['message' => 'Invalid request']);
+        http_response_code(404);
+        echo json_encode(['message' => 'Journal not found']);
     }
+} else {
+    http_response_code(400); // 잘못된 요청
+    echo json_encode(['message' => 'Invalid request']);
 }

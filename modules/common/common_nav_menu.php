@@ -89,7 +89,8 @@ if($_SERVER["HTTP_HOST"] == 'localhost') {
         <!-- Sidebar Heading -->
         <div class="sidebar-heading">Market</div>
 
-        <li><a href="<?=$PATH?>modules/market/market_report.php"><i class="fas fa-edit"></i> <span>마켓리포트</span></a></li>
+        <!-- <li><a href="<?=$PATH?>modules/market/market_report.php"><i class="fas fa-edit"></i> <span>마켓리포트</span></a></li> -->
+        <li><a href="<?=$PATH?>modules/market/market_report_register.php"><i class="fas fa-edit"></i> <span>마켓리포트2</span></a></li>
         <li><a href="<?=$PATH?>modules/market/theme_report.php"><i class="fas fa-tags"></i> <span>테마 조회</span></a></li>
         <li><a href="<?=$PATH?>modules/market/issue_register.php"><i class="fas fa-edit"></i> <span>이슈 등록</span></a></li>
         <li><a href="<?=$PATH?>modules/market/event_register_by_stock.php"><i class="fas fa-edit"></i> <span>이벤트 등록<br>[ by Stock ]</span></a></li>

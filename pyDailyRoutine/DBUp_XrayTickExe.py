@@ -18,7 +18,7 @@ try:
     # 1. Max date 가져오기
     with db.cursor() as cursor:
         sql = "SELECT max(date) date FROM calendar a WHERE date <= now()"
-        # sql = "SELECT date FROM calendar a WHERE date = '2024-11-26'" 
+        # sql = "SELECT date FROM calendar a WHERE date = '2025-01-09'" 
         cursor.execute(sql)
         date = cursor.fetchone()[0].strftime('%Y-%m-%d')
 

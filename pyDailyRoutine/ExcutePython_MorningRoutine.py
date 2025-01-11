@@ -16,9 +16,19 @@ def special_char(str):
     return pt
 
 # Title extraction function
-def extract_title(title):
+def extract_title_date(title):
     # HTML 엔티티를 디코딩 (예: &quot; -> ")
     decoded_title = html.unescape(title)
+
+    # 정규식으로 날짜 추출 (\d{4}\.\d{2}\.\d{2} 형식)
+    date_match = re.search(r'\d{4}\.\d{2}\.\d{2}', decoded_title)
+    print(date_match)
+    if date_match:
+        extracted_date = date_match.group(0)
+        # 날짜 형식을 YYYYMMDD로 변환
+        formatted_date = extracted_date.replace('.', '')
+    else:
+        formatted_date = None
     
     # 불필요한 날짜와 "장 전 뉴스 Check" 부분을 제거
     cleaned_title = re.sub(r'^\d{4}\.\d{2}\.\d{2}\.\(.\)\s*\[장 전 뉴스 Check\]\s*', '', decoded_title)
@@ -27,8 +37,8 @@ def extract_title(title):
     if cleaned_title.startswith('"') and cleaned_title.endswith('"'):
         cleaned_title = cleaned_title[1:-1]
 
-    # 최종적으로 정리된 제목 반환
-    return cleaned_title.strip()
+    # 최종적으로 정리된 제목과 추출된 날짜 반환
+    return cleaned_title.strip(), formatted_date
 
 # Connect to database
 def connect_db():
@@ -45,9 +55,6 @@ def update_market_report(url):
     conn = connect_db()
     cur = conn.cursor()
 
-    # Extract date from URL (modify as per actual use case)
-    date = datetime.now().strftime("%Y%m%d")
-    
     # Crawl the page
     response = requests.get(url, headers={'User-agent': 'Mozilla/5.0'})
     soup = BeautifulSoup(response.content, 'html.parser')
@@ -56,10 +63,15 @@ def update_market_report(url):
     title_tag = soup.find("title")
     if title_tag:
         print("title_tag.text" + title_tag.text)
-        morning_title = extract_title(title_tag.text)
+        morning_title, date = extract_title_date(title_tag.text)
         print("morning_title" + morning_title)
+        print("date" + morning_title)
     else:
         morning_title = "No Title"
+
+    # 날짜가 추출되지 않으면 현재 날짜 사용 (예외 처리)
+    if not date:
+        date = datetime.now().strftime("%Y%m%d")
 
     # Extract the first news
     module_text = soup.find('div', {'class': 'se-module se-module-text'})

@@ -6,26 +6,20 @@ function loadTinyMCE($selector = '#thought', $height = 700) {
     <script>
         var plugins = [
                 'anchor', 'autolink', 'charmap', 'codesample', 'emoticons', 'image', 'link', 'lists', 'media', 'searchreplace', 'table', 'visualblocks', 'wordcount',
-                'checklist', 'mediaembed', 'casechange', 'export', 'formatpainter', 'advtemplate', 'ai', 'mentions', 'tableofcontents', 'footnotes', 'autocorrect', 'typography'
+                'checklist', 'mediaembed', 'casechange', 'export', 'formatpainter', 'pageembed', 'a11ychecker', 'tinymcespellchecker', 'permanentpen', 'powerpaste', 'advtable', 'advcode', 'editimage', 'advtemplate', 'ai', 'mentions', 'tinycomments', 'tableofcontents', 'footnotes', 'mergetags', 'autocorrect', 'typography', 'inlinecss', 'markdown'
             ];
-        var edit_toolbar = 'formatselect fontselect fontsizeselect | forecolor backcolor | bold italic underline strikethrough removeformat | fontsize fontfamily blocks |link image media table mergetags | addcomment showcomments | spellcheckdialog a11ycheck typography | align lineheight | checklist numlist bullist indent outdent | emoticons charmap';
+        var edit_toolbar = 'formatselect fontselect fontsizeselect | forecolor backcolor | bold italic underline strikethrough | blocks fontfamily fontsize |link image media table mergetags | addcomment showcomments | spellcheckdialog a11ycheck typography | align lineheight | checklist numlist bullist indent outdent | emoticons charmap | removeformat';
 
         tinymce.init({
             selector: '<?php echo $selector; ?>', // 고유 셀렉터 적용
             height: <?php echo $height; ?>, // 동적 높이 적용
-            plugins: [
-                'anchor', 'autolink', 'charmap', 'codesample', 'emoticons', 'image', 'link', 'lists', 'media', 'searchreplace', 'table', 'visualblocks', 'wordcount'
-            ],
-            toolbar: edit_toolbar,
+            content_css: false,  // TinyMCE에서 자동으로 로드하는 스타일 비활성화
             menubar: false,
-            branding: false,
-            license_key: 'gpl',
-            setup: function (editor) {
-                editor.on('init', function () {
-                    document.addEventListener('touchstart', function () {}, { passive: true });
-                    document.addEventListener('touchmove', function () {}, { passive: true });
-                });
-            }
+            plugins: plugins,
+            content_css: '/tinymce/tinymce-my-styles.css',
+            toolbar: edit_toolbar,
+            tinycomments_mode: 'embedded',
+            tinycomments_author: 'Author name'
         });
     </script>
     <?php
@@ -37,9 +31,7 @@ function loadTinyMCEScripts() {
     <script>
         // TinyMCE 에디터에 데이터 설정
         function setTinyMCEContent(selector, content) {
-            if(content) {
-                tinymce.get(selector).setContent(content);
-            }  
+            tinymce.get(selector).setContent(content);
         }
 
         // TinyMCE 데이터 동기화

@@ -46,7 +46,7 @@ function Common_InitializeCommonFeatures() {
 // 종목명 클릭 시 팝업창
 function Common_OpenStockPopup(code, name) {
     var url = "/modules/market/stock_report_popup.php?code=" + encodeURIComponent(code) + "&name=" + encodeURIComponent(name);
-    window.open(url, 'StockDetail',  'width=2400, height=1400');
+    window.open(url, '_blank');
 }
 
 // 종목명 클릭 시 종목 일지 등록 팝업창

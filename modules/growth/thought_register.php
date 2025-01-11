@@ -61,22 +61,21 @@ $totalPages = ceil($totalThoughts / $perPage);
             border-radius: 4px;
         }
 
-        #thought_register_container button {
-            margin-top: 20px;
-            padding: 10px 20px;
-            background-color: #d9534f;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-
         #thought_list_container {
             flex: 1;
             padding: 20px;
             background-color: #fff;
             border-radius: 8px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column; /* 세로 정렬 */
+            height: 99%; /* 전체 높이 설정 */
+        }
+
+        .thought-list-wrapper {
+            flex-grow: 1; /* 카드 목록이 남은 공간을 차지하도록 설정 */
+            overflow-y: auto; /* 세로 스크롤 활성화 */
+            margin-bottom: 10px; /* 페이지네이션과 여백 추가 */
         }
 
         .thought-card {
@@ -100,7 +99,12 @@ $totalPages = ceil($totalThoughts / $perPage);
         /* 페이지네이션 스타일 */
         .pagination {
             text-align: center;
-            margin-top: 20px;
+            margin-top: 10px;
+            padding: 10px 0; /* 고정 위치를 위한 패딩 */
+            background: #fff; /* 페이지네이션 배경 */
+            border-top: 1px solid #ddd; /* 구분선 추가 */
+            position: sticky; /* 화면 하단에 고정 */
+            bottom: 0; /* 하단 고정 위치 */
         }
 
         .pagination a {
@@ -180,13 +184,15 @@ $totalPages = ceil($totalThoughts / $perPage);
         <!-- 생각 리스트 -->
         <div id="thought_list_container">
             <h2>카테고리별 생각 목록</h2>
-            <!-- 생각 카드 목록 -->
-            <?php while ($row = $thoughts->fetch_assoc()) { ?>
-                <div class="thought-card" onclick="loadThoughtData(<?= $row['id']; ?>)">
-                    <div class="thought-title"><?php echo $row['category_name']; ?></div>
-                    <div class="thought-content"><?php echo $row['thought_text']; ?> (<?php echo $row['create_date']; ?>)</div>
-                </div>
-            <?php } ?>
+            <!-- 카드 목록을 스크롤 영역으로 감싸기 -->
+            <div class="thought-list-wrapper">
+                <?php while ($row = $thoughts->fetch_assoc()) { ?>
+                    <div class="thought-card" onclick="loadThoughtData(<?= $row['id']; ?>)">
+                        <div class="thought-title"><?php echo $row['category_name']; ?></div>
+                        <div class="thought-content"><?php echo $row['thought_text']; ?> (<?php echo $row['create_date']; ?>)</div>
+                    </div>
+                <?php } ?>
+            </div>
 
             <!-- 페이지네이션 -->
             <div class="pagination">

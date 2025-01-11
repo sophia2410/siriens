@@ -110,101 +110,61 @@ if($pgmId == '') {
 	
 <div class="flex-view">
     <div class="left">
-			<table class='table table-sm table-bordered text-dark'>
-				<?php
-		$d=0;
-		$pre_group = '';
-		foreach ($watchlist_data as $row) {
-			// 그룹별 분리표시
-			if($pre_group != $row['group_key']) {
-				if($pre_group != '') {
-					echo "</tr>";
+		<table class='table table-sm table-bordered text-dark'>
+		<?php
+			$pre_group = '';
+			foreach ($watchlist_data as $row) {
+				// 그룹별 분리표시
+				if($pre_group != $row['group_key']) {
+					if($pre_group != '') {
+						echo "</tr>";
+					}
+					echo "<tr><td class='table-danger'><b>▷ ".$row['group_key_str']."</b></td></tr>";
 				}
-				echo "<tr><td class='table-danger'><b>▷ ".$row['group_key_str']."</b></td></tr>";
+
+				echo "<tr><td>";
+
+					// 전체 HTML 출력
+					echo generateStockHtml($row, false, 'customStockLink');
+
+				echo "</td></tr><tr>";
+
+				$pre_group  = $row['group_key'];
+				$code = $row['code'];  // 현재 행의 코드 사용
+				$zeroday_date = $row['date'];  // 현재 행의 0day일자 사용
+
+				// 종목 이슈 데이터 구해오기 // 0일차 이슈 구해오기
+				$today_issue = '';
+				$query3 = "SELECT CONCAT('[',A.signal_grp
+								, CASE WHEN length(A.theme) > 1 && A.theme != A.signal_grp THEN CONCAT(A.theme, ']<BR>') ELSE ']<BR>' END) today_theme
+								, A.title today_issue
+						FROM	signal_evening A
+						WHERE	page_date = (select max(date) from calendar where date <= '$zeroday_date')
+						AND  page_fg = 'E'
+						AND  code =  '$code'" ;
+
+				// 0일차가 아니어도 시그널이브닝에 이슈가 들어오는 경우가 있어, 수정해봄. 더 적합한 데이터로 변경 예정 24.06.29
+				$query3 = "SELECT CONCAT(A.page_date
+								, ' [',A.signal_grp
+								, CASE WHEN length(A.theme) > 1 && A.theme != A.signal_grp THEN CONCAT(A.theme, ']<BR>') ELSE ']<BR>' END) today_theme
+								, A.title today_issue
+						FROM	signal_evening A
+						WHERE	page_date = (select max(page_date) from signal_evening where page_date <= '$search_date' and code = '$code')
+						AND  page_fg = 'E'
+						AND  code =  '$code'" ;
+
+				// echo "<pre>$query3</pre>";
+				$result3 = $mysqli->query($query3);
+
+				while($row = $result3->fetch_array(MYSQLI_BOTH)) {
+					$today_issue = $row['today_theme']." <b>".$row['today_issue']."</b>";
+				}
+
+				echo "<td width=60%>$today_issue</td></tr><tr><td>";
+
+				
+				echo "</td></tr>";
 			}
-
-			// 가장 최근 0일차 상승이유
-			echo "<tr><td>";
-			if($row['group_key_str'] != '') {
-				$info_0day =" <b>(".$row['uprsn'].")</b> ".$row['close_rate_str']." / ".$row['trade_amount_str']."</font>"." &nbsp; ";
-			} else {
-				$info_0day = "<font class='h5'>&nbsp</font>";
-			}
-			
-			// 종목 거래내역 // 장중 - 실시간데이터, 이외 - 마감데이터, 예상체결 - 예상체결데이터
-			$realtime_data = "";
-			if($row['trade_date'] != '') {
-				$realtime_data = "<font class='h5'>".number_format($row['acc_trade_amount'])."억  &nbsp ".$row['trade_rate_str']." </font> &nbsp";
-				$realtime_data .= "<font class='text-dark'>".number_format($row['trade_price'])."&nbsp ".number_format($row['market_cap'],2)."&nbsp ".$row['trade_date']."</font> ";
-			}
-
-			// 모차십 0일차 등록건이 있는 경우 건수 표시되게 함.
-			$mochaten_cnt = '';
-			if($row['mochaten_cnt'] > 0) {
-				$mochaten_cnt = '<font color=red>('.$row['mochaten_cnt'].')</font>';
-			}
-
-			$stock_name = $row['name'];
-
-			//그래프를 잘 보기 위해 팝업으로 연결
-			$xray_tick_detail = "<a href=\"javascript:viewHighchart('".$row['code']."','{$stock_name}')\">(+)</a>";
-
-			// echo "<div class='col-xl-3 col-md-6 mb-4' style='margin: 0; margin-left:10px margin-right:10px'>
-			echo "<div class='row no-gutters align-items-center'>
-					<div class='col mr-0'>
-						<div class='font-weight-bold text-primary text-uppercase mb-1' style='height:35px; line-height:35px;'>$mochaten_cnt
-							<font class='h4'><span class='draggable' id=stock_nm$d draggable='true'><b><a href='../siriens/stock_B.php?code=".$row['code']."&name=".$stock_name."&brWidth=2500' onclick='window.open(this.href, \'stock\', 'width=2500px,height=850,scrollbars=1,resizable=yes');return false;' target='_blank'>".$stock_name."</a></b></span></font> $xray_tick_detail &nbsp;".$realtime_data."
-						</div>
-						<div class='font-weight-bold mb-1 style='margin: 0;'>
-							$info_0day
-						</div>
-						<div style='margin: 0; width:610px;'>
-							<img class='img-fluid' id='stockChart_$d' src='https://ssl.pstatic.net/imgfinance/chart/item/candle/day/{$row['code']}.png?sidcode=1705826920773' onclick='toggleImage(\"stockChart_$d\", \"{$row['code']}\")' width='600'>
-						</div>
-					</div>
-				</div>";
-					
-			$pre_group  = $row['group_key'];
-
-			echo "</td></tr><tr>";
-
-			$code = $row['code'];  // 현재 행의 코드 사용
-			$zeroday_date = $row['date'];  // 현재 행의 0day일자 사용
-
-			// 종목 이슈 데이터 구해오기 // 0일차 이슈 구해오기
-			$today_issue = '';
-			$query3 = "SELECT CONCAT('[',A.signal_grp
-							, CASE WHEN length(A.theme) > 1 && A.theme != A.signal_grp THEN CONCAT(A.theme, ']<BR>') ELSE ']<BR>' END) today_theme
-							, A.title today_issue
-					FROM	signal_evening A
-					WHERE	page_date = (select max(date) from calendar where date <= '$zeroday_date')
-					AND  page_fg = 'E'
-					AND  code =  '$code'" ;
-
-			// 0일차가 아니어도 시그널이브닝에 이슈가 들어오는 경우가 있어, 수정해봄. 더 적합한 데이터로 변경 예정 24.06.29
-			$query3 = "SELECT CONCAT(A.page_date
-							, ' [',A.signal_grp
-							, CASE WHEN length(A.theme) > 1 && A.theme != A.signal_grp THEN CONCAT(A.theme, ']<BR>') ELSE ']<BR>' END) today_theme
-							, A.title today_issue
-					FROM	signal_evening A
-					WHERE	page_date = (select max(page_date) from signal_evening where page_date <= '$search_date' and code = '$code')
-					AND  page_fg = 'E'
-					AND  code =  '$code'" ;
-
-			// echo "<pre>$query3</pre>";
-			$result3 = $mysqli->query($query3);
-
-			while($row = $result3->fetch_array(MYSQLI_BOTH)) {
-				$today_issue = $row['today_theme']." <b>".$row['today_issue']."</b>";
-			}
-
-			echo "<td width=60%>$today_issue</td></tr><tr><td>";
-
-			
-			echo "</td></tr>";
-
-			$d++;
-		}
 		?>
         </table>
     </div>
@@ -224,7 +184,7 @@ if($pgmId == '') {
 ?>
 
 <script>
-// 모차십 종목 선택 시 오른쪽 프레임에 내역 조회
+// 종목 선택 시 오른쪽 프레임에 내역 조회
 function viewHighchart(code, name) {
 	brWidth = window.innerWidth;
 	iframeL.src = "xrayTick_Stock_L.php?code="+code+"&name="+name+"&brWidth="+brWidth;

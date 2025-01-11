@@ -92,8 +92,8 @@
 </style>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://code.highcharts.com/stock/highstock.js"></script>
-    <script src="https://code.highcharts.com/modules/annotations.js"></script>
+    <script src="https://code.highcharts.com/12.0.0/stock/highstock.js"></script>
+    <script src="https://code.highcharts.com/12.0.0/modules/annotations.js"></script>
 </head>
 
 <body>

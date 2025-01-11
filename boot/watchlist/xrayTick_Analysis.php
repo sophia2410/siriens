@@ -29,18 +29,26 @@ while ($status_row = $status_result->fetch_assoc()) {
             border-radius: 5px;
             cursor: pointer;
         }
-        .flex-container {
-            display: flex;
-        }
-        .left {
-            flex: 10; /* 비율 6 */
-            display: flex;
-            align-items: center;
-            gap: 5px; /* 버튼 간 간격 */
-        }
-        .right {
-            flex: 1; /* 비율 1 */
-        }
+    .flex-container {
+        display: flex;
+        flex-wrap: wrap; /* 줄바꿈 허용 */
+        gap: 10px; /* 요소 간 간격 조정 */
+    }
+    .left {
+        display: flex;
+        flex-wrap: wrap; /* 줄바꿈 허용 */
+        align-items: center;
+        gap: 5px; /* 버튼 간 간격 */
+    }
+    .right {
+        flex-shrink: 0; /* 크기 고정 */
+    }
+    .btn {
+        margin-bottom: 5px; /* 줄바꿈 시 간격 추가 */
+    }
+    input, label {
+        margin-bottom: 5px; /* 줄바꿈 시 간격 추가 */
+    }
     </style>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"
             integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4="
@@ -123,7 +131,8 @@ $result = $mysqli->query($query);
         <button type="button" class="btn btn-danger btn-sm" onclick="viewStockList('mochaten')">모차십</button>
         <button type="button" class="btn btn-danger btn-sm" id="marketEventsThemeButton">마켓이슈</button>
         <button type="button" class="btn btn-danger btn-sm" id="watchlistThemeButton">옵시디언</button>
-        <input type="text" id="keyword-search" class="form-control"  style='width:150px' placeholder="키워드" autocomplete="off">
+        <input type="text" id="keyword-search" class="form-control"  style='width:120px' placeholder="키워드" autocomplete="off">
+        <input type="text" id="keyword-amount" class="form-control"  style='width:60px' value='0' autocomplete="off">억↑
         <button type="button" class="btn btn-danger btn-sm" onclick="viewStockList('keyword')">조회</button>&nbsp; 
         <input type=text id=buy_cnt style='width:30px' value=5>건/<input type=text id=buy_period style='width:30px' value=10>일내
         <input type=checkbox id='0dayview' checked> 0일차포함 &nbsp;
@@ -140,9 +149,15 @@ $result = $mysqli->query($query);
             <?php echo $status_options; ?>
         </select> -->
 
+        &nbsp;
+        &nbsp;
+        
+        <button type="button" class="btn btn-info btn-sm" onclick="comment_save()">코멘트 저장</button> 
+         
     </div>
     <div class="right">
-    <button type="button" class="btn btn-info btn-sm" onclick="comment_save()">코멘트 저장</button> 
+    <!-- 버튼 left div로 우선 이동.. 이후 좌우 구분 필요할 때 이동한 버튼 제거하고 아래 활성화 -->
+    <!-- <button type="button" class="btn btn-info btn-sm" onclick="comment_save()">코멘트 저장</button>  -->
 
     <!-- Naver 차트 보기에 기능이 있어 우선 막아둠 24.08.31 -->
     <!-- <button type="button" class="btn btn-info btn-sm" id="excel_down">관종엑셀 다운로드</button> -->
@@ -308,7 +323,8 @@ function viewStockList(pgmId, key1='', key2='') {
         parm = "&sector=" + key1 + "&theme=" + key2;
     } else if(pgmId == 'keyword') {
         keyword = document.getElementById('keyword-search').value;
-        parm = "&theme=" + keyword;
+        trade_amt = document.getElementById('keyword-amount').value;
+        parm = "&theme=" + keyword + "&trade_amt=" + trade_amt;
     } else if(pgmId == 'xraytick') {
         parm = "";
     } else if(pgmId == 'buyStreak') {

@@ -384,7 +384,7 @@ $.getJSON('/boot/common/ajax/ajaxHighcharts.php', { code: code, name: name }, fu
                 lineWidth: 2
             }],
             subtitle: {
-                text: '['+ code + ']' + name + ' - ' + '★ (1천억 이상), ◆ (5백억 이상), ▲ (1백억 이상), △ (30억 이상), ↑ (10억 이상), * (3억 이상)',
+                text: '['+ code + ']' + name + ' - ' + '★: 1천억 이상, ◆: 5백억 이상, ▲: 1백억 이상, △: 30억 이상, ↑: 10억 이상, *: 3억 이상',
                 align: 'center',
                 verticalAlign: 'bottom',
                 style: {

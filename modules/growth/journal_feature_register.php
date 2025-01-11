@@ -129,22 +129,21 @@ $totalPages = ceil($totalJournals / 2);
             margin-right: 0;
         }
 
-        #journal_register_container button {
-            margin-top: 20px;
-            padding: 10px 20px;
-            background-color: #d9534f;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-
         #journal_list_container {
             flex: 1;
             padding: 20px;
             background-color: #fff;
             border-radius: 8px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column; /* 세로 정렬 */
+            height: 99%; /* 전체 높이 설정 */
+        }
+
+        .journal-list-wrapper {
+            flex-grow: 1; /* 카드 목록이 남은 공간을 차지하도록 설정 */
+            overflow-y: auto; /* 세로 스크롤 활성화 */
+            margin-bottom: 10px; /* 페이지네이션과 여백 추가 */
         }
 
         .journal-card {
@@ -165,6 +164,11 @@ $totalPages = ceil($totalJournals / 2);
 
         .journal-content {
             margin-top: 10px;
+            padding: 10px 0; /* 고정 위치를 위한 패딩 */
+            background: #fff; /* 페이지네이션 배경 */
+            border-top: 1px solid #ddd; /* 구분선 추가 */
+            position: sticky; /* 화면 하단에 고정 */
+            bottom: 0; /* 하단 고정 위치 */
         }
 
         .pagination a {
@@ -279,6 +283,7 @@ $totalPages = ceil($totalJournals / 2);
         <!-- 관심종목 리스트 -->
         <div id="journal_list_container">
             <h2>관심종목 목록</h2>
+            
 
             <!-- 검색 조건 -->
             <div class="form-row">
@@ -303,18 +308,20 @@ $totalPages = ceil($totalJournals / 2);
                 <button onclick="resetSearch()" style="flex: 0.5;">초기화</button>
             </div>
 
-            <?php while ($row = $journals->fetch_assoc()) { ?>
-                <div class="journal-card">
-                    <div class="journal-title" onclick="Common_OpenStockPopup('<?= htmlspecialchars($row['code']) ?>', '<?= htmlspecialchars($row['name']) ?>');">
-                        <?php echo $row['status_str'] ." ". htmlspecialchars($row['name']).' ('.htmlspecialchars($row['code']).') / '.$row['type'];?>
+            <div class="journal-list-wrapper">
+                <?php while ($row = $journals->fetch_assoc()) { ?>
+                    <div class="journal-card">
+                        <div class="journal-title" onclick="Common_OpenStockPopup('<?= htmlspecialchars($row['code']) ?>', '<?= htmlspecialchars($row['name']) ?>');">
+                            <?php echo $row['status_str'] ." ". htmlspecialchars($row['name']).' ('.htmlspecialchars($row['code']).') / '.$row['type'];?>
+                        </div>
+                        <div onclick="loadJournalData(<?= $row['id']; ?>)">
+                            <img class='img-fluid' width=545 src="https://ssl.pstatic.net/imgfinance/chart/item/candle/day/<?= $row['code'] ?>.png?sidcode=1705826920773">
+                            <img class='img-fluid' width=545 src="https://ssl.pstatic.net/imgfinance/chart/item/candle/month/<?= $row['code'] ?>.png?sidcode=1705826920773">
+                        </div>
+                        <div class="journal-content" onclick="loadJournalData(<?= $row['id']; ?>)"><?php echo $row['comment']; ?></div>
                     </div>
-                    <div onclick="loadJournalData(<?= $row['id']; ?>)">
-                        <img class='img-fluid' width=545 src="https://ssl.pstatic.net/imgfinance/chart/item/candle/day/<?= $row['code'] ?>.png?sidcode=1705826920773">
-                        <img class='img-fluid' width=545 src="https://ssl.pstatic.net/imgfinance/chart/item/candle/month/<?= $row['code'] ?>.png?sidcode=1705826920773">
-                    </div>
-                    <div class="journal-content" onclick="loadJournalData(<?= $row['id']; ?>)"><?php echo $row['comment']; ?></div>
-                </div>
-            <?php } ?>
+                <?php } ?>
+            </div>
 
 
             <!-- 페이지네이션 -->
