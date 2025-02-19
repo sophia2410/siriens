@@ -24,7 +24,7 @@ $journalQuery = "
             WHEN jf.status = 'watch_short' THEN '<span style=\"color: #843fa1;\"><strong>(W-S)</strong></span>' 
             WHEN jf.status = 'watch_long' THEN '<span style=\"color: #169179;\"><strong>(W-L)</strong></span>' 
             ELSE '' 
-        END AS status_str,       
+        END AS status_str,
         UNCOMPRESS(jf.comment) AS comment, jf.created_at
     FROM journal_feature jf
     JOIN stock s ON jf.code = s.code AND s.last_yn = 'Y'
@@ -209,6 +209,27 @@ $totalPages = ceil($totalJournals / 2);
         #edit_buttons button.delete {
             background-color: #d9534f;
         }
+
+        .recent-price-section {
+            background-color: #fff;
+            padding: 10px;
+            border: 1px solid #ddd;
+            margin-top: 10px;
+            overflow-x: auto;
+        }
+
+        .small-table th, .small-table td {
+            width: 90px;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        /* 가로 스크롤 가능하도록 설정 */
+        .scrollable-x-content {
+            overflow-x: auto;
+            white-space: nowrap;
+            max-width: 100%;
+        }
     </style>
 </head>
 
@@ -216,7 +237,7 @@ $totalPages = ceil($totalJournals / 2);
     <div id="container">
         <!-- 관심 종목 등록 폼 -->
         <div id="journal_register_container">
-            <h2>관심 종목 등록</h2>
+            <h2>HOT 종목 등록</h2>
             <form id="journalForm" action="journal_feature_process.php" method="POST" onsubmit="return validateForm();">
                 <input type="hidden" id="journal_id" name="journal_id">
                 <input type="hidden" name="page" value="<?php echo $page; ?>"> 
@@ -280,10 +301,9 @@ $totalPages = ceil($totalJournals / 2);
             <!-- 수정, 삭제 버튼 -->
         </div>
 
-        <!-- 관심종목 리스트 -->
+        <!-- HOT 종목 리스트 -->
         <div id="journal_list_container">
-            <h2>관심종목 목록</h2>
-            
+            <h2>HOT 종목 목록</h2>
 
             <!-- 검색 조건 -->
             <div class="form-row">
@@ -318,6 +338,56 @@ $totalPages = ceil($totalJournals / 2);
                             <img class='img-fluid' width=545 src="https://ssl.pstatic.net/imgfinance/chart/item/candle/day/<?= $row['code'] ?>.png?sidcode=1705826920773">
                             <img class='img-fluid' width=545 src="https://ssl.pstatic.net/imgfinance/chart/item/candle/month/<?= $row['code'] ?>.png?sidcode=1705826920773">
                         </div>
+
+                        <!-- 최근 등락률 및 거래대금 추가 -->
+                        <div class="recent-price-section">
+                            <!-- <h4>최근 등락률 및 거래대금</h4> -->
+                            <div class="scrollable-x-content">
+                                <table class="small-table">
+                                    <thead>
+                                        <tr>
+                                            <?php 
+                                            // 종목 코드 가져오기
+                                            $code = htmlspecialchars($row['code']);
+                                            // 등록일 기준 최근 15 거래일 데이터 조회
+                                            $query = "
+                                                SELECT DATE_FORMAT(dp.date, '%m-%d') AS mm_dd, dp.close_rate, 
+                                                    dp.high_rate, dp.low_rate, ROUND(dp.amount / 100000000, 0) AS trade_amount
+                                                FROM daily_price dp
+                                                JOIN (SELECT date FROM calendar WHERE date <= '{$row['journal_date']}' ORDER BY date DESC LIMIT 12) cal
+                                                ON dp.date = cal.date
+                                                WHERE dp.code = '$code'
+                                                ORDER BY dp.date DESC";
+                                            $result = $mysqli->query($query);
+                                            $recent_changes = $result->fetch_all(MYSQLI_ASSOC);
+
+                                            foreach ($recent_changes as $change) {
+                                                echo "<th>{$change['mm_dd']}</th>";
+                                            }
+                                            ?>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <?php foreach ($recent_changes as $change): ?>
+                                                <td class="<?= Utility_GetCloseRateClass($change['close_rate']) ?>"><?= $change['close_rate'] ?>%</td>
+                                            <?php endforeach; ?>
+                                        </tr>
+                                        <tr>
+                                            <?php foreach ($recent_changes as $change): ?>
+                                                <td style='font-size:11px'><?= $change['high_rate'] ?> / <?= $change['low_rate'] ?></td>
+                                            <?php endforeach; ?>
+                                        </tr>
+                                        <tr>
+                                            <?php foreach ($recent_changes as $change): ?>
+                                                <td style="text-align: right;" class="<?= Utility_GetAmountClass($change['trade_amount']) ?>"><?= number_format($change['trade_amount']) ?>억</td>
+                                            <?php endforeach; ?>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
                         <div class="journal-content" onclick="loadJournalData(<?= $row['id']; ?>)"><?php echo $row['comment']; ?></div>
                     </div>
                 <?php } ?>

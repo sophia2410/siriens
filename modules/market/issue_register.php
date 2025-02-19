@@ -10,7 +10,7 @@ $issueQuery = $mysqli->prepare("
     SELECT mi.issue_id, mi.issue_title, mi.issue_link, mi.issue_content, mi.issue_comment, 'market_issues' AS source
     FROM market_issues mi
     WHERE mi.date = ?
-    ORDER BY mi.issue_title ASC
+    ORDER BY mi.issue_id ASC
 ");
 $issueQuery->bind_param('s', $dateParam);
 $issueQuery->execute();
@@ -127,6 +127,7 @@ function convertImageLinks($content) {
             margin-top: 10px;
             margin-left: 20px;
             font-size: 0.9em; /* 더 작게 조절 */
+            color: #d2691e;
         }
     </style>
 </head>

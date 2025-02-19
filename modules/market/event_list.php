@@ -84,7 +84,8 @@ function render_event_list($mysqli, $criteriaType, $criteriaValue) {
     // 화면 렌더링
     ?>
     <!-- 키워드 그룹을 한 줄로 모아서 표시 -->
-    <div id="event_list_keyword_groups" style="margin-bottom: 15px; padding: 10px; background-color: #f0f0f0; border-radius: 5px;">
+    <!-- 잘 활용되지 않아 주석 처리 25.02.16 -->
+    <!-- <div id="event_list_keyword_groups" style="margin-bottom: 15px; padding: 10px; background-color: #f0f0f0; border-radius: 5px;">
         <?php foreach ($eventsResult as $event): ?>
             <span 
                 id="event_list_keyword_group_<?= $event['event_id'] ?>"
@@ -94,7 +95,7 @@ function render_event_list($mysqli, $criteriaType, $criteriaValue) {
                 <?= htmlspecialchars($event['group_name']) ?>
             </span>
         <?php endforeach; ?>
-    </div>
+    </div> -->
     
     <button id="event_list_toggle_all" style="margin-top: 5px;">종목 펼치기/접기</button>
 

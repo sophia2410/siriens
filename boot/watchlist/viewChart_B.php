@@ -4,10 +4,19 @@ require($_SERVER['DOCUMENT_ROOT']."/boot/common/top.php");
 require($_SERVER['DOCUMENT_ROOT']."/boot/common/db/connect.php");
 require("xrayTick_queries.php");
 
+
+// xraytick 조회 위해 market 모듈 참조하기.. 25.02.18
+require($_SERVER['DOCUMENT_ROOT']."/modules/common/utility.php");  // 공통 유틸리티 함수
+
+
 //var_dump($_SERVER);
 ?>
 
 <head>
+	
+<!-- xraytick 조회 위해 market 모듈 참조하기.. 25.02.18 -->
+<link rel="stylesheet" href="/modules/common/common.css">
+
 <style>
 	html {
 		overflow: auto; 
@@ -21,6 +30,28 @@ require("xrayTick_queries.php");
 	}
 	table th, tr, td{
 		padding: 0.1rem;
+	}
+
+	.recent-price-section {
+		background-color: #fff;
+		padding: 10px;
+		border: 1px solid #ddd;
+		margin-top: 10px;
+		overflow-x: auto;
+	}
+
+	.small-table th, .small-table td {
+		width: 90px;
+		text-align: center;
+		white-space: nowrap;
+		font-size: 14px;
+	}
+
+	/* 가로 스크롤 가능하도록 설정 */
+	.scrollable-x-content {
+		overflow-x: auto;
+		white-space: nowrap;
+		max-width: 100%;
 	}
 </style>
 </head>
@@ -42,6 +73,8 @@ $zeroday_view = (isset($_GET['zeroday_view']))  ? $_GET['zeroday_view'] : '';
 
 $chart_status = (isset($_GET['chart_status']))  ? $_GET['chart_status'] : '';
 $frequency = (isset($_GET['frequency']))  ? $_GET['frequency'] : '';
+
+$plus_xray = (isset($_GET['plus_xray'])) ? $_GET['plus_xray'] : 'N';
 
 $show4 = (isset($_GET['show4'])) ? $_GET['show4'] : '';
 
@@ -127,6 +160,58 @@ if($pgmId == ''){
 
 		// 전체 HTML 출력
 		echo generateStockHtml($row, false, 'commonStockLink', $chart_url);
+
+		if($plus_xray == 'Y') {
+
+			// 최근 등락률 및 거래대금 추가 25.02.18
+			echo '<div class="recent-price-section">
+					<div class="scrollable-x-content">
+						<table class="small-table" border=1>
+							<thead>
+								<tr>';
+
+			// 종목 코드 가져오기
+			$code = htmlspecialchars($row['code']);
+			// 등록일 기준 최근 12 거래일 데이터 조회
+			$query = "
+				SELECT DATE_FORMAT(dp.date, '%m-%d') AS mm_dd, dp.close_rate, 
+					dp.high_rate, dp.low_rate, ROUND(dp.amount / 100000000, 0) AS trade_amount
+				FROM daily_price dp
+				JOIN (SELECT date FROM calendar WHERE date <= '$search_date' 
+					ORDER BY date DESC LIMIT 8) cal
+				ON dp.date = cal.date
+				WHERE dp.code = '{$row['code']}'
+				ORDER BY dp.date DESC";
+
+			$result = $mysqli->query($query);
+			$recent_changes = $result->fetch_all(MYSQLI_ASSOC);
+
+			foreach ($recent_changes as $change) {
+				echo "<th>{$change['mm_dd']}</th>";
+			}
+
+			echo '</tr></thead><tbody><tr>';
+
+			foreach ($recent_changes as $change) {
+				echo "<td class=\"" . Utility_GetCloseRateClass($change['close_rate']) . "\">
+					{$change['close_rate']}%</td>";
+			}
+
+			echo '</tr><tr>';
+
+			foreach ($recent_changes as $change) {
+				echo "<td style='font-size:11px'>{$change['high_rate']} / {$change['low_rate']}</td>";
+			}
+
+			echo '</tr><tr>';
+
+			foreach ($recent_changes as $change) {
+				echo "<td style='text-align: right;' class=\"" . Utility_GetAmountClass($change['trade_amount']) . "\">
+					" . number_format($change['trade_amount']) . "억</td>";
+			}
+
+			echo '</tr></tbody></table></div></div>';
+		}
 
 		echo "</div>";
 

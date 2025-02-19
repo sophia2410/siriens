@@ -104,9 +104,9 @@ def update_market_report(url):
 
     # 출력용으로 각 변수를 출력해봅니다.
     print(f"SQL Query: {sql}")
-    print(f"Parameters: date={date}, morning_title={morning_title}, first_news={first_news}, first_news_link={first_news_link}")
+    print(f"Parameters: date={date}, morning_title={first_news}, first_news={first_news}, first_news_link={first_news_link}")
 
-    cur.execute(sql, (date, morning_title, first_news, first_news_link, morning_title, first_news, first_news_link))
+    cur.execute(sql, (date, first_news, first_news, first_news_link, first_news, first_news, first_news_link))
     conn.commit()
     cur.close()
     conn.close()

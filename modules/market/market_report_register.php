@@ -1,5 +1,5 @@
 <?php
-$pageTitle = "매매/복기 등록 관리";
+$pageTitle = "Market Report";
 require($_SERVER['DOCUMENT_ROOT'] . "/modules/common/common_header.php");
 require($_SERVER['DOCUMENT_ROOT'] . "/modules/common/tinymce_module.php");
 

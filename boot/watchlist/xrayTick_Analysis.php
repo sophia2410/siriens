@@ -111,10 +111,11 @@ $result = $mysqli->query($query);
 
         <label>
             <input type="radio" name="chartview" id="naverChart" value="NaverChart" onchange="changeChartPage()"> NaverChart
+            (<input type=checkbox id='plusXrayTick' onclick="onPlusXrayTick()">+XrayTick)
         </label>
         <label>
             <input type="radio" name="chartview" id="highChart" value="HighChart" checked onchange="changeChartPage()"> HighChart
-            (<input type=checkbox id='highchartview' onclick="changeChartPage()">바로보기)
+            (<input type=checkbox id='highchartview' onclick="onHighChartView()">바로보기)
         </label>
         <label>
             <input type="radio" name="chartview" id="xrayTick" value="XrayTick" onchange="changeChartPage()"> XrayTick
@@ -353,7 +354,10 @@ function viewStockList(pgmId, key1='', key2='') {
     }
     // chartview 값에 따라 iframe의 src 설정
     if (chartview === 'NaverChart') {
-        iframeB.src = "viewChart.php?pgmId=" + pgmId + "&search_date=" + search_date + parm;
+        if(document.getElementById('plusXrayTick').checked == true) plusXrayTick  = 'Y';
+        else plusXrayTick  = 'N';
+
+        iframeB.src = "viewChart.php?pgmId=" + pgmId + "&search_date=" + search_date + "&plus_xray=" + plusXrayTick + parm;
     } else if (chartview === 'XrayTick') {
         iframeB.src = "xrayTick_StockList.php?pgmId=" + pgmId + "&search_date=" + search_date + parm;
     } else if (highchartview === 'Y') {
@@ -376,9 +380,18 @@ function getCurrentParams() {
 // 페이지 선택에 다른 페이지 변경 조회
 function changeChartPage() {
     // 현재 파라미터 유지
-    let currentParams = getCurrentParams();
+    let currentUrlParams = getCurrentParams();
+    let plusXrayParam = '';
+
+    // 만약 plusXrayTick이 체크되어 있으면 &plus_xray=Y를 추가
+    if (document.getElementById('plusXrayTick').checked) {
+        // 기존 URL에 plus_xray 파라미터가 중복으로 들어가지 않도록 정리
+        // (아래는 간단 예시로 replace 하는 방식)
+        currentUrlParams = currentUrlParams.replace(/&plus_xray=[^&]*/,'');
+        plusXrayParam = '&plus_xray=Y';
+    }
     
-    // 라디오 버튼의 선택에 따라 페이지 이름 설정
+    // 라디오 버튼에 따라 iframeB.src 결정
     let chartview = '';
     if (document.getElementById('naverChart').checked) {
         chartview = 'viewChart.php';
@@ -394,8 +407,26 @@ function changeChartPage() {
         chartview = 'xrayTick_StockList.php';
     }
     
-    // 새로운 페이지에 기존 파라미터를 그대로 적용하여 iframe의 src 변경
-    iframeB.src = chartview + currentParams;
+    // 최종적으로 iframeB.src 갱신
+    iframeB.src = chartview + currentUrlParams + plusXrayParam;
+}
+
+function onPlusXrayTick() {
+  // 체크박스가 체크되면 NaverChart 라디오버튼을 자동 선택
+  if (document.getElementById('plusXrayTick').checked) {
+    document.getElementById('naverChart').checked = true;
+  }
+  // 라디오/체크박스 클릭 시 자동조회가 원칙이면 바로 아래 함수를 호출
+  changeChartPage();
+}
+
+function onHighChartView() {
+  // 체크박스가 체크되면 HighChart 라디오버튼을 자동 선택
+  if (document.getElementById('highchartview').checked) {
+    document.getElementById('highChart').checked = true;
+  }
+  // 라디오/체크박스 클릭 시 자동조회
+  changeChartPage();
 }
 
 // 코멘트 저장

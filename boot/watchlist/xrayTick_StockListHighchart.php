@@ -114,13 +114,13 @@ if($pgmId == '') {
 			// 		AND  page_fg = 'E'
 			// 		AND  code =  '$code'" ;
 
-			$query3 = "SELECT CONCAT('[',A.signal_grp
-							, CASE WHEN length(A.theme) > 1 && A.theme != A.signal_grp THEN CONCAT(A.theme, ']<BR>') ELSE ']<BR>' END) today_theme
-							, A.title today_issue
-					FROM	signal_evening A
-					WHERE	page_date = (select max(page_date) from signal_evening where page_date <= '$search_date' and code = '$code')
-					AND  page_fg = 'E'
-					AND  code =  '$code'" ;
+			$query3 = "SELECT CONCAT('[',A.keyword_group_name, ']<BR>') today_theme
+							, A.stock_comment today_issue
+					FROM	v_market_event A
+					WHERE	date <= '$search_date'
+					AND  code =  '$code'
+					ORDER BY date DESC
+					LIMIT 1" ;
 
 			// echo "<pre>$query3</pre>";
 			$result3 = $mysqli->query($query3);
