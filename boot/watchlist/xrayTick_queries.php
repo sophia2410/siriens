@@ -202,7 +202,7 @@ function getQuery($pgmId, $search_date, $increase_rate, $trade_amt, $group_label
 					JOIN stock S
 					ON S.code = A.code
 					AND S.last_yn = 'Y'
-					WHERE A.sector = '$group_label'
+					WHERE A.sector in ('5 끼있는친구들1','6 끼있는친구들2')
 					AND A.theme LIKE CASE WHEN '$theme' != '' THEN '%".$theme."%' ELSE '%' END
 					AND A.category LIKE CASE WHEN '$category' != '' THEN '%".$category."%' ELSE '%' END
 					ORDER BY A.sector, A.sort_theme, A.sort_stock";

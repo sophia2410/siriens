@@ -18,7 +18,7 @@ cursor = db.cursor()
 
 # 0. Date range settings
 sql = "SELECT '2024-03-01' start_date, max(date) end_date FROM calendar a WHERE date <= now()"
-sql = "SELECT '2024-03-01' start_date, date FROM calendar a WHERE date = '2025-01-17'" 
+# sql = "SELECT '2024-03-01' start_date, date FROM calendar a WHERE date = '2025-01-17'" 
 cursor.execute(sql)
 result = cursor.fetchone()
 start_date = result[0]

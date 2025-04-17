@@ -35,7 +35,7 @@ folder_path = 'D:/Obsidian/Trader Sophia/10 Database/WatchList'
 only_specific_file = False
 
 # 특정 파일 처리
-only_specific_file = True
+# only_specific_file = True
 specific_file_name = "0 당일관종☆.md"
 specific_file_name = "1 최근0일차☆.md"
 # specific_file_name = "2 최근테마.md"

@@ -123,11 +123,11 @@ if($_SERVER["HTTP_HOST"] == 'localhost') {
         <li><a href="<?=$PATH?>modules/growth/journal_feature_register.php"><i class="fas fa-tags"></i> <span>Hot종목 일지</span></a></li>
         <li><a href="<?=$PATH?>modules/growth/journal_trade_register.php"><i class="fas fa-tags"></i> <span>매매일지 등록</span></a></li>
         <li><a href="<?=$PATH?>modules/growth/thought_register.php"><i class="fas fa-tags"></i> <span>Thought</span></a></li>
-        <li><a href="<?=$PATH?>modules/growth/trade_register.php"><i class="fas fa-tags"></i> <span>매매기록</span></a></li>
+        <!-- <li><a href="<?=$PATH?>modules/growth/trade_register.php"><i class="fas fa-tags"></i> <span>매매기록</span></a></li> -->
 
         <!-- Sidebar Divider -->
         <hr class="sidebar-divider">
         <!-- Sidebar Heading -->
-        <li><a href="<?=$PATH?>boot/siriens/getSignalReport.php"><i class="fas fa-tags"></i> <span>이브닝 등록</span></a></li>
+        <!-- <li><a href="<?=$PATH?>boot/siriens/getSignalReport.php"><i class="fas fa-tags"></i> <span>이브닝 등록</span></a></li> -->
     </ul>
 </div>

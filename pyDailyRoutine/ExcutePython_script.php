@@ -51,7 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty(trim($output))) {
         echo "<pre>Script executed successfully with no output.</pre>";
     } else {
-        echo "<pre>$output</pre>";
+        echo $output;
     }
 }
 ?>

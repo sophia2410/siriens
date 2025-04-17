@@ -9,7 +9,7 @@ $source = isset($_GET['source']) ? $_GET['source'] : 'market_events';
 
 if ($source === 'watchlist_sophia') {
     // Fetch themes from watchlist_sophia
-    $query = "SELECT min(sort_theme) AS id, theme AS name FROM watchlist_sophia WHERE sector = '2 최근테마' GROUP BY theme ORDER BY sort_theme";
+    $query = "SELECT min(sort_theme) AS id, theme AS name FROM watchlist_sophia WHERE sector in ('5 끼있는친구들1','6 끼있는친구들2') GROUP BY theme ORDER BY sort_theme";
 } elseif ($source === 'market_events') {
     // Default to fetching themes from market_events
     $query = "SELECT 

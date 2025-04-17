@@ -354,7 +354,7 @@ $totalPages = ceil($totalJournals / 2);
                                                 SELECT DATE_FORMAT(dp.date, '%m-%d') AS mm_dd, dp.close_rate, 
                                                     dp.high_rate, dp.low_rate, ROUND(dp.amount / 100000000, 0) AS trade_amount
                                                 FROM daily_price dp
-                                                JOIN (SELECT date FROM calendar WHERE date <= '{$row['journal_date']}' ORDER BY date DESC LIMIT 12) cal
+                                                JOIN (SELECT date FROM calendar WHERE date <= '$today' ORDER BY date DESC LIMIT 12) cal
                                                 ON dp.date = cal.date
                                                 WHERE dp.code = '$code'
                                                 ORDER BY dp.date DESC";

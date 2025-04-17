@@ -111,6 +111,7 @@ function convertImageLinks($content) {
 
         .issue-keywords {
             color: #333;
+            font-size: 0.9em; /* 더 작게 조절 */
             font-weight: bold;
             margin-top: 10px;
         }

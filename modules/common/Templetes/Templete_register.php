@@ -13,9 +13,11 @@ $categoryQuery = "SELECT cd, nm FROM comm_cd WHERE l_cd = 'TH000' ORDER BY cd";
 $categories = $mysqli->query($categoryQuery);
 
 ?>
+<head>
+</head>
 
 <body>
-    <div id="container">
+    <div id="container"> <!-- 메뉴바 구성을 위해 꼭 사용되어야 할 div -->
     </div>
 </body>
 

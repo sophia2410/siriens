@@ -58,11 +58,19 @@ today_date = datetime.now().strftime('%Y-%m-%d')
 
 # 각 지수 데이터 처리
 for index, ticker in index_dict.items():
-    data = yf.download(ticker, start_date, end_date)
+    data = yf.download(ticker, start=start_date, end=end_date)
+
+    # MultiIndex 컬럼을 단순한 인덱스로 변환
+    data.columns = data.columns.droplevel(1)
+    print(f"{index} 변환된 컬럼명:", data.columns.tolist())
+
+    if data.empty:
+        print(f"No data found for {ticker} between {start_date} and {end_date}. Skipping.")
+        continue
     data['close_rate'] = data['Close'].pct_change() * 100
     data['close_rate'] = data['close_rate'].fillna(0)
 
-    # 기존 데이터 가져오기
+    # 기존 데이터 확인
     cursor.execute(f"SELECT date FROM market_index WHERE market_fg = '{index}'")
     existing_dates = {row[0].strftime('%Y-%m-%d') for row in cursor.fetchall()}
 
@@ -95,7 +103,7 @@ for index, ticker in index_dict.items():
                 close_rate = VALUES(close_rate),
                 amount = VALUES(amount)
         """
-        print(sql)
+        # print(sql)
         cursor.execute(sql)
 
     # DB 커밋

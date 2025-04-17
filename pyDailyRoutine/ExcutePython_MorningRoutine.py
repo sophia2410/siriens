@@ -128,6 +128,9 @@ def update_market_index():
 
     for index, ticker in index_dict.items():
         data = yf.download(ticker, start=start_date, end=end_date)
+    # MultiIndex 컬럼을 단순한 인덱스로 변환
+        if isinstance(data.columns, pd.MultiIndex):
+            data.columns = data.columns.droplevel(1)
 
         data['close_rate'] = data['Close'].pct_change() * 100
         data['close_rate'] = data['close_rate'].fillna(0)
@@ -138,7 +141,7 @@ def update_market_index():
             # Insert or update market_index table
             sql = f"""
                 INSERT IGNORE INTO market_index (market_fg, date, open, high, low, close, volume, close_rate)
-                VALUES ('{index}', '{date}', {row.Open}, {row.High}, {row.Low}, {row.Close}, {row.Volume}, {row.close_rate})
+                VALUES ('{index}', '{date}', {row[1]}, {row[2]}, {row[3]}, {row[4]}, {row[6]}, {row[7]})
             """
             cursor.execute(sql)
 

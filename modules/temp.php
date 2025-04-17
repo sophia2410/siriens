@@ -1,29 +1,47 @@
-function changeChartPage() {
-    let currentUrlParams = getCurrentParams(); // 기존에 쓰시던 함수
-    let plusXrayParam = '';
+<?php
+// 시간대 설정
+date_default_timezone_set('Asia/Seoul');
 
-    // 만약 plusXrayTick이 체크되어 있으면 &plus_xray=Y를 추가
-    if (document.getElementById('plusXrayTick').checked) {
-        // 기존 URL에 plus_xray 파라미터가 중복으로 들어가지 않도록 정리
-        // (아래는 간단 예시로 replace 하는 방식)
-        currentUrlParams = currentUrlParams.replace(/&plus_xray=[^&]*/,'');
-        plusXrayParam = '&plus_xray=Y';
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // 최대 실행 시간 설정 (초)
+    set_time_limit(300);
+
+    // Python 실행 경로 설정
+    $pythonExec = "C:/Users/elf96/AppData/Local/Programs/Python/Python39/python.exe";
+
+    // URL 크롤링인지, 일반 스크립트 실행인지 구분
+    if (isset($_POST['url'])) {
+        // (1) URL이 전송된 경우 (Morning Report 크롤링)
+        $url = $_POST['url'];
+        $scriptPath = "e:/Project/202410/www/pyDailyRoutine/ExcutePython_MorningRoutine.py";
+        $command = escapeshellcmd("$pythonExec $scriptPath $url 2>&1");
+        $output = shell_exec($command);
+
+        // 로그 기록
+        $logFile = 'ExcutePython_log.txt';
+        $logEntry = date('Y-m-d H:i:s') . " - Executed: $scriptPath with URL: $url\n";
+        file_put_contents($logFile, $logEntry, FILE_APPEND);
+
+    } elseif (isset($_POST['script'])) {
+        // (2) 일반적인 Python 스크립트 실행
+        $scriptName = $_POST['script'];
+        $scriptPath = "e:/Project/202410/www/$scriptName";
+        $command = escapeshellcmd("$pythonExec $scriptPath 2>&1");
+        $output = shell_exec($command);
+
+        // 로그 기록
+        $logFile = 'ExcutePython_log.txt';
+        $logEntry = date('Y-m-d H:i:s') . " - Executed: $scriptName\n";
+        file_put_contents($logFile, $logEntry, FILE_APPEND);
     }
 
-    // 라디오 버튼에 따라 iframeB.src 결정
-    let chartview = '';
-    if (document.getElementById('naverChart').checked) {
-        chartview = 'viewChart.php'; 
-    } else if (document.getElementById('highChart').checked) {
-        if (document.getElementById('highchartview').checked) {
-            chartview = 'xrayTick_HighchartView.php';
-        } else {
-            chartview = 'xrayTick_StockListHighchart.php';
-        }
-    } else if (document.getElementById('xrayTick').checked) {
-        chartview = 'xrayTick_StockList.php';
+    // (3) 파이썬 스크립트 출력 결과 반환
+    //     - 기존에 echo "<pre>$output</pre>"; 로 감싸면 HTML 태그가 문자열 그대로 표시됨.
+    //     - HTML 해석을 위해서는 아래처럼 그대로 echo.
+    if (empty(trim($output))) {
+        echo "<p>Script executed successfully with no output.</p>";
+    } else {
+        echo $output;  // 여기서 바로 echo하면 파이썬 출력(HTML 등)을 그대로 렌더링 가능
     }
-
-    // 최종적으로 iframeB.src 갱신
-    iframeB.src = chartview + currentUrlParams + plusXrayParam;
 }
+?>

@@ -1,5 +1,5 @@
 <?php
-$pageTitle = "Market Report";
+$pageTitle = "욕심=폭망";
 require($_SERVER['DOCUMENT_ROOT'] . "/modules/common/common_header.php");
 require($_SERVER['DOCUMENT_ROOT'] . "/modules/common/tinymce_module.php");
 
@@ -52,11 +52,13 @@ while ($row = $index_result->fetch_assoc()) {
 }
 
 // Market Report
-$overview_query = "SELECT market_review, market_overview, morning_report_title, morning_news_link, evening_report_title FROM market_report WHERE date = '$report_date'";
+$overview_query = "SELECT market_review, market_overview, morning_brief, evening_brief, morning_report_title, morning_news_link, evening_report_title FROM market_report WHERE date = '$report_date'";
 $overview_result = $mysqli->query($overview_query);
 $overview_row = $overview_result->fetch_assoc();
 $market_review = isset($overview_row) ? $overview_row['market_review'] : '';
 $market_overview = isset($overview_row) ? $overview_row['market_overview'] : '';
+$morning_brief = isset($overview_row) ? $overview_row['morning_brief'] : '';
+$evening_brief = isset($overview_row) ? $overview_row['evening_brief'] : '';
 $morning_report_title = isset($overview_row) ? "【 ".$overview_row['morning_report_title']." 】": '';
 $morning_news_link = isset($overview_row) ? $overview_row['morning_news_link'] : '';
 $evening_report_title = isset($overview_row) && !empty($overview_row['evening_report_title']) ? "【 " . $overview_row['evening_report_title'] . " 】" : '';
@@ -165,15 +167,11 @@ else {
 <head>
 
 <style>
-        form {
-            display: contents; /* 레이아웃에 영향을 주지 않음 */
-        }
-
         #wrapper {
             display: grid;
             grid-template-columns: 4fr 4fr 3fr;
-            gap: 10px;
-            padding: 10px;
+            gap: 5px;
+            padding: 5px;
             width: 100%;
         }
 
@@ -182,6 +180,7 @@ else {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            margin-top: 0px;
             margin-bottom: 0px;
         }
 
@@ -213,7 +212,7 @@ else {
         }
         #index-section {
             margin-top: 0;
-            flex: 1 1 70%; /* 지수 섹션의 넓이를 80%로 설정 */
+            flex: 1 1 80%; /* 지수 섹션의 넓이를 80%로 설정 */
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -251,7 +250,7 @@ else {
             background-color: white;
             border: 1px solid #ddd;
             padding: 15px;
-            height: calc(100vh - 150px) !important; /* 원하는 높이로 설정 (헤더, 인덱스 등 다른 요소들을 고려해서 조정) */
+            height: calc(100vh - 100px) !important; /* 원하는 높이로 설정 (헤더, 인덱스 등 다른 요소들을 고려해서 조정) */
             overflow-y: auto !important; /* 세로 스크롤이 생기게 설정 */
             box-sizing: border-box; /* 패딩이 포함된 높이를 정확하게 계산 */
         }
@@ -275,6 +274,28 @@ else {
             border-radius: 4px; /* 모서리 둥글게 */
             width: 100%; /* 박스 크기 조정 */
             box-sizing: border-box; /* 패딩과 테두리 포함한 크기 계산 */
+        }
+
+        .brief-label {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #242;
+        }
+
+        .brief-textarea {
+            font-size: 16px; /* 강조된 큰 글씨 */
+            font-weight: bold;
+            padding: 10px;
+            border: 2px solid #ff5f5f;
+            background-color: #f9f9f9; /* 은은한 배경색 */
+            color: #242;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            box-sizing: border-box;
+            resize: vertical;
+            margin-bottom: 20px;
         }
 
         #right-content {
@@ -371,7 +392,8 @@ else {
                     </button>
                 <?php endif; ?>
 
-                <button class="button-green" onclick="saveReport()">Save Report</button>
+                <button class="button-green" onclick="saveReport()"> Save </button>
+                <button class="button-yellow" id="popup_button" onclick="openPopup()">매매일지</button>
             </div>
         </div>
 
@@ -415,6 +437,9 @@ else {
             </a>
         </p>
         <textarea class="editor" name="market_overview" id="market_overview" rows="10"></textarea>
+
+        <label for="morning_brief" class="brief-label">장전 요약 (Morning Brief):</label>
+        <textarea name="morning_brief" id="morning_brief" class="brief-textarea" rows="5" spellcheck="false"><?= htmlspecialchars($morning_brief) ?></textarea>
     </div>
 
     <div id="middle-content">
@@ -428,13 +453,12 @@ else {
             <p class="report-content"><?= htmlspecialchars($evening_report_title) ?></p>
         <?php endif; ?>
         <textarea class="editor" name="market_review" id="market_review" rows="10"></textarea>
-        <?php loadTinyMCE('.editor', 1000); ?>
+        <?php loadTinyMCE('.editor', 900); ?>
         <?php loadTinyMCEScripts(); ?>
-    </div>
-    
-    <form id="report_form" action="market_process.php" method="POST">
 
-    </form>
+        <label for="evening_brief" class="brief-label">장후 요약 (Evening Brief):</label>
+        <textarea name="evening_brief" id="evening_brief" class="brief-textarea" rows="5" spellcheck="false"><?= htmlspecialchars($evening_brief) ?></textarea>
+    </div>
 
     <!-- Group and Stock Events (Masonry 적용) -->
     <div id="right-content">
@@ -479,6 +503,10 @@ else {
             </div>
         <?php endforeach; ?>
     </div>
+
+    <form id="report_form" action="market_process.php" method="POST">
+
+    </form>
 </div>
 </div>
 
@@ -509,6 +537,10 @@ require($_SERVER['DOCUMENT_ROOT'] . "/modules/common/common_footer.php");
         var market_review = tinymce.get('market_review').getContent();
         var evening_report_title = document.getElementById('evening_report_title') ? 
                                 document.getElementById('evening_report_title').value : "";
+        var morning_brief = document.getElementById('morning_brief') ? 
+                            document.getElementById('morning_brief').value : "";
+        var evening_brief = document.getElementById('evening_brief') ? 
+                            document.getElementById('evening_brief').value : "";
 
         // 로딩 표시 추가
         document.body.style.cursor = 'wait'; // 로딩 중 커서 변경
@@ -546,7 +578,9 @@ require($_SERVER['DOCUMENT_ROOT'] . "/modules/common/common_footer.php");
             'report_date=' + encodeURIComponent(document.getElementById('report_date').value) +
             '&market_overview=' + encodeURIComponent(market_overview) +
             '&market_review=' + encodeURIComponent(market_review) +
-            '&evening_report_title=' + encodeURIComponent(evening_report_title)
+            '&evening_report_title=' + encodeURIComponent(evening_report_title) +
+            '&morning_brief=' + encodeURIComponent(morning_brief) +
+            '&evening_brief=' + encodeURIComponent(evening_brief)
         );
     }
 
@@ -556,5 +590,14 @@ require($_SERVER['DOCUMENT_ROOT'] . "/modules/common/common_footer.php");
             setTinyMCEContent('market_review',<?= json_encode($market_review) ?>);
         }, 100); // 초기화 대기
     }
+
+
+    function openPopup() {
+        var selectedDate = document.getElementById('report_date').value;
+
+        var url = "/modules/growth/journal_trade_popup.php?trade_date=" + selectedDate +"&mode=popup";
+        window.open(url, "매매등록팝업", "width=1000,height=1300,resizable=yes,scrollbars=yes");
+    }
+
 </script>
 </body>

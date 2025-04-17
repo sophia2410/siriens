@@ -20,7 +20,6 @@ $journalQuery = "
     SELECT 
         jt.id AS journal_id, 
         jt.trade_date, 
-        jt.type, 
         jt.trade_items, 
         UNCOMPRESS(jt.comment) AS comment, 
         jt.created_at
@@ -108,16 +107,6 @@ while ($detail = $detailsResult->fetch_assoc()) {
         .form-row input[type="date"]:last-child,
         .form-row select:last-child {
             margin-right: 0;
-        }
-
-        #journal_register_container button {
-            margin-top: 20px;
-            padding: 10px 20px;
-            background-color: #d9534f;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
         }
 
         #journal_list_container {
@@ -268,8 +257,8 @@ while ($detail = $detailsResult->fetch_assoc()) {
                 <!-- 하위 데이터 -->
                 <h3>매매 세부 항목</h3>
                 <div id="details-container">
-                    <div class="detail-row">
-
+                    <!-- 신규 항목과 기존 항목은 별도 ID 규칙 적용 -->
+                    <div class="detail-row" id="detail-row-1">
                         <label>매매 방식:</label>
                         <select name="details[0][trade_method]">
                             <option value="종가베팅">종가베팅</option>
@@ -285,6 +274,7 @@ while ($detail = $detailsResult->fetch_assoc()) {
                             <option value="loss">손실</option>
                         </select>
 
+                        <button type="button" onclick="removeDetail(0)">삭제</button>
                     </div>
                 </div>
                 <button type="button" onclick="addDetailRow()">+ 추가</button>
@@ -382,19 +372,14 @@ require($_SERVER['DOCUMENT_ROOT'] . "/modules/common/common_footer.php");
 ?>
 
 <script>
-
+    // 신규 항목 추가
     function addDetailRow() {
         const container = document.getElementById('details-container');
         const index = container.children.length;
         const row = document.createElement('div');
         row.className = 'detail-row';
+        row.id = `detail-row-${index}`; // 신규 항목의 ID는 "new" 접두어를 붙임
         row.innerHTML = `
-            <label>수익/손실:</label>
-            <select name="details[${index}][profit_loss]">
-                <option value="profit">수익</option>
-                <option value="loss">손실</option>
-            </select>
-
             <label>매매 방식:</label>
             <select name="details[${index}][trade_method]">
                 <option value="종가베팅">종가베팅</option>
@@ -404,8 +389,21 @@ require($_SERVER['DOCUMENT_ROOT'] . "/modules/common/common_footer.php");
                 <option value="단기스윙">단기스윙</option>
             </select>
 
+            <label>수익/손실:</label>
+            <select name="details[${index}][profit_loss]">
+                <option value="profit">수익</option>
+                <option value="loss">손실</option>
+            </select>
+
+            <button type="button" onclick="removeDetail(${index})">삭제</button>
         `;
         container.appendChild(row);
+    }
+
+    // 세부 항목 삭제
+    function removeDetail(id) {
+        const row = document.getElementById(`detail-row-${id}`);
+        if (row) row.remove();
     }
 
     function loadJournalData(journalId) {
@@ -432,13 +430,8 @@ require($_SERVER['DOCUMENT_ROOT'] . "/modules/common/common_footer.php");
                     data.details.forEach((detail, index) => {
                         const detailRow = document.createElement('div');
                         detailRow.className = 'detail-row';
+                        detailRow.id = `detail-row-${index}`;
                         detailRow.innerHTML = `
-                            <label>수익/손실:</label>
-                            <select name="details[${index}][profit_loss]">
-                                <option value="profit" ${detail.profit_loss === 'profit' ? 'selected' : ''}>수익</option>
-                                <option value="loss" ${detail.profit_loss === 'loss' ? 'selected' : ''}>손실</option>
-                            </select>
-
                             <label>매매 방식:</label>
                             <select name="details[${index}][trade_method]">
                                 <option value="종가베팅" ${detail.trade_method === '종가베팅' ? 'selected' : ''}>종가베팅</option>
@@ -447,8 +440,15 @@ require($_SERVER['DOCUMENT_ROOT'] . "/modules/common/common_footer.php");
                                 <option value="당일매매" ${detail.trade_method === '당일매매' ? 'selected' : ''}>당일매매</option>
                                 <option value="단기스윙" ${detail.trade_method === '단기스윙' ? 'selected' : ''}>단기스윙</option>
                             </select>
-                        `;
 
+                            <label>수익/손실:</label>
+                            <select name="details[${index}][profit_loss]">
+                                <option value="profit" ${detail.profit_loss === 'profit' ? 'selected' : ''}>수익</option>
+                                <option value="loss" ${detail.profit_loss === 'loss' ? 'selected' : ''}>손실</option>
+                            </select>
+
+                            <button type="button" onclick="removeDetail(${index})">삭제</button>
+                        `;
                         detailsContainer.appendChild(detailRow);
                     });
 

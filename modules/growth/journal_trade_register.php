@@ -3,523 +3,472 @@ $pageTitle = "매매/복기 등록 관리";
 require($_SERVER['DOCUMENT_ROOT'] . "/modules/common/common_header.php");
 require($_SERVER['DOCUMENT_ROOT'] . "/modules/common/tinymce_module.php");
 
-// 기본값 설정
-$today = date('Y-m-d');
-$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-$tradeDate = isset($_GET['trade_date']) ? $_GET['trade_date'] : $today;
-$type = isset($_GET['type']) ? $_GET['type'] : 'trade';
 
-// 검색 조건 처리
-$searchStockName = isset($_GET['stock_name']) ? $mysqli->real_escape_string($_GET['stock_name']) : '';
-$searchMethod = isset($_GET['search_method']) ? $mysqli->real_escape_string($_GET['search_method']) : '';
-$searchType = isset($_GET['search_type']) ? $mysqli->real_escape_string($_GET['search_type']) : '';
-$searchResult = isset($_GET['search_result']) ? $mysqli->real_escape_string($_GET['search_result']) : '';
-
-// 매매/복기 목록 불러오기 (상위 데이터)
-$journalQuery = "
-    SELECT 
-        jt.id AS journal_id, 
-        jt.trade_date, 
-        jt.type, 
-        jt.trade_items, 
-        UNCOMPRESS(jt.comment) AS comment, 
-        jt.created_at
-    FROM journal_trade jt
-    WHERE 1=1";
-
-// 검색 조건 추가
-$whereConditions = [];
-if ($searchStockName) {
-    $whereConditions[] = "jt.trade_items LIKE '%#$searchStockName%'";
-}
-if ($searchType) {
-    $whereConditions[] = "jt.type = '$searchType'";
-}
-if (count($whereConditions) > 0) {
-    $journalQuery .= ' AND ' . implode(' AND ', $whereConditions);
+// 1) 거래대금을 '조' 단위로 표시 (이미 있는 함수)
+function formatAmountToJo($amount) {
+    return ($amount >= 1.0e12) ? number_format($amount / 1.0e12, 2) : number_format($amount);
 }
 
-// 정렬 및 페이징
-$journalQuery .= " ORDER BY jt.id DESC LIMIT 1 OFFSET " . ($page - 1) * 1;
-$journals = $mysqli->query($journalQuery);
-
-// 전체 저널 개수
-$countQuery = "SELECT COUNT(*) AS total FROM journal_trade jt WHERE 1=1";
-if (count($whereConditions) > 0) {
-    $countQuery .= ' AND ' . implode(' AND ', $whereConditions);
+// 1-1) 거래대금 막대그래프 표현 (최대값 20조 기준)
+function getAmountBarColor($amount) {
+    if ($amount >= 10.0e12) {
+        return 'background: linear-gradient(to right, #ff3333, #ff9999);'; // 빨강
+    } elseif ($amount >= 8.0e12) {
+        return 'background: linear-gradient(to right, #ff9900, #ffcc66);'; // 주황
+    } elseif ($amount >= 6.0e12) {
+        return 'background: linear-gradient(to right, #0099ff, #66ccff);'; // 파랑
+    } else {
+        return 'background: linear-gradient(to right, #555555, #aaaaaa);'; // 어두운 회색 → 밝은 회색
+    }
 }
-$countResult = $mysqli->query($countQuery)->fetch_assoc();
-$totalJournals = $countResult['total'];
-$totalPages = ceil($totalJournals / 1);
 
-// 세부 항목 데이터 가져오기
-$detailsQuery = "
-    SELECT 
-        jtd.id,
-        jtd.journal_id, 
-        jtd.profit_loss, 
-        jtd.trade_method
-    FROM journal_trade_details jtd
-    INNER JOIN journal_trade jt ON jtd.journal_id = jt.id";
-$detailsResult = $mysqli->query($detailsQuery);
+function renderAmountBar($amount) {
+    $maxAmount = 15.0e12; // 최대 20조 기준
+    $percentage = ($amount / $maxAmount) * 100; // 백분율 계산
+    $barWidth = max(3, $percentage); // 최소 3px 보장
+    $barColor = getAmountBarColor($amount); // 색상 동적 선택
+    $formattedAmount = formatAmountToJo($amount); // '조' 단위 변환
 
-// 세부 항목을 배열로 정리
-$details = [];
-while ($detail = $detailsResult->fetch_assoc()) {
-    $details[$detail['journal_id']][] = $detail;
+    // 그래프 너비가 20% 이하이면 텍스트를 막대 바깥에 표시
+    $textClass = ($percentage > 20) ? 'amount-text-inside' : 'amount-text-outside';
+
+    return "
+        <div class='amount-bar-container'>
+            <div class='amount-bar' style='width: {$barWidth}%; {$barColor}'>
+                <span class='{$textClass}' style='color: #fff;'>{$formattedAmount}</span>
+            </div>
+        </div>
+    ";
 }
+
+// 2) 조회할 연월 결정
+$searchMonth = isset($_GET['search_month']) ? $_GET['search_month'] : date('Y-m');
+list($searchYear, $searchMon) = explode('-', $searchMonth);
+
+// 해당 월의 시작일/마지막일
+$monthStartDate = new DateTime("$searchYear-$searchMon-01");
+$monthEndDate   = new DateTime("$searchYear-$searchMon-01");
+$monthEndDate->modify('last day of this month');
+
+// 이전 달 / 다음 달 계산
+$prevMonthObj = clone $monthStartDate;
+$prevMonthObj->modify('-1 month');
+$prevSearchMonth = $prevMonthObj->format('Y-m');
+
+$nextMonthObj = clone $monthStartDate;
+$nextMonthObj->modify('+1 month');
+$nextSearchMonth = $nextMonthObj->format('Y-m');
+
+// 3) market_index 조회
+$marketIndexQuery = "
+    SELECT `date` AS trade_date, market_fg, close, close_rate, amount
+    FROM market_index
+    WHERE `date` BETWEEN '{$monthStartDate->format('Y-m-d')}' AND '{$monthEndDate->format('Y-m-d')}'
+";
+$marketIndexResult = $mysqli->query($marketIndexQuery);
+$marketData = [];
+while ($row = $marketIndexResult->fetch_assoc()) {
+    $marketData[$row['trade_date']][$row['market_fg']] = $row;
+}
+
+// 4) journal_trade 조회 (매매방식/수익손실 표시용)
+$journalTradeQuery = "
+    SELECT trade_date, trade_method, profit_loss
+    FROM journal_trade
+    WHERE trade_date BETWEEN '{$monthStartDate->format('Y-m-d')}' AND '{$monthEndDate->format('Y-m-d')}'
+";
+$journalTradeResult = $mysqli->query($journalTradeQuery);
+$journalTradeData = [];
+while ($row = $journalTradeResult->fetch_assoc()) {
+    $journalTradeData[$row['trade_date']][] = $row;
+}
+
+// 5) 달력용 데이터 (월~금 평일만)
+$rows = [];
+$currentRow = ['', '', '', '', ''];
+$dayObj = clone $monthStartDate;
+while ($dayObj <= $monthEndDate) {
+    $dow = (int)$dayObj->format('N'); // 1=월 ~ 7=일
+    if ($dow <= 5) {
+        if ($dow === 1 && !empty(array_filter($currentRow))) {
+            $rows[] = $currentRow;
+            $currentRow = ['', '', '', '', ''];
+        }
+        $currentRow[$dow - 1] = $dayObj->format('Y-m-d');
+    }
+    $dayObj->modify('+1 day');
+}
+if (!empty(array_filter($currentRow))) {
+    $rows[] = $currentRow;
+}
+while (count($rows) < 5) {
+    $rows[] = ['', '', '', '', ''];
+}
+
+// trade_date 값이 있으면 사용, 없으면 기본 로직 실행
+$tradeDate = isset($_GET['trade_date']) ? $_GET['trade_date'] : null;
+
+// 현재 연월 확인
+$currentYearMonth = date('Y-m');
+
+// trade_date 값이 없는 경우 기본 로직 적용
+if (!$tradeDate) {
+    if ($searchMonth === $currentYearMonth) {
+        $tradeDate = date('Y-m-d'); // 이번 달이면 오늘 날짜
+    } else {
+        // 조회 월의 첫 번째 평일(월~금) 찾기
+        $dayObj = clone $monthStartDate;
+        while ($dayObj <= $monthEndDate) {
+            $dow = (int)$dayObj->format('N'); // 1=월 ~ 7=일
+            if ($dow <= 5) { // 월~금이면 설정
+                $tradeDate = $dayObj->format('Y-m-d');
+                break;
+            }
+            $dayObj->modify('+1 day');
+        }
+    }
+}
+
 ?>
 
+<!DOCTYPE html>
+<html>
 <head>
+    <meta charset="utf-8">
+    <title><?= htmlspecialchars($pageTitle) ?></title>
     <style>
-        #journal_register_container {
-            flex: 1;
-            background-color: #f9f9f9;
-            padding: 20px;
-            margin-right: 20px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            border-radius: 8px;
-        }
-
-        /* 한 줄로 필드를 배치하기 위한 스타일 */
-        .form-row {
+        /* 전체 컨테이너 (좌우 1:1 분할) */
+        #container {
             display: flex;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-
-        .form-row label {
-            margin-right: 10px;
-        }
-
-        .form-row input[type="text"],
-        .form-row input[type="date"],
-        .form-row select {
-            flex: 1;
-            padding: 10px;
-            margin-right: 10px;
-            box-sizing: border-box;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-        }
-
-        /* 마지막 요소에 margin-right를 없앰 */
-        .form-row input[type="text"]:last-child,
-        .form-row input[type="date"]:last-child,
-        .form-row select:last-child {
-            margin-right: 0;
-        }
-
-        #journal_list_container {
-            flex: 1;
+            gap: 10px;
             padding: 20px;
-            background-color: #fff;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            align-items: stretch; /* 자식들을 동일 높이로 */
         }
-
-        .journal-card {
-            padding: 15px;
-            margin-bottom: 20px;
-            background-color: #f8f8f8;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); /* 더 짙은 그림자 */
-            border: 2px solid #ccc;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-            cursor: pointer;
-            max-height: calc(100vh - 200px); /* 화면 높이를 기준으로 설정 (여백 포함) */
-            overflow-y: auto; /* 내부 스크롤 활성화 */
-            position: relative; /* 내부 스크롤을 위해 위치 설정 */
-        }
-
-        .journal-title {
-            font-size: 1.2em;
-            font-weight: bold;
-        }
-
-        .detail-row {
+        /* 좌측: 조회조건 + 달력 */
+        #left_container {
+            flex: 1;
             display: flex;
-            align-items: center;
-            margin-bottom: 10px;
+            flex-direction: column;
+            gap: 10px;
+        }
+        #right_container {
+            flex: 1;
+            position: relative;
+            display: flex;          /* 추가 */
+            flex-direction: column; /* 추가 */
         }
 
-        .detail-row label {
-            margin-right: 10px;
-            flex: 0 0 auto; /* 고정 크기 */
-        }
-
-        .detail-row select,
-        .detail-row input[type="number"] {
-            flex: 1; /* 입력 필드가 동일한 비율로 확장 */
-            margin-right: 10px; /* 각 필드 간격 */
-            padding: 5px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            box-sizing: border-box;
-        }
-
-        /* 마지막 필드의 오른쪽 간격 제거 */
-        .detail-row select:last-child,
-        .detail-row input[type="number"]:last-child {
-            margin-right: 0;
-        }
-
-        #details-container button {
-            background-color: #d9534f;
-            color: white;
+        /* iframe을 부모 높이에 맞춤 */
+        iframe#editor_frame {
+            flex: 1;        /* 추가: 남은 공간을 전부 사용 */
             border: none;
-            border-radius: 5px;
-            padding: 10px 20px;
+        }
+        /* 조회조건 영역 */
+        #search_container {
+            background: #fff;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 0 5px rgba(0,0,0,0.1);
+        }
+        #search_container form {
+            display: inline-block; /* 버튼 폼들도 가로로 이어 붙이기 위해 inline-block */
+            margin-right: 5px;
+        }
+
+        /* 이전/다음 버튼 스타일 */
+        .month-nav-btn {
+            background: #ff6e6e;
+            color: #fff;
+            border: none;
+            padding: 6px 10px;
+            border-radius: 4px;
             cursor: pointer;
         }
-
-        .journal-content {
-            margin-top: 10px;
+        /* 달력 영역 */
+        #calendar_container {
+            background: #f9f9f9;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            overflow-x: auto;
         }
-
-        .pagination a {
-            padding: 10px 15px;
-            margin: 0 5px;
-            background-color: #f1f1f1;
-            border-radius: 5px;
+        .calendar-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: center;
+        }
+        .calendar-table th,
+        .calendar-table td {
+            border: 1px solid #ccc;
+            width: 20%;
+            vertical-align: top;
+        }
+        .calendar-table th {
+            background: #eee;
+            height: 30px;   /* 헤더 높이 낮춤 */
+            padding: 4px;
+        }
+        .calendar-table td {
+            height: 150px;  /* 본문 셀 높이 증가 */
+            padding: 8px;
+        }
+        .calendar-cell {
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            height: 100%;
+            padding: 5px;
+        }
+        .calendar-cell a {
+            font-weight: bold;
             text-decoration: none;
             color: #333;
+            margin-bottom: 5px;
         }
-
-        .pagination a:hover {
-            background-color: #ddd;
+        /* 시장 정보: KOSPI와 KOSDAQ 3줄 (각 줄 2컬럼 고정) */
+        .market-index {
+            width: 100%;
+            margin-top: 5px;
+            font-size: 0.9em;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
         }
-
-        .pagination a.active {
-            background-color: #d9534f;
-            color: white;
+        .market-row {
+            display: flex; /* flex 적용 */
+            align-items: center; /* 세로 중앙 정렬 */
+            justify-content: space-between; /* 좌우 정렬 */
         }
-
-        .pagination a:first-child, .pagination a:last-child {
-            margin: 0 10px;
+        .market-row div {
+            display: flex;
+            gap: 5px;
+            align-items: center;
         }
-
-        #edit_buttons {
-            display: none;
+        .market-col {
+            flex: 1;
+            padding: 2px;
         }
-
-        #edit_buttons button {
-            padding: 10px 20px;
-            background-color: #5bc0de;
-            color: white;
+        .market-name {
+            font-weight: bold;
+            color: #555;
+        }
+        .market-price.positive { color: red; }
+        .market-price.negative { color: blue; }
+        .trade-divider {
+            width: 100%;
+            height: 1px;
+            background: #bbb;
+            margin: 5px 0;
+        }
+        /* 매매방식 / 수익손실 (달력 셀 하단 추가) */
+        .trade-info {
+            width: 100%;
+            font-size: 14px;
+            margin-top: 5px;
+            text-align: left;
+            color: #333;
+        }
+        .trade-item {
+            margin-bottom: 3px;
+        }
+        /* 팝업 보기 버튼 */
+        #popup_button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 8px 16px;
             border: none;
+            background: #5bc0de;
+            color: #fff;
             border-radius: 5px;
             cursor: pointer;
         }
-
-        #edit_buttons button.delete {
-            background-color: #d9534f;
+        /* iframe 에디터 */
+        iframe {
+            width: 100%;
+            border: none;
+            /* 높이는 JS로 조절 */
         }
+
+        /* 가로 막대 그래프 컨테이너 */
+        .amount-bar-container {
+            position: relative;
+            width: 100%;
+            height: 14px;
+            background: repeating-linear-gradient(
+                to right,
+                #ddd 0%,
+                #ddd 1%,
+                transparent 1%,
+                transparent 25%,
+                #ddd 25%,
+                #ddd 26%,
+                transparent 26%,
+                transparent 50%,
+                #ddd 50%,
+                #ddd 51%,
+                transparent 51%,
+                transparent 75%,
+                #ddd 75%,
+                #ddd 76%,
+                transparent 76%,
+                transparent 100%
+            );
+            border-radius: 7px;
+            overflow: visible !important;
+        }
+
+        /* 거래대금 표시 바 */
+        .amount-bar {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.3s ease-in-out;
+        }
+
     </style>
 </head>
-
 <body>
     <div id="container">
-        <!-- 매매/복기 등록 폼 -->
-        <div id="journal_register_container">
-            <h2>매매/복기 등록</h2>
-            <form id="journalForm" action="journal_trade_process.php" method="POST">
-                <input type="hidden" id="journal_id" name="journal_id">
-                <input type="hidden" name="page" value="<?php echo $page; ?>"> 
-
-                <!-- 검색 조건을 hidden 필드로 추가 -->
-                <input type="hidden" name="search_stock_name" value="<?php echo htmlspecialchars($searchStockName); ?>">
-                <input type="hidden" name="search_type" value="<?php echo htmlspecialchars($searchType); ?>">
-
-                <div class="form-row">
-                    <!-- 매매일자 -->
-                    <label for="trade_date">일자:</label>
-                    <input type="date" name="trade_date" id="trade_date" value="<?php echo $tradeDate; ?>" required>
-
-                    <!-- 구분 -->
-                    <label for="type">구분:</label>
-                    <select name="type" id="type" required>
-                        <option value="scenario" <?php echo ($type === 'scenario') ? 'selected' : ''; ?>>시나리오</option>
-                        <option value="trade" <?php echo ($type === 'trade') ? 'selected' : ''; ?>>매매</option>
-                        <option value="reflection" <?php echo ($type === 'reflection') ? 'selected' : ''; ?>>복기</option>
-                    </select>
-
-                    <!-- 매매 종목 -->
-                    <label for="trade_items">종목:</label>
-                    <input type="text" name="trade_items" id="trade_items" placeholder="#종목명 #종목명2 ">
-                </div>
-
-                <!-- 코멘트 -->
-                <label for="comment">코멘트:</label>
-                <textarea name="comment" id="comment" rows="4"></textarea>
-
-                <hr>
-
-                <!-- 하위 데이터 -->
-                <h3>매매 세부 항목</h3>
-                <div id="details-container">
-                    <!-- 신규 항목과 기존 항목은 별도 ID 규칙 적용 -->
-                    <div class="detail-row" id="detail-row-1">
-                        <label>매매 방식:</label>
-                        <select name="details[0][trade_method]">
-                            <option value="종가베팅">종가베팅</option>
-                            <option value="시간외단일가">시간외단일가</option>
-                            <option value="시가베팅">시가베팅</option>
-                            <option value="당일매매">당일매매</option>
-                            <option value="단기스윙">단기스윙</option>
-                        </select>
-
-                        <label>수익/손실:</label>
-                        <select name="details[0][profit_loss]">
-                            <option value="profit">수익</option>
-                            <option value="loss">손실</option>
-                        </select>
-
-                        <button type="button" onclick="removeDetail(0)">삭제</button>
-                    </div>
-                </div>
-                <button type="button" onclick="addDetailRow()">+ 추가</button>
-
-                <br><br>
-                <!-- 버튼 -->
-                <button type="submit" id="register_button">등록</button>
-                <div id="edit_buttons" style="display: none;">
-                    <button type="button" onclick="updateJournal()">수정</button>
-                    <button type="button" class="delete" onclick="deleteJournal()">삭제</button>
-                    <button type="button" class="reset" onclick="resetForm()">초기화</button>
-                </div>
-            </form>
-            <?php loadTinyMCE('#comment', 700); ?>
-            <?php loadTinyMCEScripts(); ?>
-        </div>
-
-        <!-- 매매/복기 목록 -->
-        <div id="journal_list_container">
-            <h2>매매/복기 목록</h2>
-
-            <!-- 검색 조건 -->
-            <div class="form-row">
-                <input type="text" id="search_stock_name" name="search_stock_name" value="<?php echo htmlspecialchars($searchStockName); ?>" placeholder="종목명/코드">
-                <select id="search_type" name="search_type">
-                    <option value="" <?php echo ($searchType === '') ? 'selected' : ''; ?>>타입</option>
-                    <option value="scenario" <?php echo ($searchType === 'scenario') ? 'selected' : ''; ?>>시나리오</option>
-                    <option value="trade" <?php echo ($searchType === 'trade') ? 'selected' : ''; ?>>매매</option>
-                    <option value="reflection" <?php echo ($searchType === 'reflection') ? 'selected' : ''; ?>>복기</option>
-                </select>
-                <button onclick="searchJournals()" style="flex: 0.5; margin-right: 10px;">조회</button>
-                <button onclick="resetSearch()" style="flex: 0.5;">초기화</button>
+        <!-- (1) 좌측: 조회조건 + 달력 -->
+        <div id="left_container">
+            <div id="search_container">
+                <form method="GET">
+                    <input type="month" id="search_month" name="search_month" value="<?= htmlspecialchars($searchMonth) ?>">
+                    <button type="submit" class="month-nav-btn">조회</button>
+                </form>
+                <!-- 이전달 버튼 -->
+                <form method="GET">
+                    <input type="hidden" name="search_month" value="<?= $prevSearchMonth ?>">
+                    <button type="submit" class="month-nav-btn">&lt;&lt; 이전</button>
+                </form>
+                <!-- 다음달 버튼 -->
+                <form method="GET">
+                    <input type="hidden" name="search_month" value="<?= $nextSearchMonth ?>">
+                    <button type="submit" class="month-nav-btn">다음 &gt;&gt;</button>
+                </form>
             </div>
+            <div id="calendar_container">
+                <table class="calendar-table">
+                    <thead>
+                        <tr>
+                            <th>월</th>
+                            <th>화</th>
+                            <th>수</th>
+                            <th>목</th>
+                            <th>금</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($rows as $weekRow): ?>
+                        <tr>
+                            <?php for ($col = 0; $col < 5; $col++):
+                                $cellDate = $weekRow[$col];
+                            ?>
+                                <td>
+                                    <?php if ($cellDate): ?>
+                                    <div class="calendar-cell">
+                                        <a href="javascript:loadEditor('<?= $cellDate ?>')"><?= $cellDate ?></a>
+                                        <?php
+                                        // (A) KOSPI / KOSDAQ 데이터
+                                        $kospi  = isset($marketData[$cellDate]['KOSPI']) ? $marketData[$cellDate]['KOSPI'] : null;
+                                        $kosdaq = isset($marketData[$cellDate]['KOSDAQ']) ? $marketData[$cellDate]['KOSDAQ'] : null;
+                                        if ($kospi || $kosdaq):
+                                            // KOSPI
+                                            $kospiName   = $kospi ? "KOSPI" : "";
+                                            $kospiClose  = $kospi ? number_format($kospi['close'], 2) : "";
+                                            $kospiRate   = $kospi ? $kospi['close_rate'] : "";
+                                            $rateVal     = $kospi ? floatval($kospi['close_rate']) : 0;
+                                            $rateClass   = ($rateVal >= 0) ? "positive" : "negative";
 
-            <?php while ($row = $journals->fetch_assoc()) { ?>
-                <div class="journal-card">
-                    <div class="journal-title">
-                        <?php echo $row['trade_date'] . ' / ' . $row['type'] . ' / ' . htmlspecialchars($row['trade_items']); ?>
-                        <?php if (isset($details[$row['journal_id']])) { ?>
-                            <ul class="detail-list">
-                                <?php foreach ($details[$row['journal_id']] as $detail) { ?>
-                                    <li class="detail-item">
-                                        <?php echo $detail['trade_method']; ?>, 
-                                        <?php echo $detail['profit_loss']; ?>
-                                    </li>
-                                <?php } ?>
-                            </ul>
-                        <?php } ?>
-                    </div>
-                    <div class="journal-content" onclick="loadJournalData(<?= $row['journal_id']; ?>)"><?php echo $row['comment']."&nbsp"; ?></div>
-                </div>
-            <?php } ?>
+                                            // KOSDAQ
+                                            $kosdaqName  = $kosdaq ? "KOSDAQ" : "";
+                                            $kosdaqClose = $kosdaq ? number_format($kosdaq['close'], 2) : "";
+                                            $kosdaqRate  = $kosdaq ? $kosdaq['close_rate'] : "";
+                                            $rateVal2    = $kosdaq ? floatval($kosdaq['close_rate']) : 0;
+                                            $rateClass2  = ($rateVal2 >= 0) ? "positive" : "negative";
+                                        ?>
+                                        <div class="market-index">
+                                            <!-- 첫 줄: 시장명 -->
+                                            <div class="market-row">
+                                                <div class="market-col "><span class="market-name"><?= $kospiName ?></span></div>
+                                                <div class="market-col"><span class="market-name"><?= $kosdaqName ?></span></div>
+                                            </div>
+                                            <!-- 두 번째 줄: 지수 -->
+                                            <div class="market-row">
+                                                <div class="market-col">
+                                                    <span class="market-price <?= $rateClass ?>">
+                                                        <?= $kospiClose ?>
+                                                    </span>
+                                                </div>
+                                                <div class="market-col">
+                                                    <span class="market-price <?= $rateClass2 ?>">
+                                                        <?= $kosdaqClose ?>
+                                                    </span>
+                                                </div>
+                                            </div>
 
-            <!-- 페이지네이션 -->
-            <div class="pagination">
-                <?php
-                $visiblePages = 5; // 한 번에 표시할 페이지 수
-                $startPage = max(1, $page - floor($visiblePages / 1)); // 시작 페이지
-                $endPage = min($totalPages, $startPage + $visiblePages - 1); // 마지막 페이지
+                                            <!-- 세 번째 줄: 등락률 -->
+                                            <div class="market-row">
+                                                <div class="market-col">
+                                                    <span class="market-price <?= $rateClass ?>">
+                                                        <?= $kospi ? "(".$kospiRate."%)" : "" ?>
+                                                    </span>
+                                                </div>
+                                                <div class="market-col">
+                                                    <span class="market-price <?= $rateClass2 ?>">
+                                                        <?= $kosdaq ? "(".$kosdaqRate."%)" : "" ?>
+                                                    </span>
+                                                </div>
+                                            </div>
 
-                // 검색 조건을 URL에 추가
-                $queryParams = "&stock_name=" . urlencode($searchStockName) . "&search_type=" . urlencode($searchType) . "&search_method=" . urlencode($searchMethod) . "&search_result=" . urlencode($searchResult);
-
-                // "최초" 버튼
-                if ($page > 1) {
-                    echo '<a href="?page=1' . $queryParams . '">최초</a>';
-                }
-
-                // "이전" 버튼
-                if ($page > 1) {
-                    echo '<a href="?page=' . ($page - 1) . $queryParams . '">이전</a>';
-                }
-
-                // 페이지 번호
-                for ($i = $startPage; $i <= $endPage; $i++) {
-                    echo '<a href="?page=' . $i . $queryParams . '" class="' . ($i == $page ? 'active' : '') . '">' . $i . '</a>';
-                }
-
-                // "다음" 버튼
-                if ($page < $totalPages) {
-                    echo '<a href="?page=' . ($page + 1) . $queryParams . '">다음</a>';
-                }
-
-                // "최종" 버튼
-                if ($page < $totalPages) {
-                    echo '<a href="?page=' . $totalPages . $queryParams . '">최종</a>';
-                }
-                ?>
+                                            <!-- 네 번째 줄: 거래대금 → 그래프 대체 -->
+                                            <div class="market-row">
+                                                <div class="market-col"><?= $kospi ? renderAmountBar($kospi['amount']) : '' ?></div>
+                                                <div class="market-col"><?= $kosdaq ? renderAmountBar($kosdaq['amount']) : '' ?></div>
+                                            </div>
+                                        </div>
+                                        <?php endif; ?>
+                                        <!-- (B) 매매방식 / 수익손실 -->
+                                        <?php if (isset($journalTradeData[$cellDate])): ?>
+                                            <div class="trade-divider"></div> <!-- 중간 바 추가 -->
+                                            <div class="trade-info">
+                                                <?php foreach ($journalTradeData[$cellDate] as $trade): ?>
+                                                    <div class="trade-item">
+                                                        <?= htmlspecialchars($trade['trade_method']) ?> / <?= htmlspecialchars($trade['profit_loss']) ?>
+                                                    </div>
+                                                <?php endforeach; ?>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
+                                    <?php endif; ?>
+                                </td>
+                            <?php endfor; ?>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
             </div>
         </div>
-    </div>
 
-<?php
-require($_SERVER['DOCUMENT_ROOT'] . "/modules/common/common_footer.php");
-?>
+        <!-- (2) 우측: 등록폼 (iframe) -->
+        <div id="right_container">
+            <iframe id="editor_frame" src="journal_trade_popup.php?trade_date=<?= $tradeDate ?>&mode=iframe"></iframe>
+        </div>
 
-<script>
-    // 신규 항목 추가
-    function addDetailRow() {
-        const container = document.getElementById('details-container');
-        const index = container.children.length;
-        const row = document.createElement('div');
-        row.className = 'detail-row';
-        row.id = `detail-row-${index}`; // 신규 항목의 ID는 "new" 접두어를 붙임
-        row.innerHTML = `
-            <label>매매 방식:</label>
-            <select name="details[${index}][trade_method]">
-                <option value="종가베팅">종가베팅</option>
-                <option value="시간외단일가">시간외단일가</option>
-                <option value="시가베팅">시가베팅</option>
-                <option value="당일매매">당일매매</option>
-                <option value="단기스윙">단기스윙</option>
-            </select>
-
-            <label>수익/손실:</label>
-            <select name="details[${index}][profit_loss]">
-                <option value="profit">수익</option>
-                <option value="loss">손실</option>
-            </select>
-
-            <button type="button" onclick="removeDetail(${index})">삭제</button>
-        `;
-        container.appendChild(row);
-    }
-
-    // 세부 항목 삭제
-    function removeDetail(id) {
-        const row = document.getElementById(`detail-row-${id}`);
-        if (row) row.remove();
-    }
-
-    function loadJournalData(journalId) {
-        fetch(`fetch_journal.php?journal_id=${journalId}&type=trade`)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Failed to fetch journal data');
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.journal) {
-                    // 상위 데이터 채우기
-                    document.getElementById('journal_id').value = data.journal.journal_id;
-                    document.getElementById('trade_date').value = data.journal.trade_date;
-                    document.getElementById('type').value = data.journal.type;
-                    document.getElementById('trade_items').value = data.journal.trade_items;
-                    alert(data.journal.comment);
-                    setTinyMCEContent('comment', data.journal.comment);
-
-                    // 하위 데이터 채우기
-                    const detailsContainer = document.getElementById('details-container');
-                    detailsContainer.innerHTML = ''; // 기존 내용 초기화
-
-                    data.details.forEach((detail, index) => {
-                        const detailRow = document.createElement('div');
-                        detailRow.className = 'detail-row';
-                        detailRow.id = `detail-row-${index}`;
-                        detailRow.innerHTML = `
-                            <label>매매 방식:</label>
-                            <select name="details[${index}][trade_method]">
-                                <option value="종가베팅" ${detail.trade_method === '종가베팅' ? 'selected' : ''}>종가베팅</option>
-                                <option value="시간외단일가" ${detail.trade_method === '시간외단일가' ? 'selected' : ''}>시간외단일가</option>
-                                <option value="시가베팅" ${detail.trade_method === '시가베팅' ? 'selected' : ''}>시가베팅</option>
-                                <option value="당일매매" ${detail.trade_method === '당일매매' ? 'selected' : ''}>당일매매</option>
-                                <option value="단기스윙" ${detail.trade_method === '단기스윙' ? 'selected' : ''}>단기스윙</option>
-                            </select>
-
-                            <label>수익/손실:</label>
-                            <select name="details[${index}][profit_loss]">
-                                <option value="profit" ${detail.profit_loss === 'profit' ? 'selected' : ''}>수익</option>
-                                <option value="loss" ${detail.profit_loss === 'loss' ? 'selected' : ''}>손실</option>
-                            </select>
-
-                            <button type="button" onclick="removeDetail(${index})">삭제</button>
-                        `;
-                        detailsContainer.appendChild(detailRow);
-                    });
-
-                    // 수정 버튼 활성화
-                    document.getElementById('edit_buttons').style.display = 'block';
-                    document.getElementById('register_button').style.display = 'none';
-                } else {
-                    alert('매매 데이터를 찾을 수 없습니다.');
-                }
-            })
-            .catch(error => {
-                console.error('Error fetching journal data:', error);
-                alert('매매 데이터를 가져오는 중 문제가 발생했습니다.');
-            });
-    }
-
-
-    function focusOnBuyDate() {
-        const tradeDateInput = document.getElementById('trade_date');
-        if (tradeDateInput) {
-            tradeDateInput.focus();
+    <script>
+        // 날짜 클릭 시, iframe에 해당 일자 로드
+        function loadEditor(date) {
+            document.getElementById('editor_frame').src = "journal_trade_popup.php?trade_date=" + encodeURIComponent(date) + "&mode=iframe";
+            adjustIframeHeight();
         }
-    }
-
-    function updateJournal() {
-        syncTinyMCEData();
-        document.getElementById('journalForm').submit();
-    }
-
-    function deleteJournal() {
-        if (confirm('정말로 이 매매/복기를 삭제하시겠습니까?')) {
-            var journalId = document.getElementById('journal_id').value;
-            window.location.href = "journal_trade_process.php?action=delete&journal_id=" + journalId + "&page=<?php echo $page; ?>";
+        // 달력 영역과 iframe 높이를 1:1 맞추기
+        function adjustIframeHeight() {
+            var calHeight = document.getElementById('calendar_container').offsetHeight;
+            document.getElementById('editor_frame').style.height = calHeight + "px";
         }
-    }
-
-    function resetForm() {
-        window.location.href = "?page=<?php echo $page; ?>";
-    }
-
-    function searchJournals() {
-        const stockName = document.getElementById('search_stock_name').value;
-        const type = document.getElementById('search_type').value;
-        const method = document.getElementById('search_method').value;
-        const profit_loss = document.getElementById('search_result').value;
-        let query = "?page=1";
-
-        if (stockName) {
-            query += "&stock_name=" + encodeURIComponent(stockName);
-        }
-
-        if (type) {
-            query += "&search_type=" + type;
-        }
-
-        if (method) {
-            query += "&search_method=" + method;
-        }
-
-        if (profit_loss) {
-            query += "&search_result=" + profit_loss;
-        }
-
-        window.location.href = query;
-    }
-
-    function resetSearch() {
-        window.location.href = "?page=1";
-    }
-
-</script>
+        window.addEventListener('load', adjustIframeHeight);
+        window.addEventListener('resize', adjustIframeHeight);
+    </script>
 </body>
+</html>

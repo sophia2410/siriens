@@ -1,85 +1,92 @@
 <?php
 require($_SERVER['DOCUMENT_ROOT'] . "/modules/common/database.php");
 
+// 호출한 곳을 구분하는 변수 (폼의 hidden 필드로 전송됨)
+// 기본값은 'iframe'
+$source = isset($_REQUEST['source']) ? $_REQUEST['source'] : 'iframe';
+
+// 리다이렉트 URL을 저장할 변수
+$redirectURL = "";
+
+// ------------------------------
+// POST 처리 (등록/수정)
+// ------------------------------
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $trade_date = $mysqli->real_escape_string($_POST['trade_date']);
-    $trade_items = $mysqli->real_escape_string($_POST['trade_items']);
-    $type = $mysqli->real_escape_string($_POST['type']);
+    // 1) POST로 넘어온 값 받기
+    $journalId    = isset($_POST['journal_id']) ? $mysqli->real_escape_string($_POST['journal_id']) : '';
+    $trade_date   = $mysqli->real_escape_string($_POST['trade_date']);
+    $trade_items  = $mysqli->real_escape_string($_POST['trade_items']);
+    $trade_method = $mysqli->real_escape_string($_POST['trade_method']);
+    $profit_loss  = $mysqli->real_escape_string($_POST['profit_loss']);
+    $comment      = $mysqli->real_escape_string($_POST['comment']);
 
-    $comment = $mysqli->real_escape_string($_POST['comment']);
-    $page = isset($_POST['page']) ? (int)$_POST['page'] : 1;
-
-    // POST로 전송된 검색 조건
-    $searchStockName = isset($_POST['search_stock_name']) ? $mysqli->real_escape_string($_POST['search_stock_name']) : '';
-    $searchType = isset($_POST['search_type']) ? $mysqli->real_escape_string($_POST['search_type']) : '';
-
-    // 하위 데이터 처리
-    $details = isset($_POST['details']) ? $_POST['details'] : [];
-
-    // 수정하는 경우
-    if (!empty($_POST['journal_id'])) {
-        $journalId = $mysqli->real_escape_string($_POST['journal_id']);
-
-        // 상위 데이터 수정
+    // 2) 수정 vs 등록 분기
+    if (!empty($journalId)) {
+        // 수정 로직
         $updateQuery = "
-            UPDATE journal_trade 
-            SET trade_date = '$trade_date', type = '$type', trade_items = '$trade_items', comment = COMPRESS('$comment')
-            WHERE id = '$journalId'";
+            UPDATE journal_trade
+            SET
+                trade_date    = '$trade_date',
+                trade_items   = '$trade_items',
+                trade_method  = '$trade_method',
+                profit_loss   = '$profit_loss',
+                comment       = COMPRESS('$comment')
+            WHERE id = '$journalId'
+        ";
         $mysqli->query($updateQuery);
-
-        // 하위 데이터 처리
-        $mysqli->query("DELETE FROM journal_trade_details WHERE journal_id = '$journalId'"); // 기존 세부 항목 삭제
-        foreach ($details as $detail) {
-            $profit_loss = $mysqli->real_escape_string($detail['profit_loss']);
-            $trade_method = $mysqli->real_escape_string($detail['trade_method']);
-        
-            $detailInsertQuery = "
-                INSERT INTO journal_trade_details (journal_id, profit_loss, trade_method) 
-                VALUES ('$journalId', '$profit_loss', '$trade_method')";
-            $mysqli->query($detailInsertQuery);
-        }
-    } 
-    // 새로운 매매/복기 등록하는 경우
-    else {
-        // 상위 데이터 추가
+    } else {
+        // 등록 로직
         $insertQuery = "
-            INSERT INTO journal_trade (trade_date, type, trade_items, comment) 
-            VALUES ('$trade_date', '$type', '$trade_items', COMPRESS('$comment'))";
+            INSERT INTO journal_trade
+                (trade_date, trade_items, trade_method, profit_loss, comment)
+            VALUES
+                ('$trade_date', '$trade_items', '$trade_method', '$profit_loss', COMPRESS('$comment'))
+        ";
         $mysqli->query($insertQuery);
-
-        $journalId = $mysqli->insert_id; // 새로 생성된 journal_id 가져오기
-
-        // 하위 데이터 추가
-        foreach ($details as $detail) {
-            $profit_loss = $mysqli->real_escape_string($detail['profit_loss']);
-            $trade_method = $mysqli->real_escape_string($detail['trade_method']);
-
-            $detailInsertQuery = "
-                INSERT INTO journal_trade_details (journal_id, profit_loss, trade_method) 
-                VALUES ('$journalId', '$profit_loss', '$trade_method')";
-            $mysqli->query($detailInsertQuery);
-        }
+        $journalId = $mysqli->insert_id;
     }
 
-    // 처리 완료 후 검색 조건과 함께 리다이렉트
-    header("Location: journal_trade_register.php?trade_date=$trade_date&type=$type&trade_method=$trade_method&stock_name=$searchStockName&search_type=$searchType&search_method=$searchMethod&search_result=$searchResult&page=" . $page);
-}
-elseif ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action'])) {
+    // ------------------------------
+    // GET 처리 (삭제)
+    // ------------------------------
+} elseif ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action'])) {
+    $trade_date = isset($_GET['trade_date']) ? $_GET['trade_date'] : date('Y-m-d');
+
     if ($_GET['action'] == 'delete' && isset($_GET['journal_id'])) {
         $journalId = $mysqli->real_escape_string($_GET['journal_id']);
-
-        // 상위 및 하위 데이터 삭제
-        $mysqli->query("DELETE FROM journal_trade_details WHERE journal_id = '$journalId'");
         $mysqli->query("DELETE FROM journal_trade WHERE id = '$journalId'");
-
-        // GET으로 받은 검색 조건
-        $trade_date = isset($_GET['trade_date']) ? $_GET['trade_date'] : date('Y-m-d');
-        $searchStockName = isset($_GET['stock_name']) ? $mysqli->real_escape_string($_GET['stock_name']) : '';
-        $searchType = isset($_GET['search_type']) ? $mysqli->real_escape_string($_GET['search_type']) : '';
-
-        $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-
-        header("Location: journal_trade_register.php?trade_date=$trade_date&stock_name=$searchStockName&search_type=$searchType&search_method=$searchMethod&search_result=$searchResult&page=" . $page);
     }
 }
+
+// ------------------------------
+// 단일 리다이렉트 함수
+// ------------------------------
+function redirectBySource($source, $tradeDate) {
+    if ($source === 'popup') {
+        $redirectURL = "journal_trade_popup.php?trade_date=$tradeDate&mode=popup";
+        echo "<script>
+            // alert('등록/수정 완료 (팝업)!');
+            location.href = '$redirectURL';
+        </script>";
+    } else if ($source === 'iframe') {
+        // iframe 모드: 부모 창을 새로고침하고, iframe은 그대로 유지
+
+        $searchMonth = substr($tradeDate, 0, 7);
+        $redirectURL = "journal_trade_register.php?search_month=$searchMonth&trade_date=$tradeDate";
+
+        echo "<script>
+            // alert('등록/수정 완료 (iframe)!');
+            parent.location.href = '$redirectURL';
+        </script>";
+    } else {
+        // 기본: 메인 페이지로 리다이렉트
+        header("Location: blank");
+    }
+    exit;
+}
+
+// ------------------------------
+// 최종 리다이렉트 호출
+// ------------------------------
+redirectBySource($source, $trade_date);
 ?>

@@ -23,96 +23,112 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <title>Python Script Executor</title>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <style>
-        button {
-            display: block;
-            margin: 10px 0;
-        }
-        #result {
-            margin-top: 20px;
-            white-space: pre-wrap;
-            border: 1px solid #ddd;
-            padding: 10px;
-            height: 300px; /* 결과 표시 영역 크기 증가 */
-            overflow-y: auto; /* 스크롤 가능 */
-        }
-        #log {
-            margin-top: 20px;
-            white-space: pre-wrap;
-            border: 1px solid #ddd;
-            padding: 10px;
-            height: 200px; /* 로그 표시 영역 크기 */
-            overflow-y: auto; /* 스크롤 가능 */
-        }
         .crawl-container {
             display: flex;
             align-items: center;
             gap: 10px;
+            margin-bottom: 20px; /* 여백 */
         }
         .crawl-container input {
-            flex: 0.4; /* 남은 공간을 차지하게 함 */
+            flex: 0.4;
             padding: 8px;
         }
         .crawl-container button {
-            padding: 8px;
+            padding: 8px 16px;
+        }
+
+        /* 버튼들을 가로 배치할 컨테이너 */
+        .btn-container {
+            display: flex;
+            flex-wrap: wrap;    /* 화면 좁으면 자동 줄바꿈 */
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .btn-container button {
+            padding: 8px 16px;
+            cursor: pointer;
+        }
+
+        #result {
+            margin-top: 0px;
+            white-space: pre-wrap;
+            border: 1px solid #ddd;
+            padding: 10px;
+            height: 880px;
+            overflow-y: auto;
+        }
+        #log {
+            margin-top: 10px;
+            white-space: pre-wrap;
+            border: 1px solid #ddd;
+            padding: 10px;
+            height: 100px;
+            overflow-y: auto;
+        }
+        h1, h2 {
+            margin: 10px 0;
         }
     </style>
 </head>
 <body>
     <h1>Python Script Executor</h1>
 
-    <!-- URL 입력 필드 및 크롤링 버튼 추가 -->
+    <!-- URL 입력 필드 및 크롤링 버튼 -->
     <div class="crawl-container">
         <button onclick="crawlPage()">Crawl Page</button>
         <input type="text" id="urlInput" placeholder="Enter URL" value="">
     </div>
 
-    <hr>
-
-    <button onclick="executeScript('pyDailyRoutine/DBUp_XrayTickExe.py')">Execute DBUp_XrayTickExe.py</button>
-    <button onclick="executeScript('pyDailyRoutine/DBUp_MochatenList.py')">Execute DBUp_MochatenList.py</button>
-    <button onclick="executeScript('pyDailyRoutine/DBUp_SignalEvening.py')">Execute DBUp_SignalEvening.py</button>
-    <button onclick="executeScript('pyObsidian/Obsidian_ConvertSignalReport.py')">Execute Obsidian_ConvertSignalReport.py</button>
-    <button onclick="executeScript('pyObsidian/WatchList_DBUp.py')">Execute WatchList_DBUp.py</button>
-    <button onclick="executeScript('pyObsidian/Obsidian_DBDownStockInfo.py')">Execute Obsidian_DBDownStockInfo.py</button>
+    <div class="btn-container">
+        <!-- 원하는 스크립트들을 가로로 배치 -->
+        <button onclick="executeScript('pyDailyRoutine/DBUp_XrayTickExe.py')">DBUp_XrayTickExe</button>
+        <button onclick="executeScript('pyDailyRoutine/futures_pnl_calculator.py')">Calculator_FuturesPnL</button>
+        <!-- <button onclick="executeScript('pyDailyRoutine/DBUp_MochatenList.py')">DBUp_MochatenList</button>
+        <button onclick="executeScript('pyDailyRoutine/DBUp_SignalEvening.py')">DBUp_SignalEvening</button>
+        <button onclick="executeScript('pyObsidian/Obsidian_ConvertSignalReport.py')">Obsidian_ConvertSignalReport</button>
+        <button onclick="executeScript('pyObsidian/WatchList_DBUp.py')">WatchList_DBUp</button>
+        <button onclick="executeScript('pyObsidian/Obsidian_DBDownStockInfo.py')">Obsidian_DBDownStockInfo</button> -->
+    </div>
 
     <div id="result">Result will be displayed here...</div>
-    <h2>Execution Log</h2>
+
+    <h2>Execution Log (Last 5 lines)</h2>
     <div id="log">Log will be displayed here...</div>
 
     <script>
-
-        // 크롤링 실행 함수
+        // 크롤링 함수
         function crawlPage() {
             const url = $('#urlInput').val();
             if (url === "") {
                 alert("Please enter a URL.");
                 return;
             }
-            $('#result').text('Crawling page...'); // 크롤링 진행 중 메시지 표시
+            $('#result').text('Crawling page...');
             $.ajax({
-                url: 'ExcutePython_script.php',  // URL을 처리할 PHP 파일
+                url: 'ExcutePython_script.php',
                 type: 'POST',
-                data: { url: url },  // URL 데이터를 전송
+                data: { url: url },
                 success: function(response) {
-                    $('#result').html(response);  // 성공 시 결과 표시
-                    updateLog();  // 로그 업데이트
+                    $('#result').html(response);
+                    updateLog();
                 },
                 error: function(xhr, status, error) {
-                    $('#result').text('Error: ' + error);  // 에러 시 메시지 표시
-                    console.log('AJAX Error: ', error);  // 콘솔에 에러 출력
+                    $('#result').text('Error: ' + error);
+                    console.log('AJAX Error: ', error);
                 }
             });
         }
 
+        // 일반 스크립트 실행 함수
         function executeScript(scriptName) {
-            $('#result').text('Executing script...'); // "실행 중" 메시지 표시
+            $('#result').text('Executing script...');
             $.ajax({
                 url: 'ExcutePython_script.php',
                 type: 'POST',
                 data: { script: scriptName },
                 success: function(response) {
                     $('#result').html(response);
-                    updateLog(); // 실행 후 로그 업데이트
+                    updateLog();
                 },
                 error: function(xhr, status, error) {
                     $('#result').text('Error: ' + error);
@@ -120,7 +136,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             });
         }
 
-        // 로그 업데이트 함수
+        // 로그 업데이트
         function updateLog() {
             $.ajax({
                 url: 'ExcutePython_readlog.php',

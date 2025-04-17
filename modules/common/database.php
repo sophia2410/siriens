@@ -52,4 +52,7 @@ function Database_logQuery($query, $params) {
     // Write the log message to the file
     file_put_contents($logfile, $logMessage, FILE_APPEND);
 }
+
+$naver_client_id = "ctlDiVwoaQ1H3KrkPvSZ";
+$naver_client_secret = "K59VBs2cOI";
 ?>
