@@ -6,8 +6,8 @@ $pattern     = $_GET['pattern'] ?? '';
 $gap_min     = $_GET['gap_min'] ?? '';
 $gap_max     = $_GET['gap_max'] ?? '';
 $dir0900     = $_GET['dir0900'] ?? '';
-$match_0900  = isset($_GET['match_0900']) ? 1 : null;
-$match_0901  = isset($_GET['match_0901']) ? 1 : null;
+$match_0900 = $_GET['match_0900'] ?? '';
+$match_0901 = $_GET['match_0901'] ?? '';
 $entry_dir   = $_GET['entry_dir'] ?? '';
 
 $where = [];
@@ -15,8 +15,8 @@ if ($pattern)      $where[] = "pattern_0845_0859 = '" . $mysqli->real_escape_str
 if ($gap_min !== '') $where[] = "gap_percent >= " . floatval($gap_min);
 if ($gap_max !== '') $where[] = "gap_percent <= " . floatval($gap_max);
 if ($dir0900)      $where[] = "candle_0900_dir = '" . $mysqli->real_escape_string($dir0900) . "'";
-if ($match_0900 !== null) $where[] = "match_last5_and_0900 = 1";
-if ($match_0901 !== null) $where[] = "match_last5_and_0901 = 1";
+if ($match_0900 !== '') $where[] = "match_last5_and_0900 = " . intval($match_0900);
+if ($match_0901 !== '') $where[] = "match_last5_and_0901 = " . intval($match_0901);
 if ($entry_dir)    $where[] = "entry_direction_a = '" . $mysqli->real_escape_string($entry_dir) . "'";
 
 $whereSql = count($where) ? "WHERE " . implode(" AND ", $where) : "";
@@ -35,7 +35,7 @@ while ($row = $res->fetch_assoc()) {
 
 <style>
 body { font-family: 'Roboto', sans-serif; margin: 0; display: flex; height: 100vh; }
-.left-panel { width: 40%; padding: 16px; overflow-y: auto; border-right: 1px solid #ccc; }
+.left-panel { width: 35%; padding: 16px; overflow-y: auto; border-right: 1px solid #ccc; }
 .right-panel { flex: 1; padding: 0; }
 table { border-collapse: collapse; width: 100%; margin-top: 8px; font-size: 14px; }
 th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: center; }
@@ -64,16 +64,21 @@ iframe { width: 100%; height: 100%; border: none; }
       <input type="number" name="gap_max" value="<?= htmlspecialchars($gap_max) ?>" step="0.1" style="width:60px;">
     </label>
 
-    <label>09:00:
-      <select name="dir0900">
+    <!-- 방향 일치/불일치 선택 -->
+    <label>↔ 09:00
+        <select name="match_0900">
         <option value="">--전체--</option>
-        <option value="U" <?= $dir0900=='U' ? 'selected':'' ?>>양봉</option>
-        <option value="D" <?= $dir0900=='D' ? 'selected':'' ?>>음봉</option>
-      </select>
+        <option value="1" <?= $match_0900==='1' ? 'selected':'' ?>>일치</option>
+        <option value="0" <?= $match_0900==='0' ? 'selected':'' ?>>불일치</option>
+        </select>
     </label>
-
-    <label><input type="checkbox" name="match_0900" <?= $match_0900!==null ? 'checked':'' ?>> ↔ 09:00</label>
-    <label><input type="checkbox" name="match_0901" <?= $match_0901!==null ? 'checked':'' ?>> ↔ 09:01</label>
+    <label>↔ 09:01
+        <select name="match_0901">
+        <option value="">--전체--</option>
+        <option value="1" <?= $match_0901==='1' ? 'selected':'' ?>>일치</option>
+        <option value="0" <?= $match_0901==='0' ? 'selected':'' ?>>불일치</option>
+        </select>
+    </label>
 
     <label>방향:
       <select name="entry_dir">
@@ -111,8 +116,8 @@ iframe { width: 100%; height: 100%; border: none; }
         <td><?= $row['tick_range_0845_0859'] ?? '-' ?></td>
         <td><?= $row['diff_0900_pt'] ?? '-' ?></td>
         <td><?= $row['tick_range_0900'] ?? '-' ?></td>
-        <td><?= $row['match_last5_and_0900'] ? '✔' : '' ?></td>
-        <td><?= $row['match_last5_and_0901'] ? '✔' : '' ?></td>
+        <td><?= $row['match_last5_and_0900'] === '1' ? '✔' : '' ?></td>
+        <td><?= $row['match_last5_and_0901'] === '1' ? '✔' : '' ?></td>
         <td><?= $row['entry_direction_a'] ?></td>
         <td><a href="#" onclick="showChart('<?= $row['date'] ?>'); return false;">📈</a></td>
         </tr>

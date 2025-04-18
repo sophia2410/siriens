@@ -35,7 +35,7 @@ $lookbackMin = 120 * $unit;
 
 $startDT = date('Y-m-d 00:00:00', strtotime($date));
 $startDT = date('Y-m-d H:i:s', strtotime($startDT) - $lookbackMin);
-$endDT   = date('Y-m-d 23:59:59', strtotime($date));
+$endDT   = date('Y-m-d 12:59:59', strtotime($date));
 
 $sql  = "SELECT datetime, open, high, low, close
          FROM futures_1min
