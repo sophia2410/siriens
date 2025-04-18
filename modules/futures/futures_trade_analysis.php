@@ -4,7 +4,7 @@
 //  선물 자동매매 분석 메인 화면 – 전략별 진입/청산 리스트 + 틱 상세 iframe
 // -----------------------------------------------------------------------------
 $pageTitle = "선물 자동매매 분석";
-require $_SERVER['DOCUMENT_ROOT'] . "/modules/common/common_header.php";
+require $_SERVER['DOCUMENT_ROOT'] . "/modules/common/futures_header.php";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. 파라미터 (조회 날짜 · 코드)

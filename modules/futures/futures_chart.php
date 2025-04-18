@@ -6,26 +6,48 @@ if (!$date) exit('날짜 없음');
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title><?= $date ?> 차트</title>
+  <title><?= $date ?> 전략 차트</title>
   <script src="https://code.highcharts.com/stock/highstock.js"></script>
   <script src="https://code.highcharts.com/stock/indicators/indicators.js"></script>
   <script src="https://code.highcharts.com/stock/indicators/ema.js"></script>
   <script src="https://code.highcharts.com/stock/indicators/sma.js"></script>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <style>
-    body { margin: 0; font-family: 'Roboto', sans-serif; }
-    #chart-area { display: flex; flex-direction: column; height: 100vh; }
-    #chart-area > div { flex: 1; min-height: 200px; }
-    #metric-content { padding: 10px; font-size: 14px; background: #f9f9f9; border-top: 1px solid #ddd; }
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Roboto', sans-serif;
+    }
+    #layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 300px 1fr auto;
+      height: 100vh;
+      gap: 5px;
+      padding: 5px;
+      box-sizing: border-box;
+    }
+    #chart-1m { grid-column: 1 / span 2; height: 100%; }
+    #metric-content {
+      grid-column: 1 / span 2;
+      font-size: 14px;
+      padding: 10px;
+      background: #f9f9f9;
+      border-top: 1px solid #ccc;
+    }
+    .chart-box {
+      border: 1px solid #ccc;
+      min-height: 100px;
+    }
   </style>
 </head>
 <body>
-  <div id="chart-area">
-    <div id="chart-5m"></div>
-    <div id="chart-day"></div>
-    <div id="chart-1m"></div>
+  <div id="layout">
+    <div id="chart-5m" class="chart-box"></div>
+    <div id="chart-day" class="chart-box"></div>
+    <div id="chart-1m" class="chart-box"></div>
+    <div id="metric-content">일자를 선택하면 전략 수치가 이곳에 표시됩니다.</div>
   </div>
-  <div id="metric-content"></div>
 
 <script>
 const dateStr = "<?= $date ?>";
@@ -42,7 +64,7 @@ function renderChart(divId, dataArr) {
     row[0], parseFloat(row[1]), parseFloat(row[2]), parseFloat(row[3]), parseFloat(row[4])
   ]);
   el.chart = Highcharts.stockChart(el, {
-    chart: { height: (divId === 'chart-1m' ? 350 : 250) },
+    chart: { height: el.clientHeight },
     rangeSelector: { enabled: false },
     navigator: { enabled: false },
     title: { text: '' },
@@ -98,7 +120,7 @@ async function loadCharts(dateStr) {
   const f5 = d5.filter(row => {
     const t = new Date(row[0]);
     const h = t.getHours(), m = t.getMinutes();
-    return (h === 8 && m >= 45 && m <= 59);
+    return h === 8 && m >= 45;
   });
   const f1 = d1m.filter(row => {
     const t = new Date(row[0]);
