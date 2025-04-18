@@ -17,7 +17,8 @@ db = pymysql.connect(
 )
 
 # CSV 파일 경로
-csv_path = "E:/Project/202410/data/_futures/futures_1min_20240102_20250414.csv"
+# csv_path = "E:/Project/202410/data/_futures/futures_1min_20240102_20250414.csv"
+csv_path = "E:/Project/202410/data/_futures/futures_1min_202311_and_20250417.csv"
 
 # 데이터 불러오기
 df = pd.read_csv(csv_path, encoding='cp949')
