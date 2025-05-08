@@ -54,9 +54,11 @@ def candle_dir(open_, close_):
     return 'U' if close_ > open_ else 'D'
 
 def update_analysis(db, date):
-    SPECIAL_LATE_OPEN_DATES = {"2023-11-16", "2024-01-02", "2024-11-14"}
-    start_time = "09:45:00" if date in SPECIAL_LATE_OPEN_DATES else "08:45:00"
-    base_time = datetime.strptime(f"{date} {start_time}", "%Y-%m-%d %H:%M:%S")
+    with db.cursor() as cursor:
+        cursor.execute("SELECT futures_start_time FROM calendar WHERE date = %s", (date,))
+        result = cursor.fetchone()
+        start_time = result['futures_start_time'] if result and result['futures_start_time'] else '08:45:00'
+        base_time = datetime.strptime(f"{date} {start_time}", "%Y-%m-%d %H:%M:%S")
 
     # 분석에 필요한 시점 계산
     t1_start = base_time
@@ -88,9 +90,13 @@ def update_analysis(db, date):
 
     pattern = [candle_dir(c['open'], c['close']) for c in [c1, c2, c3]]
     pattern_str = ''.join(['양' if d == 'U' else '음' for d in pattern])
-    diff_0845_0859_pt = round(c3['close'] - c1['open'], 2)
     tick_range_0845_0859 = round(max(c1['high'], c2['high'], c3['high']) - min(c1['low'], c2['low'], c3['low']), 2)
-    vol_0845_0900 = c1['volume'] + c2['volume'] + c3['volume']
+    vol_0845_0859 = c1['volume'] + c2['volume'] + c3['volume']
+
+    # 첫 15분봉 시가, 종가, 차이
+    open_0845_0859 = c1['open']  # 첫 5분봉 시가
+    close_0845_0859 = c3['close']  # 세번째 5분봉 종가
+    diff_0845_0859_pt = round(close_0845_0859 - open_0845_0859, 2)
 
     # 09:00, 09:01 1분봉
     c_0900 = get_exact_candle(df, t0900.strftime("%H:%M:%S"), t0900.strftime("%H:%M:%S"))
@@ -115,35 +121,40 @@ def update_analysis(db, date):
 
     with db.cursor() as cursor:
         cursor.execute("""
-            UPDATE futures_1day SET
-                gap_percent = %s,
-                gap_type = %s,
-                pattern_0845_0859 = %s,
-                diff_0845_0859_pt = %s,
-                tick_range_0845_0859 = %s,
-                vol_0845_0900 = %s,
-                candle_0900_dir = %s,
-                diff_0900_pt = %s,
-                tick_range_0900 = %s,
-                match_last5_and_0900 = %s,
-                match_last5_and_0901 = %s,
-                is_morning_breakout = %s,
-                entry_direction_a = %s
-            WHERE date = %s
+            INSERT INTO futures_analysis
+              ( date, 
+                gap_percent,
+                gap_type,
+                pattern_0845_0859,
+                tick_range_0845_0859,
+                vol_0845_0859,
+                candle_0900_dir,
+                diff_0900_pt,
+                tick_range_0900,
+                match_last5_and_0900,
+                match_last5_and_0901,
+                is_morning_breakout,
+                entry_direction_a,
+                open_0845_0859,
+                close_0845_0859,
+                diff_0845_0859_pt )
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
         """, (
+            date, 
             gap_percent, gap_type, pattern_str,
-            diff_0845_0859_pt, tick_range_0845_0859, vol_0845_0900,
+            tick_range_0845_0859, vol_0845_0859,
             candle_0900_dir, diff_0900_pt, tick_range_0900,
             match_last5_and_0900, match_last5_and_0901,
-            breakout, entry_direction, date
+            breakout, entry_direction, 
+            open_0845_0859, close_0845_0859, diff_0845_0859_pt
         ))
         db.commit()
     return f"{date} 분석 완료"
 
 def run_batch():
     db = pymysql.connect(**load_config())
-    start = date(2024, 1, 2)
-    end = date(2025, 4, 17)
+    start = date(2023, 10, 1)
+    end = date(2025, 4, 30)
     days = pd.bdate_range(start=start, end=end).strftime("%Y-%m-%d").tolist()
     for d in days:
         try:

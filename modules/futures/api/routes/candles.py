@@ -1,9 +1,10 @@
 # routes/candles.py
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, Response
 import pandas as pd
 from datetime import timedelta
 from db.database import get_db_connection
 from utils.indicators import add_moving_averages
+import json
 
 candles_bp = Blueprint('candles', __name__)
 
@@ -29,15 +30,27 @@ def get_candles():
     max_window = max(sma_periods)
 
     lookback_days = {
-        '1m': 3,
-        '5m': 5,
-        '15m': 10,
-        '60m': 30,
+        '1m': 10,
+        '5m': 10,
+        '15m': 20,
+        '60m': 50,
         '1day': 300
     }.get(tf, 5)
 
-    if tf == '1day':
-        display_start = display_end - pd.Timedelta(days=30)
+    if tf == '1day':    # 거래일 기준 display용 최근 40개
+        cur.execute("""
+            SELECT date 
+            FROM calendar 
+            WHERE date <= %s 
+            ORDER BY date DESC 
+            LIMIT 28
+        """, (display_end,))
+        display_dates = cur.fetchall()
+
+        if len(display_dates) < 28:
+            return jsonify([])
+
+        display_start = display_dates[-1][0]
         query_start = display_end - pd.Timedelta(days=lookback_days)
 
         query = """
@@ -103,7 +116,9 @@ def get_candles():
             }
             rule = rule_map.get(tf, '5T')
 
-            df = df.resample(rule).agg({
+            first_time = df.index[0]
+            offset = pd.Timedelta(minutes=first_time.minute)
+            df = df.resample(rule, offset=offset).agg({
                 'open': 'first',
                 'high': 'max',
                 'low': 'min',
@@ -114,9 +129,11 @@ def get_candles():
     # 이평선 계산
     df = add_moving_averages(df, windows=sma_periods)
 
+    # datetime -> timestamp
+
     # ✅ 결과 제한
     if tf == '1day':
-        df = df.last('30D')  # 최근 30일만
+        df = df.last('40D')  # 최근 40일만
     else:
         df = df.loc[(df.index >= display_start) & (df.index < display_end)]
 
@@ -132,6 +149,11 @@ def get_candles():
         df[f'sma_{w}'] = df[f'sma_{w}'].round(2)
 
     # JSON 응답
-    df.index = df.index.strftime('%Y-%m-%dT%H:%M:%S')
+    df.index = df.index.strftime('%Y-%m-%dT%H:%M:%SZ')
     df = df.where(pd.notnull(df), None)
-    return jsonify(df.reset_index().to_dict(orient='records'))
+
+    
+    df = df.astype(object)  # numpy 타입 강제 제거
+
+    json_str = json.dumps(df.reset_index().to_dict(orient='records'), default=str)
+    return Response(json_str, mimetype='application/json')
