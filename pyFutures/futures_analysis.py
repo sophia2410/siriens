@@ -153,8 +153,8 @@ def update_analysis(db, date):
 
 def run_batch():
     db = pymysql.connect(**load_config())
-    start = date(2023, 10, 1)
-    end = date(2025, 4, 30)
+    start = date(2025, 5, 1)
+    end = date(2025, 5, 11)
     days = pd.bdate_range(start=start, end=end).strftime("%Y-%m-%d").tolist()
     for d in days:
         try:

@@ -33,7 +33,7 @@ while ($row = $res->fetch_assoc()) {
 }
 ?>
 
-<body style="margin-left:180px">
+<body style="margin-left:150px">
 <?php include($_SERVER['DOCUMENT_ROOT'] . "/modules/common/futures_nav_menu.php"); ?>
 
 <style>

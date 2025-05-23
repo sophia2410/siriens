@@ -1,159 +1,200 @@
-# routes/candles.py
-from flask import Blueprint, Response
+from flask import Blueprint, request, Response, jsonify
 import pandas as pd
 from datetime import timedelta
 from db.database import get_db_connection
-from utils.indicators import add_moving_averages
 import json
 
 candles_bp = Blueprint('candles', __name__)
 
+table_map = {
+    '1m': 'futures_1min',
+    '5m': 'futures_5min',
+    '15m': 'futures_15min',
+    '60m': 'futures_60min',
+    '1day': 'futures_1day',
+    '1week': 'futures_1week'
+}
+
+select_base_fields = ['datetime', 'open', 'high', 'low', 'close', 'volume',
+                      'sma_5', 'sma_20', 'sma_120']
+
+
 @candles_bp.route('/api/candles')
 def get_candles():
-    from flask import request, jsonify
-    import pandas as pd
-    from datetime import timedelta
-    from db.database import get_db_connection
-    from utils.indicators import add_moving_averages
-
     date = request.args.get('date')
     tf = request.args.get('tf', '1m')
     sma_list = request.args.get('sma', '5,20,120')
     sma_periods = [int(x) for x in sma_list.split(',') if x.isdigit()]
-    from_time = request.args.get('from_time')  # 예: '08:45:00'
-    to_time = request.args.get('to_time')      # 예: '09:01:00'
+    from_time = request.args.get('from_time')
+    to_time = request.args.get('to_time')
 
+    if tf not in table_map or not date:
+        return jsonify({'error': 'Invalid parameters'})
+
+    display_end = pd.to_datetime(date)
     conn = get_db_connection()
     cur = conn.cursor()
 
-    display_end = pd.to_datetime(date)
-    max_window = max(sma_periods)
-
-    lookback_days = {
-        '1m': 10,
-        '5m': 10,
-        '15m': 20,
-        '60m': 50,
-        '1day': 300
-    }.get(tf, 5)
-
-    if tf == '1day':    # 거래일 기준 display용 최근 40개
-        cur.execute("""
-            SELECT date 
-            FROM calendar 
-            WHERE date <= %s 
-            ORDER BY date DESC 
-            LIMIT 28
-        """, (display_end,))
-        display_dates = cur.fetchall()
-
-        if len(display_dates) < 28:
-            return jsonify([])
-
-        display_start = display_dates[-1][0]
-        query_start = display_end - pd.Timedelta(days=lookback_days)
-
-        query = """
-            SELECT date AS datetime, open, high, low, close, volume
-            FROM futures_1day
-            WHERE date BETWEEN %s AND %s
-            ORDER BY date ASC
-        """
-        cur.execute(query, (query_start, display_end))
-        rows = cur.fetchall()
-
-        if not rows:
-            return jsonify([])
-
-        decoded_rows = [(r[0].decode() if isinstance(r[0], bytes) else r[0], *r[1:]) for r in rows]
-        df = pd.DataFrame(decoded_rows, columns=['datetime', 'open', 'high', 'low', 'close', 'volume'])
-        df['datetime'] = pd.to_datetime(df['datetime'])
-        df.set_index('datetime', inplace=True)
-        df.sort_index(inplace=True)
+    if tf == '1week':
+        rows, columns = get_weekly_data(cur, display_end)
+    elif tf == '1day':
+        rows, columns = get_daily_data(cur, display_end)
     else:
-        display_start = display_end.replace(hour=0, minute=0, second=0)
-        query_start = display_start - pd.Timedelta(days=lookback_days)
-        display_end = display_start + timedelta(days=1)
+        rows, columns = get_intraday_data(cur, tf, display_end, date)
 
-        if tf == '1m':
-            query = """
-                SELECT datetime, open, high, low, close, volume
-                FROM futures_1min
-                WHERE datetime BETWEEN %s AND %s
-                ORDER BY datetime ASC
-            """
-            cur.execute(query, (query_start, display_end))
-            rows = cur.fetchall()
+    if not rows:
+        return jsonify([])
 
-            decoded_rows = [(r[0].decode() if isinstance(r[0], bytes) else r[0], *r[1:]) for r in rows]
-            df = pd.DataFrame(decoded_rows, columns=['datetime', 'open', 'high', 'low', 'close', 'volume'])
-            df['datetime'] = pd.to_datetime(df['datetime'])
-            df.set_index('datetime', inplace=True)
-            df.sort_index(inplace=True)
+    df = prepare_dataframe(rows, columns)
 
-        else:
-            # 1분봉 raw data로 불러온 후 Pandas 집계
-            query = """
-                SELECT datetime, open, high, low, close, volume
-                FROM futures_1min
-                WHERE datetime BETWEEN %s AND %s
-                ORDER BY datetime ASC
-            """
-            cur.execute(query, (query_start, display_end))
-            rows = cur.fetchall()
+    if tf not in ['1week', '1day'] and from_time and to_time:
+        df = df[(df.index.time >= pd.to_datetime(from_time).time()) &
+                (df.index.time <= pd.to_datetime(to_time).time())]
 
-            decoded_rows = [(r[0].decode() if isinstance(r[0], bytes) else r[0], *r[1:]) for r in rows]
-            df = pd.DataFrame(decoded_rows, columns=['datetime', 'open', 'high', 'low', 'close', 'volume'])
-            df['datetime'] = pd.to_datetime(df['datetime'])
-            df.set_index('datetime', inplace=True)
-            df.sort_index(inplace=True)
-
-            # 🕐 시간 단위 매핑
-            rule_map = {
-                '5m': '5T',
-                '15m': '15T',
-                '60m': '60T'
-            }
-            rule = rule_map.get(tf, '5T')
-
-            first_time = df.index[0]
-            offset = pd.Timedelta(minutes=first_time.minute)
-            df = df.resample(rule, offset=offset).agg({
-                'open': 'first',
-                'high': 'max',
-                'low': 'min',
-                'close': 'last',
-                'volume': 'sum'
-            }).dropna()
-
-    # 이평선 계산
-    df = add_moving_averages(df, windows=sma_periods)
-
-    # datetime -> timestamp
-
-    # ✅ 결과 제한
-    if tf == '1day':
-        df = df.last('40D')  # 최근 40일만
-    else:
-        df = df.loc[(df.index >= display_start) & (df.index < display_end)]
-
-    # ✅ 시간 필터 (분봉 only)
-    if tf != '1day' and from_time and to_time:
-        df = df.between_time(from_time, to_time)
-
-    # ✅ date 컬럼 추가
     df['date'] = df.index.date.astype(str)
 
-    # 소수점 정리
+    # ✅ 이평선 처리 (선택된 sma 리스트 기준)
     for w in sma_periods:
-        df[f'sma_{w}'] = df[f'sma_{w}'].round(2)
+        col = f'sma_{w}'
+        if col in df.columns:
+            df[col] = df[col].astype(float).round(2)
 
-    # JSON 응답
+    # ✅ NaN → None (JSON에서 null 로 나가게 함)
+    df = df.where(pd.notnull(df), None)  # 여기가 핵심!
+    df = df.astype(object)
+
+    # ✅ datetime 포맷 (ISO8601)
     df.index = df.index.strftime('%Y-%m-%dT%H:%M:%SZ')
-    df = df.where(pd.notnull(df), None)
+    df = df.where(pd.notnull(df), None).astype(object)
 
-    
-    df = df.astype(object)  # numpy 타입 강제 제거
-
+    # ✅ JSON 직렬화
     json_str = json.dumps(df.reset_index().to_dict(orient='records'), default=str)
     return Response(json_str, mimetype='application/json')
+
+
+# ————————————————————————————————————————————————————————
+# ⬇️ 분기별 로직 함수
+# ————————————————————————————————————————————————————————
+
+def get_weekly_data(cur, display_end):
+    today = display_end
+    monday = today - timedelta(days=today.weekday())
+    last_friday = monday - timedelta(days=3)
+
+    cur.execute("""
+        SELECT date 
+        FROM calendar 
+        WHERE date <= %s 
+        ORDER BY date DESC 
+        LIMIT 180
+    """, (last_friday.date(),))
+    calendar_dates = [row[0] for row in cur.fetchall()]
+    if not calendar_dates:
+        return [], select_base_fields
+
+    display_start = pd.to_datetime(calendar_dates[-1]).date()
+    display_end = last_friday.date()
+
+    query = """
+        SELECT date AS datetime, open, high, low, close, volume,
+               sma_5, sma_20, sma_120
+        FROM futures_1week
+        WHERE date BETWEEN %s AND %s
+        ORDER BY date ASC
+    """
+    cur.execute(query, (display_start, display_end))
+    week_rows = list(cur.fetchall())
+
+    # 이번 주 일봉 집계
+    cur.execute("""
+        SELECT date AS datetime, open, high, low, close, volume,
+               sma_5, sma_20, sma_120
+        FROM futures_1day
+        WHERE date BETWEEN %s AND %s
+        ORDER BY date ASC
+    """, (monday.date(), today.date()))
+    daily_rows = cur.fetchall()
+
+    if daily_rows:
+        daily_df = pd.DataFrame(daily_rows, columns=select_base_fields)
+        daily_df['datetime'] = pd.to_datetime(daily_df['datetime'])
+
+        weekly = {
+            'datetime': monday.date(),
+            'open': daily_df.iloc[0]['open'],
+            'high': daily_df['high'].max(),
+            'low': daily_df['low'].min(),
+            'close': daily_df.iloc[-1]['close'],
+            'volume': daily_df['volume'].sum(),
+            'sma_5': None,
+            'sma_20': None,
+            'sma_120': None
+        }
+        week_rows.append(tuple(weekly.values()))
+
+    return week_rows, select_base_fields
+
+
+def get_daily_data(cur, display_end):
+    cur.execute("""
+        SELECT date 
+        FROM calendar 
+        WHERE date <= %s 
+        ORDER BY date DESC 
+        LIMIT 28
+    """, (display_end,))
+    display_dates = cur.fetchall()
+    if not display_dates:
+        return [], select_base_fields
+
+    display_start = display_dates[-1][0]
+    query = """
+        SELECT date AS datetime, open, high, low, close, volume,
+               sma_5, sma_20, sma_120
+        FROM futures_1day
+        WHERE date BETWEEN %s AND %s
+        ORDER BY date ASC
+    """
+    cur.execute(query, (display_start, display_end))
+    return cur.fetchall(), select_base_fields
+
+
+def get_intraday_data(cur, tf, display_end, date_str):
+    table_name = table_map[tf]
+    include_rsi = tf in ['5m', '15m', '60m']
+    fields = select_base_fields + (['rsi_14'] if include_rsi else [])
+
+    if tf == '60m':
+        cur.execute("""
+            SELECT date FROM calendar 
+            WHERE date < %s 
+            ORDER BY date DESC 
+            LIMIT 1
+        """, (display_end,))
+        prev_date_row = cur.fetchone()
+        if not prev_date_row:
+            return [], fields
+
+        display_start = pd.to_datetime(prev_date_row[0])
+        display_end = pd.to_datetime(date_str) + timedelta(days=1)
+    else:
+        display_start = display_end.replace(hour=0, minute=0, second=0)
+        display_end = display_start + timedelta(days=1)
+
+    query = f"""
+        SELECT {', '.join(fields)}
+        FROM {table_name}
+        WHERE datetime BETWEEN %s AND %s
+        ORDER BY datetime ASC
+    """
+    cur.execute(query, (display_start, display_end))
+    return cur.fetchall(), fields
+
+
+def prepare_dataframe(rows, columns):
+    decoded_rows = [(r[0].decode() if isinstance(r[0], bytes) else r[0], *r[1:]) for r in rows]
+    df = pd.DataFrame(decoded_rows, columns=columns)
+    df['datetime'] = pd.to_datetime(df['datetime'])
+    df.set_index('datetime', inplace=True)
+    df.sort_index(inplace=True)
+    return df

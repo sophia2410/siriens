@@ -17,7 +17,8 @@ conn = pymysql.connect(
 )
 
 # 3. CSV 파일 로드 (포지션 데이터)
-csv_path = "E:/Project/202410/data/_futures/InvestorTrades/krxdata_20231101_20250430.csv"
+# csv_path = "E:/Project/202410/data/_futures/InvestorTrades/krxdata_20231101_20250430.csv"
+csv_path = "E:/Project/202410/data/_futures/InvestorTrades/krxdata_20250502_20250509.csv"
 
 df = pd.read_csv(csv_path, encoding='cp949', usecols=['일자', '기관 합계', '개인', '외국인 합계'])
 df.rename(columns={

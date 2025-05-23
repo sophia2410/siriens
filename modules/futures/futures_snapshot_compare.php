@@ -104,7 +104,9 @@ $rows = $result->fetch_all(MYSQLI_ASSOC);
         .pass { color: green; }
     </style>
 </head>
-<body>
+
+<body style="margin-left:150px">
+<?php include($_SERVER['DOCUMENT_ROOT'] . "/modules/common/futures_nav_menu.php"); ?>
     <h2>📈 <?= htmlspecialchars($minute_type) ?> 이평선 비교 (<?= $start_date ?> ~ <?= $end_date ?>)</h2>
 
     <form method="get" style="margin-bottom: 20px;">

@@ -1,17 +1,9 @@
-from datetime import datetime
-import yfinance as yf
-from pykrx import stock
+import requests
+import pandas as pd
+from datetime import datetime, timedelta
 import pymysql
 import configparser
-
-# index 변수를 한글로 변환하는 함수
-def index_to_korean(index):
-    if index == 'KOSPI':
-        return '코스피'
-    elif index == 'KOSDAQ':
-        return '코스닥'
-    else:
-        return index
+from pykrx import stock
 
 # 설정 파일 읽기
 config = configparser.ConfigParser()
@@ -25,27 +17,13 @@ db = pymysql.connect(
     db=config.get('database', 'db'),
     charset=config.get('database', 'charset')
 )
-
-# 처리 시작
-start_time = datetime.now()
-print(f"처리 시작 시간: {start_time}")
-
-# 커서 생성
 cursor = db.cursor()
 
-# 날짜 설정
-query_date = "SELECT MAX(date) FROM daily_price WHERE date <= (SELECT DATE_ADD(now(), INTERVAL -2 Day))"
-cursor.execute(query_date)
-start_date = cursor.fetchone()[0].strftime('%Y-%m-%d')
+# 한국시간 기준 오늘 날짜
+today = datetime.now()
+today_str = today.strftime('%Y-%m-%d')
 
-query_date = "SELECT DATE_ADD(now(), INTERVAL +1 DAY)"
-cursor.execute(query_date)
-end_date = cursor.fetchone()[0].strftime('%Y-%m-%d')
-
-# start_date = '2024-09-26'
-# end_date = '2024-10-02'
-
-# 지수 코드와 티커
+# 대상 지수 및 티커 매핑
 index_dict = {
     'KOSPI': '^KS11',
     'KOSDAQ': '^KQ11',
@@ -53,47 +31,88 @@ index_dict = {
     'NASDAQ': '^IXIC'
 }
 
-# 오늘 날짜
-today_date = datetime.now().strftime('%Y-%m-%d')
+# 수집 기간 설정 (과거 7일)
+range_days = '12d'
 
-# 각 지수 데이터 처리
-for index, ticker in index_dict.items():
-    data = yf.download(ticker, start=start_date, end=end_date)
+# 거래대금 가져오기 함수
+def get_amount(index_name_eng, date_str):
+    # 영어 지수명을 한글로 매핑
+    korean_map = {
+        'KOSPI': '코스피',
+        'KOSDAQ': '코스닥'
+    }
 
-    # MultiIndex 컬럼을 단순한 인덱스로 변환
-    data.columns = data.columns.droplevel(1)
-    print(f"{index} 변환된 컬럼명:", data.columns.tolist())
+    korean_name = korean_map.get(index_name_eng)
+    if not korean_name:
+        return 0  # 미국 지수 등은 거래대금 없음
 
-    if data.empty:
-        print(f"No data found for {ticker} between {start_date} and {end_date}. Skipping.")
+    try:
+        df = stock.get_index_price_change(date_str, date_str, index_name_eng)
+        if df.empty:
+            return 0
+        return int(df.loc[korean_name, '거래대금'])
+    except Exception as e:
+        print(f"❌ 거래대금 오류 ({index_name_eng} {date_str}): {e}")
+        return 0
+
+# 지수별 데이터 처리
+for index_name, ticker in index_dict.items():
+    print(f"📥 {index_name} 데이터 요청 중...")
+
+    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?interval=1d&range={range_days}"
+    headers = {
+        "User-Agent": "Mozilla/5.0"
+    }
+
+    try:
+        response = requests.get(url, headers=headers)
+        result = response.json()['chart']['result'][0]
+    except Exception as e:
+        print(f"❌ {index_name} 요청 실패: {e}")
         continue
-    data['close_rate'] = data['Close'].pct_change() * 100
+
+    timestamps = result['timestamp']
+    quotes = result['indicators']['quote'][0]
+
+    # 날짜 변환
+    if index_name in ['KOSPI', 'KOSDAQ']:
+        # 한국 지수는 이미 한국시간 기준
+        dates = [datetime.fromtimestamp(ts).strftime('%Y-%m-%d') for ts in timestamps]
+    else:
+        # 미국 지수는 UTC 날짜 기준 (KST 변환하지 않음)
+        dates = [datetime.utcfromtimestamp(ts).strftime('%Y-%m-%d') for ts in timestamps]
+
+    # 데이터프레임 구성
+    data = pd.DataFrame({
+        'date': dates,
+        'open': quotes['open'],
+        'high': quotes['high'],
+        'low': quotes['low'],
+        'close': quotes['close'],
+        'volume': quotes['volume']
+    })
+    data['close_rate'] = data['close'].pct_change() * 100
     data['close_rate'] = data['close_rate'].fillna(0)
 
-    # 기존 데이터 확인
-    cursor.execute(f"SELECT date FROM market_index WHERE market_fg = '{index}'")
+    # 기존 날짜 확인
+    cursor.execute("SELECT date FROM market_index WHERE market_fg = %s", (index_name,))
     existing_dates = {row[0].strftime('%Y-%m-%d') for row in cursor.fetchall()}
 
+    # 저장
     for row in data.itertuples():
-        date = row.Index.strftime('%Y-%m-%d')
+        date_str = row.date
 
-        # 데이터 존재 여부 확인
-        if date in existing_dates and date != today_date:
-            print(f"이미 존재하는 데이터: {index}, {date} (건너뜀)")
+        if date_str in existing_dates and date_str != today_str:
+            print(f"⏩ 이미 존재: {index_name} {date_str}")
             continue
 
-        # 거래대금 가져오기
-        trading_value = stock.get_index_price_change(date, date, index)
-        if trading_value.empty:
-            amount = 0
-        else:
-            index_korean = index_to_korean(index)
-            amount = trading_value["거래대금"].get(index_korean, 0)
+        amount = get_amount(index_name, date_str) if index_name in ['KOSPI', 'KOSDAQ'] else 0
 
-        # SQL 실행
         sql = f"""
-            INSERT INTO market_index (market_fg, date, open, high, low, close, volume, close_rate, amount)
-            VALUES ('{index}', '{date}', {row.Open}, {row.High}, {row.Low}, {row.Close}, {row.Volume}, {row.close_rate}, {amount})
+            INSERT INTO market_index 
+                (market_fg, date, open, high, low, close, volume, close_rate, amount)
+            VALUES 
+                (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             ON DUPLICATE KEY UPDATE
                 open = VALUES(open),
                 high = VALUES(high),
@@ -103,15 +122,23 @@ for index, ticker in index_dict.items():
                 close_rate = VALUES(close_rate),
                 amount = VALUES(amount)
         """
-        # print(sql)
-        cursor.execute(sql)
 
-    # DB 커밋
+        cursor.execute(sql, (
+            index_name,
+            date_str,
+            float(row.open) if row.open else None,
+            float(row.high) if row.high else None,
+            float(row.low) if row.low else None,
+            float(row.close) if row.close else None,
+            int(row.volume) if row.volume else 0,
+            float(row.close_rate),
+            int(amount)
+        ))
+
     db.commit()
+    print(f"✅ {index_name} 저장 완료")
 
-# 처리 종료
-end_time = datetime.now()
-print(f"처리 종료 시간: {end_time}")
-
-# DB 연결 닫기
+# 종료 처리
+cursor.close()
 db.close()
+print("✅ 모든 지수 처리 완료")

@@ -1,8 +1,9 @@
 import pandas as pd
 import pymysql
 import configparser
-from tqdm import tqdm
 import os
+from tqdm import tqdm
+from datetime import datetime
 
 # 설정 파일 읽기
 config = configparser.ConfigParser()
@@ -17,23 +18,29 @@ db = pymysql.connect(
     charset=config.get('database', 'charset')
 )
 
-# 분봉 종류 및 파일명 매핑
-# base_path = "E:/Project/202410/data/_futures"
-base_path = "C:/KiwoomHero4/temp/20250507"
+# 폴더 경로에서 일자 추출
+base_path = "C:/KiwoomHero4/temp/20250522"
+target_date = os.path.basename(base_path)
+target_date_fmt = datetime.strptime(target_date, "%Y%m%d").date()
 
-# minute_types = ['1min', '5min', '10min', '15min', '60min']
 minute_types = ['5min', '10min', '15min', '60min']
 
 with db.cursor() as cursor:
     for m in minute_types:
         table_name = f"futures_{m}"
-        file_path = os.path.join(base_path, f"chart_{m}.csv")
+        file_path = os.path.join(base_path, f"chart_{m}.xls")
+        if not os.path.exists(file_path):
+            print(f"❌ {file_path} 파일 없음")
+            continue
+
         print(f"📥 {table_name} 업로드 시작: {file_path}")
 
-        df = pd.read_csv(file_path, encoding='cp949')
-        print(f"📊 CSV 컬럼 확인: {df.columns.tolist()}")  # 실제 컬럼 확인
+        # xls 읽기
+        df = pd.read_excel(file_path, engine='xlrd')
 
-        # 먼저 rename 처리
+        df.columns = ['날짜', '시간', '시가', '고가', '저가', '종가', '종가 단순 5', '20', '120', '거래량', 'RSI 14']
+
+        # 컬럼명 정리
         df.rename(columns={
             '시가': 'open',
             '고가': 'high',
@@ -42,21 +49,26 @@ with db.cursor() as cursor:
             '거래량': 'volume',
             '종가 단순 5': 'sma_5',
             '20': 'sma_20',
-            '120': 'sma_120'
+            '120': 'sma_120',
+            'RSI 14': 'rsi_14'
         }, inplace=True)
 
-        # datetime 처리
-        df['datetime'] = pd.to_datetime(df['날짜'] + ' ' + df['시간'])
+        # 날짜+시간 합쳐서 datetime 생성
+        df['datetime'] = pd.to_datetime(df['날짜'].astype(str) + ' ' + df['시간'].astype(str))
         df['date'] = df['datetime'].dt.date
         df['time'] = df['datetime'].dt.time
 
-        # 이제 필요한 컬럼만 선택 (컬럼명 통일 후에!)
-        df = df[['date', 'time', 'datetime', 'open', 'high', 'low', 'close', 'sma_5', 'sma_20', 'sma_120', 'volume']]
+        # 해당 일자만 필터링
+        df = df[df['date'] == target_date_fmt]
 
+        # 필요한 컬럼만 정리
+        df = df[['date', 'time', 'datetime', 'open', 'high', 'low', 'close', 'volume', 'sma_5', 'sma_20', 'sma_120','rsi_14']]
+
+        # DB 업로드
         for _, row in tqdm(df.iterrows(), total=len(df)):
             sql = f"""
-            INSERT IGNORE INTO {table_name} (date, time, datetime, open, high, low, close, volume, sma_5, sma_20, sma_120)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT IGNORE INTO {table_name} (date, time, datetime, open, high, low, close, volume, sma_5, sma_20, sma_120, rsi_14)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """
             cursor.execute(sql, (
                 row['date'], row['time'], row['datetime'],
@@ -67,7 +79,8 @@ with db.cursor() as cursor:
                 int(row['volume']) if pd.notna(row['volume']) else 0,
                 float(row['sma_5']) if pd.notna(row['sma_5']) else None,
                 float(row['sma_20']) if pd.notna(row['sma_20']) else None,
-                float(row['sma_120']) if pd.notna(row['sma_120']) else None
+                float(row['sma_120']) if pd.notna(row['sma_120']) else None,
+                float(row['rsi_14']) if pd.notna(row['rsi_14']) else None
             ))
         db.commit()
         print(f"✅ {table_name} 등록 완료")

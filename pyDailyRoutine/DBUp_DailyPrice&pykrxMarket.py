@@ -111,17 +111,62 @@ class DBUpdater:
         # 거래대금 반영 및 기타 쿼리 실행
         try:
             with self.conn.cursor() as curs:
-                sql1 = f"UPDATE daily_price A INNER JOIN daily_pykrx B ON B.code = A.code AND B.date = A.date SET A.amount = B.amount WHERE A.date BETWEEN '{from_date}' AND '{to_date}'"
+                sql1 = f"""
+                    UPDATE daily_price A
+                    INNER JOIN daily_pykrx B ON B.code = A.code AND B.date = A.date
+                    SET A.amount = B.amount
+                    WHERE A.date BETWEEN '{from_date}' AND '{to_date}'
+                """
                 logging.debug(f'{sql1}')
                 curs.execute(sql1)
-                sql2 = f"UPDATE calendar SET proc_yn = 'Y' WHERE date BETWEEN '{from_date}' AND '{to_date}'"
+
+                sql2 = f"""
+                    UPDATE calendar
+                    SET proc_yn = 'Y'
+                    WHERE date BETWEEN '{from_date}' AND '{to_date}'
+                """
                 logging.debug(f'{sql2}')
                 curs.execute(sql2)
+
+                # 날짜별로 daily_amount_rank 업데이트
+                sql_dates = f"""
+                    SELECT DISTINCT date
+                    FROM daily_price
+                    WHERE date BETWEEN '{from_date}' AND '{to_date}'
+                """
+                curs.execute(sql_dates)
+                all_dates = curs.fetchall()
+                for (trade_date,) in all_dates:
+                    delete_sql = f"DELETE FROM daily_amount_rank WHERE date = '{trade_date}'"
+                    curs.execute(delete_sql)
+
+                    insert_sql = f"""
+                        INSERT INTO daily_amount_rank (date, code, rank, amount)
+                        SELECT
+                            A.date,
+                            A.code,
+                            @r := @r + 1 AS rank,
+                            A.amount
+                        FROM (
+                            SELECT date, code, amount
+                            FROM daily_price
+                            WHERE date = '{trade_date}'
+                            AND amount IS NOT NULL
+                            AND amount > 0
+                            ORDER BY amount DESC
+                            LIMIT 100
+                        ) A, (SELECT @r := 0) r
+                    """
+                    logging.debug(f'Insert rank for {trade_date}')
+                    curs.execute(insert_sql)
+
                 self.conn.commit()
-                logging.info("거래대금 반영 및 proc_yn 업데이트 성공")
+                logging.info("거래대금 반영, proc_yn 및 daily_amount_rank 업데이트 성공")
+
         except Exception as e:
-            logging.error(f"거래대금 반영 실패: {str(e)}")
+            logging.error(f\"거래대금 또는 랭킹 반영 실패: {str(e)}\")
             logging.error(traceback.format_exc())
+
 
     # naverPage --------------------------------------------------------------------------------------------------------------------------------------------------
     def read_krx_code(self):

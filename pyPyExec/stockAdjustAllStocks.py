@@ -1,12 +1,15 @@
 # 수정주가 반영 (기간 이벤트 발생 여부 체크)
 
-import yfinance as yf
-import pymysql
-import configparser
+from datetime import datetime, timedelta
 from pytz import timezone
 import pandas as pd
-from datetime import datetime, timedelta
+import pymysql
+import configparser
+import yfinance as yf
+from curl_cffi import requests
 
+# 0. curl_cffi 기반 session 생성
+session = requests.Session(impersonate="chrome")
 # 1. 종목의 티커를 생성하는 함수 (코스피: .KS, 코스닥: .KQ)
 def create_ticker(code, market_fg):
     code = code.decode('utf-8')  # 바이트 스트링을 문자열로 변환
@@ -20,7 +23,7 @@ def create_ticker(code, market_fg):
 
 # 2. 수정주가 이벤트(배당, 주식 분할)를 확인하는 함수
 def check_adjustment_events(db_conn, ticker, code):
-    stock = yf.Ticker(ticker)
+    stock = yf.Ticker(ticker, session=session)  # ✅ session 적용
     code_str = code.decode('utf-8')
 
         # stock.info  # 종목에 대한 기본 정보 (딕셔너리 형태)
@@ -88,7 +91,7 @@ def get_min_max_date(db_conn, code):
 
 # 4. 주가 데이터를 Yahoo Finance에서 가져오는 함수
 def fetch_adjusted_data(ticker, start_date, end_date):
-    df = yf.download(ticker, start=start_date, end=end_date)
+    df = yf.Ticker(ticker, session=session).history(start=start_date, end=end_date)
     return df[['Adj Close', 'Open', 'High', 'Low', 'Close', 'Volume']]
 
 # 5. 수정주가 데이터를 MySQL 테이블에 업데이트하는 함수

@@ -2,32 +2,34 @@
 $pageTitle = "일별 거래대금 상위 20종목";
 require($_SERVER['DOCUMENT_ROOT'] . "/modules/common/common_header.php");
 
-// 날짜 파라미터 (기본값: 이번 달)
 $searchMonth = isset($_GET['search_month']) ? $_GET['search_month'] : date('Y-m');
 list($year, $month) = explode('-', $searchMonth);
 $startDate = "$year-$month-01";
 $endDate = date("Y-m-t", strtotime($startDate));
 
-// 억 단위 표시 함수
+// 이전/다음 월 계산
+$prevMonth = date('Y-m', strtotime('-1 month', strtotime($startDate)));
+$nextMonth = date('Y-m', strtotime('+1 month', strtotime($startDate)));
+
 function formatAmountToEok($amount) {
     return number_format($amount / 1.0e8, 0) . '억';
 }
 
-// 색상 바
 function getAmountBarColor($amount) {
-    if ($amount >= 10.0e12) return 'background: linear-gradient(to right, #ff3333, #ff9999);';
-    elseif ($amount >= 8.0e12) return 'background: linear-gradient(to right, #ff9900, #ffcc66);';
-    elseif ($amount >= 6.0e12) return 'background: linear-gradient(to right, #0099ff, #66ccff);';
-    else return 'background: linear-gradient(to right, #555555, #aaaaaa);';
+    if ($amount >= 10.0e12) return '#e74c3c';
+    elseif ($amount >= 8.0e12) return '#f39c12';
+    elseif ($amount >= 6.0e12) return '#3498db';
+    else return '#95a5a6';
 }
 
-// 데이터 조회
 $sql = "
-    SELECT dp.date, dp.code, s.name, dp.close, dp.close_rate, dp.amount
-    FROM daily_price dp
-    LEFT JOIN stock s ON dp.code = s.code AND s.last_yn = 'Y'
-    WHERE dp.date BETWEEN ? AND ?
-    ORDER BY dp.date ASC, dp.amount DESC
+    SELECT dar.date, dar.code, s.name, dar.amount, dp.close, dp.close_rate
+    FROM daily_amount_rank dar
+    LEFT JOIN stock s ON dar.code = s.code AND s.last_yn = 'Y'
+    LEFT JOIN daily_price dp ON dp.date = dar.date AND dp.code = dar.code
+    WHERE dar.date BETWEEN ? AND ?
+    AND dar.rank <= 20
+    ORDER BY dar.date ASC, dar.rank ASC
 ";
 $stmt = $mysqli->prepare($sql);
 $stmt->bind_param("ss", $startDate, $endDate);
@@ -35,14 +37,25 @@ $stmt->execute();
 $result = $stmt->get_result();
 
 $dailyTopStocks = [];
+$stockCountMap = [];
+$maxAmount = 0;
 while ($row = $result->fetch_assoc()) {
     $date = $row['date'];
     if (!isset($dailyTopStocks[$date])) $dailyTopStocks[$date] = [];
-    if (count($dailyTopStocks[$date]) < 20) {
-        $dailyTopStocks[$date][] = $row;
+    $dailyTopStocks[$date][] = $row;
+
+    $code = $row['code'];
+    $name = $row['name'] ?: $code;
+    if (!isset($stockCountMap[$code])) {
+        $stockCountMap[$code] = ['name' => $name, 'count' => 1];
+    } else {
+        $stockCountMap[$code]['count']++;
+    }
+
+    if ($row['amount'] > $maxAmount) {
+        $maxAmount = $row['amount'];
     }
 }
-
 ?>
 <!DOCTYPE html>
 <html>
@@ -54,22 +67,34 @@ while ($row = $result->fetch_assoc()) {
         body, html {
             margin: 0;
             padding: 0;
-            overflow-x: hidden;
             font-family: Arial, sans-serif;
             background-color: #f9f9f9;
-            height: 100vh;
-            color: #858796;
+            color: #333;
         }
-        #container {
+        .content-column {
             display: flex;
-            height: 100vh;
-            margin-left: 100px !important;
             flex-direction: column;
-            width: calc(100% - 100px);
+            width: 100%;
             padding: 20px;
-            box-sizing: border-box;
         }
         .top-bar form { display: inline-block; margin-right: 10px; }
+        .summary-box {
+            margin: 15px 0;
+            padding: 10px;
+            background: #ffffff;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .summary-box span {
+            margin: 0;
+            padding: 3px 8px;
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
         .date-section { margin-bottom: 30px; }
         .grid-container {
             display: grid;
@@ -86,51 +111,75 @@ while ($row = $result->fetch_assoc()) {
         .stock-code { color: #666; font-size: 0.9em; }
         .stock-info { margin: 5px 0; font-size: 14px; }
         .bar-container {
-            margin-top: 10px;
-            height: 14px;
-            border-radius: 7px;
+            height: 6px;
             background: #eee;
-            overflow: hidden;
+            border-radius: 3px;
+            margin-top: 5px;
         }
         .bar {
             height: 100%;
-            border-radius: 7px;
+            border-radius: 3px;
         }
     </style>
 </head>
 <body>
-    <div id="container">
+<div id="container">
+    <div class="content-column">
         <div class="top-bar">
             <form method="GET">
                 <input type="month" name="search_month" value="<?= htmlspecialchars($searchMonth) ?>">
                 <button type="submit">조회</button>
             </form>
+            <form method="GET" style="display:inline-block;">
+                <input type="hidden" name="search_month" value="<?= $prevMonth ?>">
+                <button type="submit">&lt; 이전달</button>
+            </form>
+            <form method="GET" style="display:inline-block;">
+                <input type="hidden" name="search_month" value="<?= $nextMonth ?>">
+                <button type="submit">다음달 &gt;</button>
+            </form>
+        </div>
+
+        <div class="summary-box">
+            <strong style="width: 100%; margin-bottom: 5px;">종목별 등장 횟수 (10회 이상):</strong>
+            <?php
+            uasort($stockCountMap, function($a, $b) {
+                return $b['count'] - $a['count'];
+            });
+            foreach ($stockCountMap as $code => $info):
+                if ($info['count'] >= 10): ?>
+                <span><?= htmlspecialchars($info['name']) ?> (<?= $code ?>): <?= $info['count'] ?>회</span>
+            <?php endif; endforeach; ?>
         </div>
 
         <?php foreach ($dailyTopStocks as $date => $stocks): ?>
-        <div class="date-section">
-            <h2><?= $date ?></h2>
-            <div class="grid-container">
-                <?php foreach ($stocks as $idx => $stock): 
-                    $rank = $idx + 1;
-                    $rate = floatval($stock['close_rate']);
-                    $rateColor = $rate > 0 ? 'red' : ($rate < 0 ? 'blue' : '#333');
-                    $barColor = getAmountBarColor($stock['amount']);
-                    $barWidth = min(100, ($stock['amount'] / 15.0e12) * 100);
-                ?>
-                <div class="stock-card">
-                    <div class="stock-title">
-                        <?= $rank ?>위. <?= htmlspecialchars($stock['name'] ?: $stock['code']) ?>
-                        <div class="stock-code">(<?= $stock['code'] ?>)</div>
-                    </div>
-                    <div class="stock-info">종가: <?= number_format($stock['close']) ?>원</div>
-                    <div class="stock-info" style="color: <?= $rateColor ?>;">등락률: <?= $stock['close_rate'] ?>%</div>
-                    <div class="stock-info">거래대금: <?= formatAmountToEok($stock['amount']) ?></div>
+            <div class="date-section">
+                <h2><?= $date ?></h2>
+                <div class="grid-container">
+                    <?php foreach ($stocks as $idx => $stock):
+                        $rank = $idx + 1;
+                        $rate = floatval($stock['close_rate']);
+                        $rateColor = $rate > 0 ? 'red' : ($rate < 0 ? 'blue' : '#333');
+                        $barWidth = $maxAmount > 0 ? ($stock['amount'] / $maxAmount) * 100 : 0;
+                        $barColor = getAmountBarColor($stock['amount']);
+                    ?>
+                        <div class="stock-card">
+                            <div class="stock-title">
+                                <?= $rank ?>위. <?= htmlspecialchars($stock['name'] ?: $stock['code']) ?>
+                                <div class="stock-code">(<?= $stock['code'] ?>)</div>
+                            </div>
+                            <div class="stock-info">종가: <?= number_format($stock['close']) ?>원</div>
+                            <div class="stock-info" style="color: <?= $rateColor ?>;">등락률: <?= $stock['close_rate'] ?>%</div>
+                            <div class="stock-info">거래대금: <?= formatAmountToEok($stock['amount']) ?></div>
+                            <div class="bar-container">
+                                <div class="bar" style="width: <?= $barWidth ?>%; background: <?= $barColor ?>;"></div>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
                 </div>
-                <?php endforeach; ?>
             </div>
-        </div>
         <?php endforeach; ?>
     </div>
+</div>
 </body>
 </html>
