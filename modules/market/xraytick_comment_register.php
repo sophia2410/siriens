@@ -55,14 +55,6 @@ while ($row = $dataResult->fetch_assoc()) {
     <meta charset="UTF-8">
     <title>XrayTick Comment Register</title>
     <style>
-        #container {
-            display: flex;
-            flex-direction: column; /* 상하 배치로 변경 */
-            height: 100vh;
-            width: 100%; /* 전체 너비를 차지하도록 설정 */
-            overflow: hidden;
-        }
-        
         /* 스타일 */
         .search-bar {
             display: flex;
@@ -184,7 +176,8 @@ while ($row = $dataResult->fetch_assoc()) {
     </script>
 </head>
 <body>
-<div id="container">
+<?php include($_SERVER['DOCUMENT_ROOT'] . "/modules/common/common_nav_menu.php"); ?>
+<div id="content">
     <h2>XrayTick Comment Register</h2>
 
     <form method="GET" action="xraytick_comment_register.php" class="search-bar">

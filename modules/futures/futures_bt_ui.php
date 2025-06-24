@@ -32,6 +32,19 @@ $date_result = $date_stmt->get_result();
 $defaultDate = $date_result->fetch_assoc()['max_date'] ?? date('Y-m-d');
 $date_stmt->close();
 
+// 세트 메모내역 보기
+$memo_stmt = $mysqli->query("
+    SELECT set_id, GROUP_CONCAT(DISTINCT memo ORDER BY id SEPARATOR ' · ') AS memo_summary
+    FROM futures_bt_logs
+    WHERE memo IS NOT NULL AND memo != ''
+    GROUP BY set_id
+");
+
+$memo_map = [];
+while ($row = $memo_stmt->fetch_assoc()) {
+    $memo_map[$row['set_id']] = $row['memo_summary'];
+}
+
 // 선택된 세트의 매매 내역
 $logs_stmt = $mysqli->prepare("SELECT * FROM futures_bt_logs WHERE set_id = ? ORDER BY date DESC, id DESC");
 $logs_stmt->bind_param("i", $selectedSetId);
@@ -58,17 +71,20 @@ while ($row = $strategy_query->fetch_assoc()) {
 
 <style>
     .form-section label { font-weight: bold; display: block; margin-top: 8px; }
-    .form-section input, .form-section select { width: 100%; padding: 6px; margin-bottom: 10px; }
+    .form-section input, .form-section select, .form-section textarea { width: 100%; padding: 6px; margin-bottom: 10px; }
     .btn { background-color: #2980b9; color: white; border: none; padding: 8px 16px; cursor: pointer; }
     .btn:hover { background-color: #1c5980; }
     .btn-danger { background-color: #c0392b; }
     .btn-danger:hover { background-color: #922b21; }
     table { border-collapse: collapse; width: 100%; margin-top: 10px; }
     th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+    .strategy-tip {margin-top: 10px; padding: 8px; background-color: #ffffcc; border-left: 5px solid #f1c40f;  font-size: 15px; line-height: 1.6;
+}
 </style>
 
 <body style="margin-left:150px">
 <?php include($_SERVER['DOCUMENT_ROOT'] . "/modules/common/futures_nav_menu.php"); ?>
+
 <div style="display: flex; gap: 20px; padding: 20px;">
     <div style="width: 20%;">
         <h2><?= $edit_log ? '매매 수정' : '매매 등록' ?></h2>
@@ -85,6 +101,17 @@ while ($row = $strategy_query->fetch_assoc()) {
             <label>일자</label>
             <input type="date" name="date" value="<?= htmlspecialchars($edit_log['date'] ?? $defaultDate) ?>" required>
 
+            <label>시간</label>
+            <div style="display: flex; gap: 5px;">
+                <input type="number" name="hour" id="hour" min="0" max="23" placeholder="시"
+                    value="<?= isset($edit_log['trade_time']) ? intval(substr($edit_log['trade_time'], 0, 2)) : '' ?>"
+                    style="width: 60px;" oninput="moveToMinute(this)">
+                :
+                <input type="number" name="minute" id="minute" min="0" max="59" placeholder="분"
+                    value="<?= isset($edit_log['trade_time']) ? intval(substr($edit_log['trade_time'], 3, 2)) : '' ?>"
+                    style="width: 60px;">
+            </div>
+
             <label>포지션</label>
             <select name="position">
                 <option value="buy" <?= isset($edit_log) && $edit_log['position'] === 'buy' ? 'selected' : '' ?>>매수</option>
@@ -95,7 +122,10 @@ while ($row = $strategy_query->fetch_assoc()) {
             <input type="text" name="price" value="<?= $edit_log['price'] ?? '' ?>" required>
 
             <label>수량</label>
-            <input type="number" name="qty" value="<?= $edit_log['qty'] ?? '1' ?>" required>
+            <input type="number" name="qty" value="<?= $edit_log['qty'] ?? '2' ?>" required>
+
+            <label>비고</label>
+            <textarea name="memo" rows="3"><?= htmlspecialchars($edit_log['memo'] ?? '') ?></textarea>
 
             <button class="btn" type="submit"><?= $edit_log ? '수정 저장' : '등록' ?></button>
             <?php if ($edit_log): ?>
@@ -115,6 +145,20 @@ while ($row = $strategy_query->fetch_assoc()) {
                 <?php endforeach; ?>
             </select>
         </form>
+
+        <hr>
+
+        <?php if (strpos($strategy, 'BB') === 0): ?>
+            <div class="strategy-tip">
+                ⚠️ <strong>볼린저밴드 전략 :</strong><br><br>
+                (롱1) 하락-상승 추세전환<br>
+                (롱2) 상승 중 눌림 + 중심선 지지<br>
+                (롱3) 하락 중 반등 (단타)<br><br>
+                (숏1) 상승-하락 추세전환<br>
+                (숏2) 하락 중 반등 + 중심선 저항<br>
+                (숏3) 상승 중 눌림 (단타)<br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ex)장대60분봉 다음 음봉
+            </div>
+        <?php endif; ?>
     </div>
 
     <div style="width: 80%;">
@@ -130,6 +174,7 @@ while ($row = $strategy_query->fetch_assoc()) {
                 <th>수량</th>
                 <th>수익률</th>
                 <th>수익금</th>
+                <th>비고</th>
                 <th>선택</th>
             </tr>
             <?php while ($row = $sets_result->fetch_assoc()): ?>
@@ -142,6 +187,9 @@ while ($row = $strategy_query->fetch_assoc()) {
                 <td><?= $row['total_qty'] ?? 0 ?></td>
                 <td><?= $row['return_pct'] ?? '-' ?>%</td>
                 <td><?= number_format($row['profit_amt'] ?? 0) ?>원</td>
+                <td style="text-align:left; max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                    <?= htmlspecialchars($memo_map[$row['id']] ?? '-') ?>
+                </td>
                 <td><a class="btn" href="?strategy=<?= urlencode($strategy) ?>&set_id=<?= $row['id'] ?>">보기</a></td>
             </tr>
             <?php endwhile; ?>
@@ -151,13 +199,24 @@ while ($row = $strategy_query->fetch_assoc()) {
         <?php if ($selectedSetId): ?>
         <h3>세트 #<?= $selectedSetId ?> 매매 내역</h3>
         <table>
-            <tr><th>일자</th><th>포지션</th><th>진입가</th><th>수량</th><th>수정</th><th>삭제</th></tr>
+            <tr>
+                <th>일자</th>
+                <th>시간</th>
+                <th>포지션</th>
+                <th>진입가</th>
+                <th>수량</th>
+                <th>비고</th>
+                <th>수정</th>
+                <th>삭제</th>
+            </tr>
             <?php while ($log = $logs_result->fetch_assoc()): ?>
             <tr>
                 <td><?= $log['date'] ?></td>
+                <td><?= isset($log['trade_time']) ? substr($log['trade_time'], 0, 5) : '-' ?></td>
                 <td><?= $log['position'] === 'buy' ? '매수' : '매도' ?></td>
                 <td><?= $log['price'] ?></td>
                 <td><?= $log['qty'] ?></td>
+                <td style="text-align:left;"><?= nl2br($log['memo'] ?? '') ?></td>
                 <td>
                     <a class="btn" href="?strategy=<?= urlencode($strategy) ?>&set_id=<?= $selectedSetId ?>&edit_log_id=<?= $log['id'] ?>">수정</a>
                 </td>
@@ -176,6 +235,14 @@ while ($row = $strategy_query->fetch_assoc()) {
         <?php endif; ?>
     </div>
 </div>
+
+<script>
+function moveToMinute(el) {
+    if (el.value.length >= 2) {
+        document.getElementById('minute').focus();
+    }
+}
+</script>
 
 </body>
 </html>

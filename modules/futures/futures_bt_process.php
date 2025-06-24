@@ -4,36 +4,48 @@ require_once $_SERVER['DOCUMENT_ROOT'] . "/modules/common/database.php";
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') exit;
 $action = $_POST['action'] ?? '';
 
-if ($action === 'register_log' || $action === 'update_log') {
-    $strategy = $_POST['strategy_name'];
-    $date = $_POST['date'] ?? date('Y-m-d');
-    $position = $_POST['position'] ?? '';
-    $price = isset($_POST['price']) ? floatval($_POST['price']) : 0;
-    $qty = isset($_POST['qty']) ? intval($_POST['qty']) : 0;
-    $log_id = $_POST['id'] ?? null;
-    $set_id = $_POST['set_id'] ?? null;
+switch ($action) {
+    case 'register_log':
+    case 'update_log':
+        handle_log_save_or_update($mysqli, $_POST);
+        break;
 
-    if ($action === 'update_log' && $log_id) {
-        $update = "UPDATE futures_bt_logs SET date = ?, position = ?, price = ?, qty = ? WHERE id = ?";
-        $stmt = $mysqli->prepare($update);
-        $stmt->bind_param("ssdii", $date, $position, $price, $qty, $log_id);
+    case 'delete_log':
+        handle_log_delete($mysqli, $_POST);
+        break;
+}
+
+function handle_log_save_or_update($mysqli, $data) {
+    $strategy = $data['strategy_name'];
+    $date = $data['date'] ?? date('Y-m-d');
+    $hour = str_pad(intval($data['hour']), 2, '0', STR_PAD_LEFT);
+    $minute = str_pad(intval($data['minute']), 2, '0', STR_PAD_LEFT);
+    $trade_time = "$hour:$minute:00";  // TIME 포맷 저장용
+    $position = $data['position'] ?? '';
+    $price = isset($data['price']) ? floatval($data['price']) : 0;
+    $qty = isset($data['qty']) ? intval($data['qty']) : 0;
+    $memo = $data['memo'] ?? '';
+    $log_id = $data['id'] ?? null;
+    $set_id = $data['set_id'] ?? null;
+
+    if ($data['action'] === 'update_log' && $log_id) {
+        $stmt = $mysqli->prepare("UPDATE futures_bt_logs SET date = ?, trade_time= ?, position = ?, price = ?, qty = ?, memo = ? WHERE id = ?");
+        $stmt->bind_param("sssdisi", $date, $trade_time, $position, $price, $qty, $memo, $log_id);
         $stmt->execute();
         $stmt->close();
 
-        $set_result = $mysqli->query("SELECT set_id FROM futures_bt_logs WHERE id = {$log_id} LIMIT 1");
-        $row = $set_result->fetch_assoc();
+        $res = $mysqli->query("SELECT set_id FROM futures_bt_logs WHERE id = {$log_id} LIMIT 1");
+        $row = $res->fetch_assoc();
         $set_id = $row['set_id'];
     } else {
-        $find_sql = "SELECT id FROM futures_bt_sets WHERE strategy_name = ? AND status = '진행중' AND created_at <= ? ORDER BY id DESC LIMIT 1";
-        $stmt = $mysqli->prepare($find_sql);
+        $stmt = $mysqli->prepare("SELECT id FROM futures_bt_sets WHERE strategy_name = ? AND status = '진행중' AND created_at <= ? ORDER BY id DESC LIMIT 1");
         $stmt->bind_param("ss", $strategy, $date);
         $stmt->execute();
-        $result = $stmt->get_result();
-        if ($row = $result->fetch_assoc()) {
+        $res = $stmt->get_result();
+        if ($row = $res->fetch_assoc()) {
             $set_id = $row['id'];
         } else {
-            $insert_set = "INSERT INTO futures_bt_sets (symbol, strategy_name, created_at, status) VALUES ('미니K200', ?, ?, '진행중')";
-            $stmt2 = $mysqli->prepare($insert_set);
+            $stmt2 = $mysqli->prepare("INSERT INTO futures_bt_sets (symbol, strategy_name, created_at, status) VALUES ('미니K200', ?, ?, '진행중')");
             $stmt2->bind_param("ss", $strategy, $date);
             $stmt2->execute();
             $set_id = $stmt2->insert_id;
@@ -41,54 +53,87 @@ if ($action === 'register_log' || $action === 'update_log') {
         }
         $stmt->close();
 
-        $insert_log = "INSERT INTO futures_bt_logs (set_id, date, position, price, qty) VALUES (?, ?, ?, ?, ?)";
-        $stmt = $mysqli->prepare($insert_log);
-        $stmt->bind_param("issdi", $set_id, $date, $position, $price, $qty);
+        $stmt = $mysqli->prepare("INSERT INTO futures_bt_logs (set_id, date, trade_time, position, price, qty, memo) VALUES (?, ?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("isssdis", $set_id, $date, $trade_time, $position, $price, $qty, $memo);
         $stmt->execute();
         $stmt->close();
     }
 
-    // 정산 로직
-    $log_query = "SELECT * FROM futures_bt_logs WHERE set_id = ? ORDER BY date ASC, id ASC";
-    $stmt = $mysqli->prepare($log_query);
+    settle_logs($mysqli, $set_id, $date);
+    header("Location: futures_bt_ui.php?strategy=" . urlencode($strategy) . "&set_id=" . intval($set_id));
+    exit;
+}
+
+function handle_log_delete($mysqli, $data) {
+    $log_id = intval($data['id']);
+    $strategy = $data['strategy_name'];
+    $set_id = intval($data['set_id']);
+
+    $mysqli->query("DELETE FROM futures_bt_logs WHERE id = {$log_id} LIMIT 1");
+
+    $stmt = $mysqli->prepare("SELECT COUNT(*) AS cnt FROM futures_bt_logs WHERE set_id = ?");
     $stmt->bind_param("i", $set_id);
     $stmt->execute();
-    $result = $stmt->get_result();
-    $logs = $result->fetch_all(MYSQLI_ASSOC);
+    $res = $stmt->get_result();
+    $row = $res->fetch_assoc();
     $stmt->close();
 
-    $fee = 0.0003;
-    $stack = [];
+    if ($row['cnt'] == 0) {
+        $stmt = $mysqli->prepare("DELETE FROM futures_bt_sets WHERE id = ?");
+        $stmt->bind_param("i", $set_id);
+        $stmt->execute();
+        $stmt->close();
+    } else {
+        // 로그가 남아 있다면 상태 재정산
+        settle_logs($mysqli, $set_id, date('Y-m-d'));
+    }
+
+    header("Location: futures_bt_ui.php?strategy=" . urlencode($strategy) . "&set_id=" . intval($set_id));
+    exit;
+}
+
+function settle_logs($mysqli, $set_id, $date) {
+    $stmt = $mysqli->prepare("SELECT * FROM futures_bt_logs WHERE set_id = ? ORDER BY date ASC, id ASC");
+    $stmt->bind_param("i", $set_id);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    $logs = $res->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
+
+    $fee = 0.00003; // 수수료 0.003%
     $realized_profit = 0;
-    $closed_qty = 0;
     $entry_cost_sum = 0;
-    $first_position = $logs[0]['position'] ?? null;
+    $closed_qty = 0;
+    $first_position = null;
+    $stack = [];
 
     foreach ($logs as $log) {
         $p = $log['position'];
-        $q = $log['qty'];
         $price = $log['price'];
+        $qty = $log['qty'];
 
-        if (empty($stack) || $stack[0]['position'] === $p) {
-            for ($i = 0; $i < $q; $i++) {
+        if ($first_position === null) $first_position = $p;
+
+        for ($i = 0; $i < $qty; $i++) {
+            if (empty($stack) || $stack[0]['position'] === $p) {
                 $stack[] = ['position' => $p, 'price' => $price];
-                if ($p === $first_position) {
-                    $entry_cost_sum += $price * 50000;
-                }
-            }
-        } else {
-            for ($i = 0; $i < $q; $i++) {
-                if (empty($stack)) break;
+            } else {
                 $entry = array_shift($stack);
+
                 if ($entry['position'] === 'buy' && $p === 'sell') {
-                    $net_buy = $entry['price'] * (1 + $fee);
+                    // long 포지션 청산
+                    $entry_cost_sum += $entry['price'] * (1 + $fee) * 50000;
                     $net_sell = $price * (1 - $fee);
+                    $net_buy = $entry['price'] * (1 + $fee);
                     $realized_profit += ($net_sell - $net_buy) * 50000;
                 } elseif ($entry['position'] === 'sell' && $p === 'buy') {
-                    $net_sell = $entry['price'] * (1 + $fee);
-                    $net_buy = $price * (1 - $fee);
+                    // short 포지션 청산
+                    $entry_cost_sum += $price * (1 + $fee) * 50000;
+                    $net_sell = $entry['price'] * (1 - $fee);
+                    $net_buy = $price * (1 + $fee);
                     $realized_profit += ($net_sell - $net_buy) * 50000;
                 }
+
                 $closed_qty++;
             }
         }
@@ -96,36 +141,11 @@ if ($action === 'register_log' || $action === 'update_log') {
 
     $unmatched_qty = count($stack);
     $direction = ($first_position === 'buy') ? 'long' : 'short';
+    $status = ($unmatched_qty === 0) ? '완료' : '진행중';
+    $return_pct = ($entry_cost_sum > 0) ? ($realized_profit / $entry_cost_sum) * 100 : 0;
 
-    if ($closed_qty > 0 && $entry_cost_sum > 0) {
-        $return_pct = ($realized_profit / $entry_cost_sum) * 100;
-        $status = ($unmatched_qty === 0) ? '완료' : '진행중';
-
-        $update = "UPDATE futures_bt_sets SET total_qty = ?, return_pct = ?, profit_amt = ?, closed_at = ?, status = ?, direction = ?, remaining_qty = ? WHERE id = ?";
-        $stmt = $mysqli->prepare($update);
-        $stmt->bind_param("idssssii", $closed_qty, $return_pct, $realized_profit, $date, $status, $direction, $unmatched_qty, $set_id);
-        $stmt->execute();
-        $stmt->close();
-
-    } else {
-        // 매매 미완성 상태
-        $status = '진행중';
-        $update = "UPDATE futures_bt_sets SET status = ?, direction = ?, remaining_qty = ? WHERE id = ?";
-        $stmt = $mysqli->prepare($update);
-        $stmt->bind_param("ssii", $status, $direction, $unmatched_qty, $set_id);
-        $stmt->execute();
-        $stmt->close();
-    }
-
-    header("Location: futures_bt_ui.php?strategy=" . urlencode($strategy) . "&set_id=" . intval($set_id));
-    exit;
-
-} elseif ($action === 'delete_log') {
-    $log_id = intval($_POST['id']);
-    $strategy = $_POST['strategy_name'];
-    $set_id = $_POST['set_id'];
-
-    $mysqli->query("DELETE FROM futures_bt_logs WHERE id = {$log_id} LIMIT 1");
-    header("Location: futures_bt_ui.php?strategy=" . urlencode($strategy) . "&set_id=" . intval($set_id));
-    exit;
+    $stmt = $mysqli->prepare("UPDATE futures_bt_sets SET total_qty = ?, return_pct = ?, profit_amt = ?, closed_at = ?, status = ?, direction = ?, remaining_qty = ? WHERE id = ?");
+    $stmt->bind_param("iddsssii", $closed_qty, $return_pct, $realized_profit, $date, $status, $direction, $unmatched_qty, $set_id);
+    $stmt->execute();
+    $stmt->close();
 }

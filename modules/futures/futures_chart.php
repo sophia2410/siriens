@@ -307,7 +307,8 @@ $y_axis_config = ['min' => $minY, 'max' => $maxY];
     }
   </style>
 </head>
-<body>
+
+
 <!-- <form method="get" action="futures_chart.php" style="padding: 2px; border-bottom: 1px solid #ccc;">
   📅 날짜 선택:
   <input type="date" id="date-picker" value="<?= $date ?>">
@@ -338,7 +339,7 @@ $y_axis_config = ['min' => $minY, 'max' => $maxY];
     <!-- 🟡 첫 15분봉: <b><?= $strategy['open_0845_0859'] ?? '-' ?> ~ <?= $strategy['close_0845_0859'] ?? '-' ?></b>  | 시종갭: <?= $strategy['diff_0845_0859_pt'] ?>pt<br> -->
 
     🔥 나스닥: <?= colorize($market_index) ?? null ?>% | Morning Report: <?= $morning_report ?? null ?> / 🔥Evening Report: <?= $evening_report ?? null ?> <br>
-    🟡 시가: <?= colorize($strategy['open_change_pct'] ?? null) ?>% , <?= colorize($strategy['open_change_pt'] ?? null) ?> pt | 종가: <?= colorize($strategy['close_change_pct'] ?? null) ?>%, <?= colorize($strategy['close_change_pt'] ?? null) ?> pt&nbsp;&nbsp;&nbsp;
+    🟡 시가: <?= $strategy['open'] ?>pt , <?= colorize($strategy['open_change_pct'] ?? null) ?>% , <?= colorize($strategy['open_change_pt'] ?? null) ?> pt | 종가: <?= $strategy['close'] ?>pt, <?= colorize($strategy['close_change_pct'] ?? null) ?>%, <?= colorize($strategy['close_change_pt'] ?? null) ?> pt&nbsp;&nbsp;&nbsp;
     🟢 순매수 현황 (천만원):
     외국인: <b><?= colorize($strategy['net_foreign'] ?? null) ?>(<?= colorize($strategy['cum_net_foreign'] ?? null) ?>)</b> |
     기관: <b><?= colorize($strategy['net_institution'] ?? null) ?>(<?= colorize($strategy['cum_net_institution'] ?? null) ?>)</b> |

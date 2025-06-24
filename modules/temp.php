@@ -1,183 +1,192 @@
 <?php
-$pageTitle = "일별 거래대금 상위 20종목";
-require($_SERVER['DOCUMENT_ROOT'] . "/modules/common/common_header.php");
+require_once $_SERVER['DOCUMENT_ROOT'] . "/modules/common/database.php";
 
-// 날짜 파라미터 (기본값: 이번 달)
-$searchMonth = isset($_GET['search_month']) ? $_GET['search_month'] : date('Y-m');
-list($year, $month) = explode('-', $searchMonth);
-$startDate = "$year-$month-01";
-$endDate = date("Y-m-t", strtotime($startDate));
-
-// 억 단위 표시 함수
-function formatAmountToEok($amount) {
-    return number_format($amount / 1.0e8, 0) . '억';
+$date = $_GET['date'] ?? '';
+$interval = $_GET['interval'] ?? '60';
+if (!$date || !in_array($interval, ['15', '30', '60'])) {
+  echo "날짜 또는 분봉(interval) 값이 올바르지 않습니다.";
+  exit;
 }
 
-// 색상 바
-function getAmountBarColor($amount) {
-    if ($amount >= 10.0e12) return 'background: linear-gradient(to right, #ff3333, #ff9999);';
-    elseif ($amount >= 8.0e12) return 'background: linear-gradient(to right, #ff9900, #ffcc66);';
-    elseif ($amount >= 6.0e12) return 'background: linear-gradient(to right, #0099ff, #66ccff);';
-    else return 'background: linear-gradient(to right, #555555, #aaaaaa);';
+switch ($interval) {
+  case '15':
+    $table = 'futures_bb_rsi_15m'; $dayRange = 2; break;
+  case '30':
+    $table = 'futures_bb_rsi_30m'; $dayRange = 5; break;
+  default:
+    $table = 'futures_bb_rsi_60m'; $dayRange = 10; break;
 }
 
-// 데이터 조회
-$sql = "
-    SELECT dp.date, dp.code, s.name, dp.close, dp.close_rate, dp.amount
-    FROM daily_price dp
-    LEFT JOIN stock s ON dp.code = s.code AND s.last_yn = 'Y'
-    WHERE dp.date BETWEEN ? AND ?
-    ORDER BY dp.date ASC, dp.amount DESC
-";
-$stmt = $mysqli->prepare($sql);
-$stmt->bind_param("ss", $startDate, $endDate);
-$stmt->execute();
-$result = $stmt->get_result();
+$dates = [];
+$res = $mysqli->query("SELECT DISTINCT date FROM $table ORDER BY date");
+while ($row = $res->fetch_assoc()) $dates[] = $row['date'];
 
-$dailyTopStocks = [];
-$stockCountMap = [];
+$index = array_search($date, $dates);
+if ($index === false) {
+  echo "해당 날짜의 데이터가 없습니다.";
+  exit;
+}
+
+$start = max(0, $index - $dayRange);
+$end = min(count($dates) - 1, $index + 1);
+$targetDates = array_slice($dates, $start, $end - $start + 1);
+$inClause = "('" . implode("','", array_map(fn($d) => $mysqli->real_escape_string($d), $targetDates)) . "')";
+
+$sql = "SELECT * FROM $table WHERE date IN $inClause ORDER BY date, time ASC";
+$result = $mysqli->query($sql);
+
+$data = $rsi = $bb = $ema20 = $ema60 = $volume = $macd = $macdHist = [];
+$plotLines = [];
+$seenDates = [];
+
 while ($row = $result->fetch_assoc()) {
-    $date = $row['date'];
-    if (!isset($dailyTopStocks[$date])) $dailyTopStocks[$date] = [];
-    if (count($dailyTopStocks[$date]) < 20) {
-        $dailyTopStocks[$date][] = $row;
+    $ts = strtotime($row['date'] . ' ' . $row['time']) * 1000 + (15 * 60 * 1000);
 
-        // 종목별 등장 횟수 계산
-        $code = $row['code'];
-        $name = $row['name'] ?: $code;
-        if (!isset($stockCountMap[$code])) {
-            $stockCountMap[$code] = ['name' => $name, 'count' => 1];
-        } else {
-            $stockCountMap[$code]['count']++;
-        }
+    $open = (float)$row['open'];
+    $close = (float)$row['close'];
+    $vol = (float)$row['volume'];
+    $color = $close > $open ? '#f45b5b' : '#2f7ed8';
+
+    $data[] = [$ts, $open, (float)$row['high'], (float)$row['low'], $close];
+    $rsi[] = [$ts, round($row['rsi14'], 2)];
+    $bb[] = [$ts, round($row['bb_lower'], 2), round($row['bb_center'], 2), round($row['bb_upper'], 2)];
+    $ema20[] = [$ts, round($row['ema20'], 2)];
+    $ema60[] = [$ts, round($row['ema60'], 2)];
+    $volume[] = ['x' => $ts, 'y' => $vol, 'color' => $color];
+
+    $macdVal = [
+        'ts' => $ts,
+        'macd' => round($row['macd'], 2),
+        'signal' => round($row['macd_signal'], 2),
+        'hist' => round($row['macd_hist'], 2)
+    ];
+    $macd[] = $macdVal;
+    $macdHist[] = [
+        'x' => $ts,
+        'y' => $macdVal['hist'],
+        'color' => $macdVal['hist'] >= 0 ? '#ff4136' : '#0074d9'
+    ];
+
+    $dateKey = date('Y-m-d', $ts / 1000);
+    if (!isset($seenDates[$dateKey])) {
+        $seenDates[$dateKey] = true;
+        $plotLines[] = [
+            'color' => '#cccccc',
+            'width' => 1,
+            'value' => $ts,
+            'dashStyle' => 'ShortDot',
+            'label' => [
+                'text' => date('m-d', $ts / 1000),
+                'rotation' => 0,
+                'align' => 'left',
+                'y' => 12,
+                'style' => ['color' => '#666', 'fontSize' => '10px']
+            ]
+        ];
     }
-}
-
-// 메뉴 경로
-if($_SERVER["HTTP_HOST"] == 'localhost') {
-    $PATH = "http://localhost/";
-} else {
-    $PATH = "https://siriens.mycafe24.com/";
 }
 ?>
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="utf-8">
-    <title><?= htmlspecialchars($pageTitle) ?></title>
-    <link rel="stylesheet" href="/css/common.css">
-    <style>
-        body, html {
-            margin: 0;
-            padding: 0;
-            overflow-x: hidden;
-            font-family: Arial, sans-serif;
-            background-color: #f9f9f9;
-            height: 100vh;
-            color: #858796;
-        }
-        #container {
-            display: flex;
-            height: 100vh;
-            margin-left: 100px !important;
-            flex-direction: column;
-            width: calc(100% - 100px);
-            padding: 20px;
-            box-sizing: border-box;
-        }
-        .top-bar form { display: inline-block; margin-right: 10px; }
-        .summary-box {
-            margin: 15px 0;
-            padding: 10px;
-            background: #ffffff;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            max-height: 200px;
-            overflow-y: auto;
-            font-size: 14px;
-        }
-        .summary-box span {
-            margin-right: 10px;
-            display: inline-block;
-            margin-bottom: 5px;
-        }
-        .date-section { margin-bottom: 30px; }
-        .grid-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 15px;
-        }
-        .stock-card {
-            background: #fff;
-            border-radius: 8px;
-            padding: 15px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        .stock-title { font-weight: bold; margin-bottom: 8px; }
-        .stock-code { color: #666; font-size: 0.9em; }
-        .stock-info { margin: 5px 0; font-size: 14px; }
-        .bar-container {
-            margin-top: 10px;
-            height: 14px;
-            border-radius: 7px;
-            background: #eee;
-            overflow: hidden;
-        }
-        .bar {
-            height: 100%;
-            border-radius: 7px;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title><?= $date ?> / <?= $interval ?>분봉 차트</title>
+  <script src="https://code.highcharts.com/stock/highstock.js"></script>
+  <script src="https://code.highcharts.com/highcharts-more.js"></script>
+  <style>
+    html, body {
+      margin: 0; padding: 0; height: 100%;
+    }
+    #container { height: 800px; width: 100vw; }
+    #info-box {
+      padding: 10px; font-size: 14px; color: #333;
+      background: #f8f8f8; border-top: 1px solid #ccc;
+    }
+  </style>
 </head>
 <body>
-    <?php include($_SERVER['DOCUMENT_ROOT'] . "/modules/common/side_menu.php"); ?>
-    <div id="container">
-        <div class="top-bar">
-            <form method="GET">
-                <input type="month" name="search_month" value="<?= htmlspecialchars($searchMonth) ?>">
-                <button type="submit">조회</button>
-            </form>
-        </div>
+  <h2 style="margin:0; padding:10px;">📅 <?= $date ?> / <?= $interval ?>분봉 차트</h2>
+  <div id="container"></div>
+  <div id="info-box">🖱 캔들을 클릭하면 상세 정보가 여기에 표시됩니다.</div>
 
-        <!-- 종목별 등장 횟수 표시 -->
-        <div class="summary-box">
-            <strong>종목별 등장 횟수:</strong><br>
-            <?php
-            uasort($stockCountMap, function($a, $b) {
-                return $b['count'] - $a['count'];
-            });
-            foreach ($stockCountMap as $code => $info): ?>
-                <span><?= htmlspecialchars($info['name']) ?> (<?= $code ?>): <?= $info['count'] ?>회</span>
-            <?php endforeach; ?>
-        </div>
+  <script>
+    const macdData = <?= json_encode($macd) ?>;
+    const macdHist = <?= json_encode($macdHist) ?>;
 
-        <?php foreach ($dailyTopStocks as $date => $stocks): ?>
-        <div class="date-section">
-            <h2><?= $date ?></h2>
-            <div class="grid-container">
-                <?php foreach ($stocks as $idx => $stock): 
-                    $rank = $idx + 1;
-                    $rate = floatval($stock['close_rate']);
-                    $rateColor = $rate > 0 ? 'red' : ($rate < 0 ? 'blue' : '#333');
-                    $barColor = getAmountBarColor($stock['amount']);
-                    $barWidth = min(100, ($stock['amount'] / 15.0e12) * 100);
-                ?>
-                <div class="stock-card">
-                    <div class="stock-title">
-                        <?= $rank ?>위. <?= htmlspecialchars($stock['name'] ?: $stock['code']) ?>
-                        <div class="stock-code">(<?= $stock['code'] ?>)</div>
-                    </div>
-                    <div class="stock-info">종가: <?= number_format($stock['close']) ?>원</div>
-                    <div class="stock-info" style="color: <?= $rateColor ?>;">등락률: <?= $stock['close_rate'] ?>%</div>
-                    <div class="stock-info">거래대금: <?= formatAmountToEok($stock['amount']) ?></div>
-                    <div class="bar-container">
-                        <div class="bar" style="width: <?= $barWidth ?>%; <?= $barColor ?>"></div>
-                    </div>
-                </div>
-                <?php endforeach; ?>
-            </div>
-        </div>
-        <?php endforeach; ?>
-    </div>
+    Highcharts.stockChart('container', {
+      tooltip: { enabled: false },
+      chart: { zoomType: 'x' },
+      title: { text: '<?= $date ?> / <?= $interval ?>분봉 차트' },
+      xAxis: {
+        type: 'datetime',
+        tickInterval: 3600 * 1000,
+        labels: { enabled: false },
+        plotLines: <?= json_encode($plotLines) ?>
+      },
+      navigator: { enabled: false },
+      scrollbar: { enabled: true },
+      plotOptions: {
+        candlestick: {
+          point: {
+            events: {
+              click: function () {
+                const ts = this.x;
+                const chart = this.series.chart;
+                const getVal = (name) => {
+                  const s = chart.series.find(s => s.name === name);
+                  const p = s?.data.find(p => p.x === ts);
+                  return p?.y ?? '-';
+                };
+                const macd = macdData.find(m => m.ts === ts);
+                const info = `
+                  <b>${Highcharts.dateFormat('%Y-%m-%d %H:%M', ts)}</b><br><br>
+                  시가: ${this.open}<br>
+                  고가: ${this.high}<br>
+                  저가: ${this.low}<br>
+                  종가: ${this.close}<br><br>
+                  EMA20: ${getVal('EMA20')}<br>
+                  EMA60: ${getVal('EMA60')}<br><br>
+                  BB 상단: ${getVal('BB 상단')}<br>
+                  BB 중심: ${getVal('중심선')}<br>
+                  BB 하단: ${getVal('BB 하단')}<br><br>
+                  RSI: ${getVal('RSI')}<br><br>
+                  MACD: ${macd?.macd ?? '-'}<br>
+                  Signal: ${macd?.signal ?? '-'}<br>
+                  Histogram: ${macd?.hist ?? '-'}<br>
+                `;
+                document.getElementById('info-box').innerHTML = info;
+              }
+            }
+          }
+        }
+      },
+      yAxis: [
+        { title: { text: 'Price', style: { color: '#2f7ed8' } }, height: '55%', lineWidth: 2 },
+        { title: { text: 'Volume', style: { color: '#333' } }, top: '55%', height: '10%', offset: 0, lineWidth: 2 },
+        { title: { text: 'RSI', style: { color: '#ff5733' } }, top: '65%', height: '15%', offset: 0, lineWidth: 2,
+          min: 0, max: 100,
+          plotLines: [
+            { value: 70, color: 'gray', dashStyle: 'Dash', width: 1, label: { text: '70', align: 'right' } },
+            { value: 30, color: 'gray', dashStyle: 'Dash', width: 1, label: { text: '30', align: 'right' } }
+          ]
+        },
+        { title: { text: 'MACD', style: { color: '#0074d9' } }, top: '80%', height: '20%', offset: 0, lineWidth: 2 }
+      ],
+      series: [
+        { type: 'candlestick', name: 'Price', data: <?= json_encode($data) ?>, color: '#2f7ed8', upColor: '#f45b5b' },
+        { type: 'line', name: 'EMA20', data: <?= json_encode($ema20) ?>, color: 'orange', lineWidth: 1.5 },
+        { type: 'line', name: 'EMA60', data: <?= json_encode($ema60) ?>, color: 'green', lineWidth: 1.5 },
+        { type: 'arearange', name: '볼린저밴드', yAxis: 0, data: <?= json_encode(array_map(fn($r) => [$r[0], $r[1], $r[3]], $bb)) ?>, color: 'rgba(200,200,200,0.3)', fillOpacity: 0.3, lineWidth: 0, linkedTo: ':previous' },
+        { type: 'line', name: '중심선', data: <?= json_encode(array_map(fn($r) => [$r[0], $r[2]], $bb)) ?>, dashStyle: 'ShortDot', color: '#000000' },
+        { type: 'line', name: 'BB 상단', data: <?= json_encode(array_map(fn($r) => [$r[0], $r[3]], $bb)) ?>, color: '#e00000', dashStyle: 'ShortDash' },
+        { type: 'line', name: 'BB 하단', data: <?= json_encode(array_map(fn($r) => [$r[0], $r[1]], $bb)) ?>, color: '#00aacc', dashStyle: 'ShortDash' },
+        { type: 'column', name: '거래량', data: <?= json_encode($volume) ?>, yAxis: 1 },
+        { type: 'line', name: 'RSI', data: <?= json_encode($rsi) ?>, yAxis: 2, color: '#ff5733', zones: [ { value: 30, color: '#3b82f6' }, { value: 70, color: '#ff5733' }, { color: '#ef4444' } ] },
+        { type: 'line', name: 'MACD', data: <?= json_encode(array_map(fn($r) => [$r['ts'], $r['macd']], $macd)) ?>, yAxis: 3, color: '#0074d9' },
+        { type: 'line', name: 'MACD Signal', data: <?= json_encode(array_map(fn($r) => [$r['ts'], $r['signal']], $macd)) ?>, yAxis: 3, color: '#ff4136' },
+        { type: 'column', name: 'MACD Histogram', data: macdHist, yAxis: 3 }
+      ]
+    });
+  </script>
 </body>
 </html>

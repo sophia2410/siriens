@@ -152,7 +152,8 @@ while ($row = $currentMonthResult->fetch_assoc()) {
 
 
 <body>
-<div id="container">
+<?php include($_SERVER['DOCUMENT_ROOT'] . "/modules/common/common_nav_menu.php"); ?>
+<div id="content">
     <div id="content-area">
         <div class="filters">
             <form method="GET" action="xraytick_monthly.php" id="searchForm" style="display: flex; align-items: center;">

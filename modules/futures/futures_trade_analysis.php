@@ -84,7 +84,7 @@ $schedules = $mysqli->query(
 <!-- ╔══════════════  스타일  ══════════════╗ -->
 <style>
 /***** 레이아웃 *****/
-#container        {display:flex;flex-direction:column;height:100vh;margin-left:100px;width:calc(100% - 100px);}
+#container        {display:flex;flex-direction:column;height:100vh;width:calc(100% - 100px);}
 #query-area       {padding:10px;background:#fff;border-bottom:1px solid #ccc;display:flex;gap:10px;align-items:center;}
 #split-container  {display:flex;flex:1;overflow:hidden;}
 #left-pane        {width:66.66%;overflow:auto;padding-right:10px;}
@@ -101,6 +101,9 @@ $schedules = $mysqli->query(
 #right-pane iframe{flex:1;border:none;width:100%;}
 </style>
 <!-- ╚══════════════════════════════════════╝ -->
+
+<body style="margin-left:150px">
+<?php include($_SERVER['DOCUMENT_ROOT'] . "/modules/common/futures_nav_menu.php"); ?>
 
 <div id="container">
   <!-- 조회조건 -->
@@ -190,3 +193,5 @@ function showDetail(e,code,date,time){
 </script>
 
 <?php require $_SERVER['DOCUMENT_ROOT'] . "/modules/common/common_footer.php";?>
+
+</body>

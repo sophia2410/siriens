@@ -27,6 +27,12 @@ if ($stockCode) {
 <head>
     <!-- 페이지 전용 스타일 -->
     <style>
+        #wrapper {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+
         #event_list_panel {
             flex: 2;
             background-color: #f8f8f8;
@@ -82,7 +88,9 @@ if ($stockCode) {
 </head>
 
 <body>
-    <div id="container">
+<?php include($_SERVER['DOCUMENT_ROOT'] . "/modules/common/common_nav_menu.php"); ?>
+<div id="content">
+    <div id="wrapper">
         <!-- 종목 검색 및 이벤트 리스트 -->
         <div id="event_list_panel">
             <h2>종목 이벤트 조회</h2>

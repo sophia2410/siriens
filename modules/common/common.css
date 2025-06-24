@@ -14,8 +14,8 @@ body, html {
     color: #858796;
 }
 
-/* 컨테이너 설정 */
-#container {
+/* 컨테이너 설정 - 미사용, content 로 대체 2025.05.23  */
+/* #container {
     display: flex;
     height: 100vh;
     margin-left: 100px !important;
@@ -23,6 +23,12 @@ body, html {
     width: calc(100% - 100px);
     padding: 0;
     box-sizing: border-box;
+} */
+
+/* 본문 */
+#content {
+    margin-left: 100px;
+    padding: 0;
 }
 
 /* 테이블 스타일 */

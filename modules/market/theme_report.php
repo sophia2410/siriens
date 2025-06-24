@@ -4,7 +4,8 @@ require($_SERVER['DOCUMENT_ROOT']."/modules/common/common_header.php"); // 공�
 ?>
 
 <body>
-<div id="container">
+<?php include($_SERVER['DOCUMENT_ROOT'] . "/modules/common/common_nav_menu.php"); ?>
+<div id="content">
     <div id="content-area">
         <!-- 조회 조건과 탭을 한 줄에 배치 -->
         <div class="filter-tab-container">

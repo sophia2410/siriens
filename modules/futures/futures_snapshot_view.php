@@ -60,7 +60,10 @@ $data = $result->fetch_all(MYSQLI_ASSOC);
     }
   </style>
 </head>
-<body>
+
+<body style="margin-left:150px">
+<?php include($_SERVER['DOCUMENT_ROOT'] . "/modules/common/futures_nav_menu.php"); ?>
+
   <form method="get">
     날짜: <input type="date" name="date" value="<?= htmlspecialchars($date) ?>">
     <button type="submit">조회</button>

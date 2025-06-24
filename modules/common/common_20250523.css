@@ -1,0 +1,398 @@
+/* 기본적인 스타일 */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+body, html {
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    font-family: Arial, sans-serif;
+    background-color: #f9f9f9;
+    height: 100vh;
+    color: #858796;
+}
+
+/* 컨테이너 설정 */
+#container {
+    display: flex;
+    height: 100vh;
+    margin-left: 100px !important;
+    flex-direction: row;
+    width: calc(100% - 100px);
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* 테이블 스타일 */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    font-size: 14px;
+}
+
+th, td {
+    border: 1px solid #ddd;
+    padding: 8px;
+}
+
+th {
+    background-color: #f2f2f2;
+}
+
+/* 작은 테이블을 위한 스타일 */
+.small-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.small-table th, .small-table td {
+    border: 1px solid #ddd;
+    padding: 5px; /* 패딩을 줄여 더 컴팩트하게 만듦 */
+    text-align: center;
+    font-size: 13px; /* 폰트 크기를 작게 설정 */
+}
+
+.small-table th {
+    background-color: #f4f4f4;
+    font-size: 13px;
+}
+
+.small-table td {
+    height: 20px; /* 행 높이를 컴팩트하게 설정 */
+}
+
+/* 기본 강조 스타일 */
+.border-strong {
+    border-top: 2px solid #ccc;
+}
+
+tr.highlighted-row {
+    background-color: #e0f7fa; /* 기존 색상 */
+}
+
+/* 추가 색상 정의 */
+tr.warning-row {
+    background-color: #fff3cd; /* 경고 상태 (노란색 계열) */
+}
+
+tr.success-row {
+    background-color: #d4edda; /* 성공 상태 (초록색 계열) */
+}
+
+tr.error-row {
+    background-color: #f8d7da; /* 오류 상태 (붉은색 계열) */
+}
+
+tr.info-row {
+    background-color: #d1ecf1; /* 정보 상태 (파란색 계열) */
+}
+
+
+/* 공통 버튼 스타일 */
+button {
+    font-family: 'Roboto', sans-serif; /* 메뉴와 같은 폰트 */
+    font-weight: 400;
+    border: none;
+    border-radius: 5px;
+    color: #ffffff;
+    cursor: pointer;
+    display: inline-block;
+    text-align: center;
+    padding: 8px 16px; /* 중간 크기 기본 */
+    margin: 5px;
+    font-size: 14px;
+    transition: background-color 0.3s, transform 0.3s;
+    background-color: #e74a3b; /* 기본 빨간색 */
+}
+
+/* 호버 시 색상 변화 */
+button:hover {
+    background-color: #c0392b; /* 기본 호버 색상 */
+}
+
+.tox .tox-button {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    border: 1px solid #ddd !important;
+}
+
+/* 빨간색 버튼 */
+.button-red {
+    background-color: #e74c3c;
+}
+
+.button-red:hover {
+    background-color: #c0392b;
+}
+
+/* 초록색 버튼 */
+.button-green {
+    background-color: #27ae60;
+}
+
+.button-green:hover {
+    background-color: #229954;
+}
+
+/* 노란색 버튼 */
+.button-yellow {
+    background-color: #f1c40f;
+    color: #2c3e50; /* 노란색 배경에서 잘 보이도록 텍스트 색상 변경 */
+}
+
+.button-yellow:hover {
+    background-color: #f39c12;
+}
+
+/* 버튼 크기 설정 */
+.button-mini {
+    font-size: 11px;
+    padding: 4px 8px;
+}
+
+.button-small {
+    font-size: 12px;
+    padding: 6px 12px;
+}
+
+.button-medium {
+    font-size: 14px;
+    padding: 8px 16px;
+}
+
+.button-large {
+    font-size: 16px;
+    padding: 10px 20px;
+}
+
+/* 기타 스타일 */
+label {
+    font-weight: bold;
+    margin-top: 8px;
+    display: block;
+    font-size: 13px;
+}
+
+input[type="text"], input[type="date"], textarea {
+    width: 100%;
+    padding: 6px;
+    margin-top: 4px;
+    box-sizing: border-box;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+input[type="checkbox"] {
+    margin-right: 5px;
+}
+
+/* 테두리를 진하게 하는 스타일 */
+.input-border-bold {
+    border: 2px solid #555 !important;
+    border-radius: 4px;
+}
+
+/* 배경색을 밝게 바꾸는 스타일 */
+.input-background-light {
+    background-color: #f9f9f9;
+}
+
+/* 배경색을 파란색으로 바꾸는 스타일 */
+.input-background-blue {
+    background-color: #e0f7fa;
+}
+
+/* 배경색을 노란색으로 바꾸는 스타일 */
+.input-background-yellow {
+    background-color: #fff9c4;
+}
+
+/* 입력 박스 내 텍스트를 굵게 */
+.input-text-bold {
+    font-weight: bold;
+}
+
+/* 입력 박스 내 텍스트 색상을 파란색으로 */
+.input-text-blue {
+    color: #007bff;
+}
+
+/* 입력 박스 내 텍스트 색상을 회색으로 */
+.input-text-gray {
+    color: #6c757d;
+}
+
+a.no-underline {
+    text-decoration: none !important; /* 밑줄 제거 */
+    color: inherit !important; /* 부모 요소의 색상 상속 */
+    cursor: pointer !important; /* 커서를 포인터 모양으로 */
+}
+
+a.no-underline:hover {
+    text-decoration: underline; /* 마우스를 올렸을 때만 밑줄 표시 (필요 시) */
+}
+
+hr {
+    border: none;
+    border-top: 2px solid #ccc;
+    margin: 20px 20px; /* 수평선 위아래 간격 */
+}
+
+/* 컨텐츠 영역 */
+#content-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: #f4f4f4;
+}
+
+/* 탭 스타일 */
+.tab-container {
+    display: flex;
+    background-color: #e0e0e0;
+    border-bottom: 2px solid #444;
+}
+
+.tab {
+    padding: 10px 20px;
+    cursor: pointer;
+    border: 1px solid #ccc;
+    border-bottom: none;
+    background-color: #e0e0e0;
+    transition: background-color 0.3s ease, color 0.3s ease;
+    flex: 1;
+    text-align: center;
+    font-size: 16px;
+}
+
+.tab:hover {
+    background-color: #d0d0d0;
+}
+
+.tab.active {
+    background-color: #fff;
+    border-bottom: 2px solid #fff;
+    font-weight: bold;
+    color: #333;
+}
+
+/* 탭 컨텐츠 스타일 */
+.tab-content {
+    flex: 1;
+    background-color: #fff;
+    overflow-y: auto;
+    padding: 0;
+}
+
+#contentFrame {
+    width: 100%;
+    height: calc(100vh - 60px); /* 탭 높이를 제외한 나머지 공간을 차지 */
+    border: none;
+    box-sizing: border-box; /* 전체 컨텐츠에 맞게 박스 크기를 조정 */
+}
+
+/* 금액에 따른 스타일 */
+.amount-highest {
+    color: #8e24aa !important; /* 진한 보라색 */
+    font-weight: bold !important;
+    text-align: right !important;
+} /* 2000억 이상 */
+
+.amount-high {
+    color: #c62828 !important; /* 진한 붉은색 */
+    font-weight: bold !important;
+    text-align: right !important;
+} /* 1000억 이상 */
+
+.amount-medium {
+    color: #f57f17 !important; /* 진한 황금색 */
+    font-weight: bold !important;
+    text-align: right !important;
+}
+
+.amount-low {
+    color: #e65100 !important; /* 진한 주황색 */
+    font-weight: bold !important;
+    text-align: right !important;
+}
+
+.amount-lowest {
+    color: inherit;
+    text-align: right !important;
+} /* 100억 미만, 기본 색상 유지 */
+
+
+/* 등락률에 따른 스타일 */
+.close-rate-highest {
+    color: #e53935 !important;
+    font-weight: bold !important;
+    text-align: right !important;
+} /* 종목 등락률 29.5% 이상 */
+
+.close-rate-high {
+    color: #f57f17 !important; /* 진한 황금색 */
+    font-weight: bold !important;
+    text-align: right !important;
+} /* 종목 등락률 15.0% 이상 */
+
+.close-rate-lowest {
+    color: inherit;
+    text-align: right !important; /* 종목 등락률 29.5% 이상 */
+}
+
+/* 종목명에 따른 스타일 */
+.stock-name-highest {
+    color: #8e24aa !important; /* 진한 보라색 */
+    font-weight: bold !important;
+} /* 종목 등락률 29.5% 이상 or 2000억 이상*/
+
+.stock-name-high {
+    color: #c62828 !important; /* 진한 붉은색 */
+    font-weight: bold !important;
+} /* 500억 이상 */
+
+.stock-name-medium {
+    color: #f57f17 !important; /* 진한 황금색 */
+    font-weight: bold !important;
+} /* 150억 이상 */
+
+.stock-name-low {
+    color: #e65100 !important; /* 진한 주황색 */
+    font-weight: bold !important;
+} /* 100억 이상 */
+
+.stock-name-lowest {
+    color: inherit;
+    font-weight: bold !important;
+}
+
+/* 특이사항에 대한 스타일 */
+.issue-status-copied {
+    background-color: #ffe0e0;
+} /* 이슈 상태가 'copied'인 경우 */
+
+.hot-theme {
+    color: red;
+} /* 핫 테마일 경우 */
+
+.leader {
+    font-weight: bold;
+    background-color: #fff9c4;
+}
+
+.watchlist {
+    font-weight: bold;
+    background-color: #dffcdc;
+}
+
+/* 두 클래스가 함께 적용될 때의 스타일 */
+.watchlist.leader {
+    background-color: #fff9c4; /* 관심종목의 배경색을 우선 적용 */
+}
+.first-occurrence {
+    background-color: #ffe0e0;
+}

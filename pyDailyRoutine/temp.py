@@ -37,14 +37,15 @@ def insert_daily_amount_rank_history(from_date: str, to_date: str, top_n: int = 
 
                 # 4. 상위 거래대금 종목 삽입
                 insert_sql = f"""
-                    INSERT INTO daily_amount_rank (date, code, rank, amount)
+                    INSERT INTO daily_amount_rank (date, code, rank, amount, close_rate)
                     SELECT
                         A.date,
                         A.code,
                         @r := @r + 1 AS rank,
-                        A.amount
+                        A.amount,
+                        A.close_rate
                     FROM (
-                        SELECT date, code, amount
+                        SELECT date, code, amount, close_rate
                         FROM daily_price
                         WHERE date = '{trade_date}'
                           AND amount IS NOT NULL AND amount > 0
@@ -70,4 +71,4 @@ def insert_daily_amount_rank_history(from_date: str, to_date: str, top_n: int = 
 # 5. 실행 구간
 if __name__ == "__main__":
     # insert_daily_amount_rank_history('2010-01-01', datetime.today().strftime('%Y-%m-%d'), top_n=100)
-    insert_daily_amount_rank_history('2021-01-01', '2025-05-22', top_n=100)
+    insert_daily_amount_rank_history('2010-01-04', '2025-05-23', top_n=100)

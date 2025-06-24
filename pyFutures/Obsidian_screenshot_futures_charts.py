@@ -26,6 +26,7 @@ conn = pymysql.connect(
 )
 cursor = conn.cursor()
 cursor.execute("SELECT date FROM calendar WHERE date between '2023-12-14' AND '2025-05-19' ORDER BY date")
+cursor.execute("SELECT date FROM calendar WHERE date between '2023-12-14' AND '2025-01-31' ORDER BY date")
 dates = [row[0].strftime('%Y-%m-%d') for row in cursor.fetchall()]
 conn.close()
 

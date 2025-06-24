@@ -73,6 +73,12 @@ $result = $stmt->get_result();
 <head>
     <!-- 페이지 전용 스타일 -->
     <style>
+        #wrapper {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+
         #event_register_container, #middle-panel, #history-panel, #event_list_container {
             overflow-y: auto;
             padding: 15px; /* Reduced padding from 20px to 15px */
@@ -115,7 +121,9 @@ $result = $stmt->get_result();
 </head>
 
 <body>
-<div id="container">
+<?php include($_SERVER['DOCUMENT_ROOT'] . "/modules/common/common_nav_menu.php"); ?>
+<div id="content">
+<div id="wrapper">
     
     <!-- 이벤트 및 테마 등록 화면 -->
     <div id="event_register_container">
@@ -159,6 +167,7 @@ $result = $stmt->get_result();
     <div id="event_list_container">
         <?php render_event_list($mysqli, 'date', $dateParam); ?>
     </div>
+</div>
 </div>
 
 <script>

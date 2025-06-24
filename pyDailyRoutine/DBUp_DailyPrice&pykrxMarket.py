@@ -141,14 +141,15 @@ class DBUpdater:
                     curs.execute(delete_sql)
 
                     insert_sql = f"""
-                        INSERT INTO daily_amount_rank (date, code, rank, amount)
+                        INSERT INTO daily_amount_rank (date, code, rank, amount, close_rate)
                         SELECT
                             A.date,
                             A.code,
                             @r := @r + 1 AS rank,
-                            A.amount
+                            A.amount,
+                            A.close_rate
                         FROM (
-                            SELECT date, code, amount
+                            SELECT date, code, amount, close_rate
                             FROM daily_price
                             WHERE date = '{trade_date}'
                             AND amount IS NOT NULL
@@ -164,7 +165,7 @@ class DBUpdater:
                 logging.info("거래대금 반영, proc_yn 및 daily_amount_rank 업데이트 성공")
 
         except Exception as e:
-            logging.error(f\"거래대금 또는 랭킹 반영 실패: {str(e)}\")
+            logging.error(f"거래대금 또는 랭킹 반영 실패: {str(e)}")
             logging.error(traceback.format_exc())
 
 

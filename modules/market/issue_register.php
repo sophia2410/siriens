@@ -41,6 +41,12 @@ function convertImageLinks($content) {
 
 <head>
     <style>
+        #wrapper {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+
         #issue_register_container {
             flex: 1;
             background-color: #f5f5f5;
@@ -134,7 +140,9 @@ function convertImageLinks($content) {
 </head>
 
 <body>
-    <div id="container">
+<?php include($_SERVER['DOCUMENT_ROOT'] . "/modules/common/common_nav_menu.php"); ?>
+<div id="content">
+    <div id="wrapper">
         <!-- 이슈 등록 폼 -->
         <div id="issue_register_container">
             <h2>이슈 등록 (<?= htmlspecialchars($dateParam); ?>)</h2>
@@ -218,7 +226,7 @@ function convertImageLinks($content) {
             <?php endwhile; ?>
         </div>
     </div>
-
+</div>
 <?php
 require($_SERVER['DOCUMENT_ROOT'] . "/modules/common/common_footer.php");
 ?>

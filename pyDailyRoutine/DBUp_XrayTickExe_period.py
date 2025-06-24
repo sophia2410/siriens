@@ -20,7 +20,7 @@ try:
         # 2025-02-26 이후 calendar의 date 리스트 가져오기
         cursor.execute("""
             SELECT date FROM calendar 
-            WHERE date > '2025-02-26' AND date <= CURDATE() AND cal_yn = 'Y'
+            WHERE date > '2025-05-22' AND date <= CURDATE() AND cal_yn = 'Y'
             ORDER BY date ASC
         """)
         date_list = [row[0].strftime('%Y-%m-%d') for row in cursor.fetchall()]

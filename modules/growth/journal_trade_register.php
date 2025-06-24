@@ -138,7 +138,7 @@ if (!$tradeDate) {
     <title><?= htmlspecialchars($pageTitle) ?></title>
     <style>
         /* 전체 컨테이너 (좌우 1:1 분할) */
-        #container {
+        #wrapper {
             display: flex;
             gap: 10px;
             padding: 20px;
@@ -329,7 +329,9 @@ if (!$tradeDate) {
     </style>
 </head>
 <body>
-    <div id="container">
+<?php include($_SERVER['DOCUMENT_ROOT'] . "/modules/common/common_nav_menu.php"); ?>
+<div id="content">
+    <div id="wrapper">
         <!-- (1) 좌측: 조회조건 + 달력 -->
         <div id="left_container">
             <div id="search_container">
@@ -455,20 +457,23 @@ if (!$tradeDate) {
         <div id="right_container">
             <iframe id="editor_frame" src="journal_trade_popup.php?trade_date=<?= $tradeDate ?>&mode=iframe"></iframe>
         </div>
+    </div>
+</div>
 
-    <script>
-        // 날짜 클릭 시, iframe에 해당 일자 로드
-        function loadEditor(date) {
-            document.getElementById('editor_frame').src = "journal_trade_popup.php?trade_date=" + encodeURIComponent(date) + "&mode=iframe";
-            adjustIframeHeight();
-        }
-        // 달력 영역과 iframe 높이를 1:1 맞추기
-        function adjustIframeHeight() {
-            var calHeight = document.getElementById('calendar_container').offsetHeight;
-            document.getElementById('editor_frame').style.height = calHeight + "px";
-        }
-        window.addEventListener('load', adjustIframeHeight);
-        window.addEventListener('resize', adjustIframeHeight);
-    </script>
+<script>
+    // 날짜 클릭 시, iframe에 해당 일자 로드
+    function loadEditor(date) {
+        document.getElementById('editor_frame').src = "journal_trade_popup.php?trade_date=" + encodeURIComponent(date) + "&mode=iframe";
+        adjustIframeHeight();
+    }
+    // 달력 영역과 iframe 높이를 1:1 맞추기
+    function adjustIframeHeight() {
+        var calHeight = document.getElementById('calendar_container').offsetHeight;
+        document.getElementById('editor_frame').style.height = calHeight + "px";
+    }
+    window.addEventListener('load', adjustIframeHeight);
+    window.addEventListener('resize', adjustIframeHeight);
+</script>
+
 </body>
 </html>

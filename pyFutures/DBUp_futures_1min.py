@@ -19,7 +19,7 @@ db = pymysql.connect(
 )
 
 # 폴더 경로에서 일자 추출
-base_path = "C:/KiwoomHero4/temp/20250522"
+base_path = "C:/KiwoomHero4/temp/20250605"
 target_date = os.path.basename(base_path)
 target_date_fmt = datetime.strptime(target_date, "%Y%m%d").date()
 

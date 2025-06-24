@@ -68,7 +68,10 @@ $next = (clone $firstDay)->modify('+1 month');
 #chart-frame-wrap { flex: 1; padding: 0; border: none; }
 iframe { width: 100%; height: 100%; border: none; }
 </style>
+
 <body style="margin-left:150px">
+<?php include($_SERVER['DOCUMENT_ROOT'] . "/modules/common/futures_nav_menu.php"); ?>
+
 <div id="wrapper">
   <div id="side">
     <div style="display:flex;gap:6px;margin-bottom:8px;">

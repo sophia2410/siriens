@@ -259,7 +259,8 @@ else if ($dataSource === 'excel') {
 </head>
 
 <body>
-<div id="container">
+<?php include($_SERVER['DOCUMENT_ROOT'] . "/modules/common/common_nav_menu.php"); ?>
+<div id="content">
     <div id="main_content">
         <!-- 조회 폼 -->
         <form method="GET" class="form-inline" id="reportForm">

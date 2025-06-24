@@ -30,6 +30,12 @@ $trade_result = $mysqli->query($trade_query);
 
 <head>
     <style>
+        #wrapper {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+
         /* container 내부에 content-wrapper 추가 */
         #left-content, #right-content {
             padding: 10px;
@@ -140,7 +146,9 @@ $trade_result = $mysqli->query($trade_query);
     </style>
 </head>
 <body>
-    <div id="container">
+<?php include($_SERVER['DOCUMENT_ROOT'] . "/modules/common/common_nav_menu.php"); ?>
+<div id="content">
+    <div id="wrapper">
         <div id="left-content">
             <!-- 월 선택 기능 -->
             <div id="content-wrapper">
@@ -307,17 +315,19 @@ $trade_result = $mysqli->query($trade_query);
             </div>
         </div>
     </div>
+</div>
 
-    <?php require($_SERVER['DOCUMENT_ROOT'] . "/modules/common/common_footer.php"); ?>
+<?php require($_SERVER['DOCUMENT_ROOT'] . "/modules/common/common_footer.php"); ?>
 
-    <script>
-        // 매수일자 필드로 포커스 이동하는 콜백 함수
-        function focusOnBuyDate() {
-            const buyDateInput = document.querySelector("input[name='buy_date']");
-            if (buyDateInput) {
-                buyDateInput.focus(); // 매수일자 필드로 포커스 이동
-            }
-        }
-    </script>
+<script>
+// 매수일자 필드로 포커스 이동하는 콜백 함수
+function focusOnBuyDate() {
+    const buyDateInput = document.querySelector("input[name='buy_date']");
+    if (buyDateInput) {
+        buyDateInput.focus(); // 매수일자 필드로 포커스 이동
+    }
+}
+</script>
+
 </body>
 </html>

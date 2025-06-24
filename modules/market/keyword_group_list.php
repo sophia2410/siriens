@@ -102,6 +102,12 @@ function render_stock_list($mysqli, $groupName = '', $groupId = '') {
 <head>
     <!-- 페이지 전용 스타일 -->
     <style>
+        #wrapper {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+
         #keyword_group_panel {
             flex: 2;
             background-color: #f8f8f8;
@@ -198,7 +204,10 @@ function render_stock_list($mysqli, $groupName = '', $groupId = '') {
 </head>
 
 <body>
-    <div id="container" style="display: flex;">
+
+<?php include($_SERVER['DOCUMENT_ROOT'] . "/modules/common/common_nav_menu.php"); ?>
+<div id="content">
+    <div id="wrapper">
         <!-- 키워드 그룹 리스트 및 검색 -->
         <div id="keyword_group_panel">
             <h2>키워드 그룹 조회</h2>

@@ -526,7 +526,8 @@ $issueResult = $issueQuery->get_result();
 </head>
 
 <body>
-<div id="container">
+<?php include($_SERVER['DOCUMENT_ROOT'] . "/modules/common/common_nav_menu.php"); ?>
+<div id="content">
 <div id="wrapper">
     <!-- Date and Save Controls -->
     <div id="controls">

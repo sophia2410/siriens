@@ -82,6 +82,12 @@ $totalPages = ceil($totalJournals / 2);
 
 <head>
     <style>
+        #wrapper {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+        
         #journal_register_container {
             flex: 1;
             background-color: #f9f9f9;
@@ -234,7 +240,9 @@ $totalPages = ceil($totalJournals / 2);
 </head>
 
 <body>
-    <div id="container">
+<?php include($_SERVER['DOCUMENT_ROOT'] . "/modules/common/common_nav_menu.php"); ?>
+<div id="content">
+    <div id="wrapper">
         <!-- 관심 종목 등록 폼 -->
         <div id="journal_register_container">
             <h2>HOT 종목 등록</h2>
@@ -432,6 +440,7 @@ $totalPages = ceil($totalJournals / 2);
             </div>
         </div>
     </div>
+</div>
 
 <?php
 require($_SERVER['DOCUMENT_ROOT'] . "/modules/common/common_footer.php");
