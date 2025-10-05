@@ -20,7 +20,9 @@ db = pymysql.connect(
 
 # 📂 파일 및 테이블 매핑
 upload_list = [
-    ("chart_1min.xls", "futures_1min")
+    ("chart_5min.xls", "futures_5min"),
+    ("chart_15min.xls", "futures_15min"),
+    ("chart_60min.xls", "futures_60min")
 ]
 
 base_path = "C:/KiwoomHero4/temp"
@@ -39,7 +41,10 @@ column_names = [
 
 # ✅ 공통 + 확장 컬럼 정의
 common_cols = ['date', 'time', 'datetime', 'open', 'high', 'low', 'close', 'volume',
-               'sma_5', 'sma_20', 'sma_120']
+               'sma_5', 'sma_20', 'sma_120', 'rsi_14']
+extra_cols = ['bb_center', 'bb_upper', 'bb_lower',
+              'ema_20', 'ema_60', 'macd', 'macd_signal', 'macd_hist']
+all_cols = common_cols + extra_cols
 
 # ✅ 엑셀 파싱 함수
 def parse_excel(filepath):
@@ -62,15 +67,30 @@ def insert_rows(df, table, cursor):
     df = df[df['datetime'] > latest_dt]
     print(f"{table}: {len(df)} rows to insert")
 
-    df_filtered = df[common_cols]
-    sql = f"""
-    INSERT IGNORE INTO {table}
-    (date, time, datetime, open, high, low, close, volume,
-        sma_5, sma_20, sma_120)
-    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-    """
-    for _, row in tqdm(df_filtered.iterrows(), total=len(df_filtered)):
-        cursor.execute(sql, tuple(row[col] if pd.notna(row[col]) else None for col in df_filtered.columns))
+    if table == "futures_5min":
+        df_filtered = df[common_cols]
+        sql = f"""
+        INSERT IGNORE INTO {table}
+        (date, time, datetime, open, high, low, close, volume,
+         sma_5, sma_20, sma_120, rsi_14)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """
+        for _, row in tqdm(df_filtered.iterrows(), total=len(df_filtered)):
+            cursor.execute(sql, tuple(row[col] if pd.notna(row[col]) else None for col in df_filtered.columns))
+    else:
+        df_filtered = df[all_cols]
+        sql = f"""
+        INSERT IGNORE INTO {table}
+        (date, time, datetime, open, high, low, close, volume,
+         sma_5, sma_20, sma_120, rsi_14,
+         bb_center, bb_upper, bb_lower,
+         ema_20, ema_60, macd, macd_signal, macd_hist)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                %s, %s, %s, %s, %s, %s, %s, %s)
+        """
+        for _, row in tqdm(df_filtered.iterrows(), total=len(df_filtered)):
+            cursor.execute(sql, tuple(row[col] if pd.notna(row[col]) else None for col in df_filtered.columns))
+
 # ✅ 실행 메인
 with db.cursor() as cursor:
     for filename, table in upload_list:
@@ -84,4 +104,9 @@ with db.cursor() as cursor:
     db.commit()
 
 db.close()
-print("1 분봉 데이터 업로드 완료")
+print("✅ 모든 분봉 데이터 업로드 완료 / 전략 생성 계속...")
+
+generate_missing_features("futures_60min", "futures_bb_rsi_features_60m")
+generate_missing_features("futures_15min", "futures_bb_rsi_features_15m")
+
+print("✅ 전략 생성 완료")

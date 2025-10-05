@@ -2,6 +2,8 @@
 require $_SERVER['DOCUMENT_ROOT'] . "/modules/common/database.php"; // $mysqli 제공
 
 $date = $_GET['date'] ?? '';
+$interval = $_GET['interval'] ?? '60';
+
 if (!$date) {
 ?>
   <button onclick="startFlask()">🚀 Flask 서버 실행</button>
@@ -45,36 +47,15 @@ $stmt_next->bind_result($next_date);
 $stmt_next->fetch();
 $stmt_next->close();
 
-// 선물 일봉 테이블에서 전략정보 구해오기
+// 선물 일봉 테이블 정보 받아오기
 $sql = "
     SELECT
         f1.*,
         ROUND((f1.open - f2.close) / f2.close * 100, 2) AS open_change_pct,
         ROUND((f1.close - f2.close) / f2.close * 100, 2) AS close_change_pct,
-        ROUND((f1.high - f2.close) / f2.close * 100, 2) AS high_change_pct,
-        ROUND((f1.low - f2.close) / f2.close * 100, 2) AS low_change_pct,
         f1.open - f2.close AS open_change_pt,
         f1.close - f2.close AS close_change_pt,
-        f1.high - f2.close AS high_change_pt,
-        f1.low - f2.close AS low_change_pt,
-        fa.gap_percent,
-        fa.gap_type,
-        fa.pattern_0845_0859,
-        fa.tick_range_0845_0859,
-        fa.vol_0845_0859,
-        fa.candle_0900_dir,
-        fa.diff_0900_pt,
-        fa.tick_range_0900,
-        fa.match_last5_and_0900,
-        fa.match_last5_and_0901,
-        fa.is_morning_breakout,
-        fa.entry_direction_a,
-        fa.open_0845_0859,
-        fa.close_0845_0859,
-        fa.diff_0845_0859_pt,
-        fa.created_at,
-        r5.high_5bd,
-        r5.low_5bd
+        fa.created_at
     FROM futures_1day f1
     LEFT JOIN futures_1day f2
         ON f2.date = (
@@ -83,65 +64,27 @@ $sql = "
             WHERE date < f1.date
         )
     LEFT JOIN futures_analysis fa ON f1.date = fa.date
-    LEFT JOIN (
-      SELECT
-          MAX(fx.high) AS high_5bd,
-          MIN(fx.low)  AS low_5bd
-      FROM futures_1day fx
-      JOIN (
-          SELECT date
-          FROM calendar
-          WHERE date <= ?
-          ORDER BY date DESC
-          LIMIT 5
-      ) l ON l.date = fx.date
-    ) r5 ON 1=1
     WHERE f1.date = ?
 ";
 
 $stmt = $mysqli->prepare($sql);
-$stmt->bind_param("ss", $date, $date);
+$stmt->bind_param("s", $date);
 $stmt->execute();
 $result = $stmt->get_result();
 $strategy = $result->fetch_assoc();
-
-// morning report title
-$sql = "
-    SELECT morning_report_title
-    FROM market_report
-    WHERE date = ?
-";
-
-$stmt = $mysqli->prepare($sql);
-$stmt->bind_param("s", $date);
-$stmt->execute();
-$stmt->bind_result($morning_report);
-$stmt->fetch();
-$stmt->close();
-
-// evening report title
-$sql = "
-    SELECT evening_report_title
-    FROM market_report
-    WHERE date = ?
-";
-
-$stmt = $mysqli->prepare($sql);
-$stmt->bind_param("s", $date);
-$stmt->execute();
-$stmt->bind_result($evening_report);
-$stmt->fetch();
-$stmt->close();
 
 // Fetch KOSPI and KOSDAQ index data
 $index_query = "
     SELECT close_rate
     FROM market_index
     WHERE market_fg = 'NASDAQ'
-    AND date = ?
+    AND date = (-- S&P 500과 NASDAQ의 전 거래일 데이터를 가져옴
+                SELECT MAX(c.date)
+                FROM calendar c
+                WHERE c.date < ? )
 ";
 $stmt = $mysqli->prepare($index_query);
-$stmt->bind_param("s", $prev_date);
+$stmt->bind_param("s", $date);
 $stmt->execute();
 $stmt->bind_result($market_index);
 $stmt->fetch();
@@ -170,112 +113,104 @@ function colorize($value) {
   }
 }
 
-// 스냅샷 데이터 조회하기
-$sql = "SELECT *
-        FROM futures_snapshot_momentum fsm
-        WHERE date = ? ORDER BY datetime ASC";
-$stmt = $mysqli->prepare($sql);
-$stmt->bind_param("s", $date);
-$stmt->execute();
-$result = $stmt->get_result();
-$rows = $result->fetch_all(MYSQLI_ASSOC);
-
-// 불필요한 항목 정리 필요 250509
-$labels = [];
-$prices = [];
-$volumes = [];
-$sma1_5 = [];
-$sma1_20 = [];
-$sma1_120 = [];
-$sma5_5 = [];
-$sma5_20 = [];
-$sma5_120 = [];
-$sma10_5 = [];
-$sma10_20 = [];
-$sma10_120 = [];
-$sma15_5 = [];
-$sma15_20 = [];
-$sma15_120 = [];
-$sma60_5 = [];
-$sma60_20 = [];
-$sma60_120 = [];
-
-// 강제로 특정 분까지 데이터 조회 위한 하드코딩
-// $minute = "08:50";
-// if ($minute) {
-//   $rows = array_filter($rows, function($row) use ($minute) {
-//     return substr($row['time'], 0, 5) <= $minute;
-//   });
-// }
-
-foreach ($rows as $row) {
-  $labels[] = substr($row['time'], 0, 5);
-  $prices[] = $row['price'];
-  $volumes[] = $row['volume'];
-
-  $sma1_5[]           = $row['sma_1min_5'];
-  $sma1_20[]          = $row['sma_1min_20'];
-  $sma1_120[]         = $row['sma_1min_120'];
-  $sma5_5[]           = $row['sma_5min_5'];
-  $sma5_20[]          = $row['sma_5min_20'];
-  $sma5_120[]         = $row['sma_5min_120'];
-  $sma10_5[]          = $row['sma_10min_5'];
-  $sma10_20[]         = $row['sma_10min_20'];
-  $sma10_120[]        = $row['sma_10min_120'];
-  $sma15_5[]          = $row['sma_15min_5'];
-  $sma15_20[]         = $row['sma_15min_20'];
-  $sma15_120[]        = $row['sma_15min_120'];
-  $sma60_5[]          = $row['sma_60min_5'];
-  $sma60_20[]         = $row['sma_60min_20'];
-  $sma60_120[]        = $row['sma_60min_120'];
+// BB-RSI-EMA 전략 조회를 위한 차트 정보 조회
+switch ($interval) {
+  case '15':
+    $table = 'futures_15min'; $table_ft = 'futures_bb_rsi_features_15m'; $dayRange = 2; break;
+  default:
+    $table = 'futures_60min'; $table_ft = 'futures_bb_rsi_features_60m'; $dayRange = 15; break;
 }
 
-$chart_data = [
-  'labels' => $labels,
-  'prices' => $prices,
-  'sma1_5' => $sma1_5,
-  'sma1_20' => $sma1_20,
-  'sma1_120' => $sma1_120,
-  'sma5_5' => $sma5_5,
-  'sma5_20' => $sma5_20,
-  'sma10_5' => $sma10_5,
-  'sma15_5' => $sma15_5,
-  'sma60_5' => $sma60_5,
-  'volume' => $volumes
-];
+$dates = [];
+$res = $mysqli->query("SELECT DISTINCT date FROM $table ORDER BY date");
+while ($row = $res->fetch_assoc()) $dates[] = $row['date'];
 
-// 필요한 컬럼들에서 값 추출
-$values = [];
-foreach ($rows as $row) {
-    foreach (['sma_5min_5', 'sma_5min_20', 'sma_1min_5', 'sma_1min_20', 'sma_1min_120'] as $key) {
-        if (!empty($row[$key]) && is_numeric($row[$key])) {
-            $values[] = floatval($row[$key]);
-        }
+$index = array_search($date, $dates);
+if ($index === false) {
+  echo "해당 날짜의 데이터가 없습니다.";
+  exit;
+}
+
+$start = max(0, $index - $dayRange);
+$end = min(count($dates) - 1, $index + 1);
+$targetDates = array_slice($dates, $start, $end - $start + 1);
+$targetDates = array_slice($dates, $start, $end - $start); // 기준일까지 조회로 변경. BACKTEST 때문.. 이후 다시 조정 필요. 25.06.29
+$inClause = "('" . implode("','", array_map(fn($d) => $mysqli->real_escape_string($d), $targetDates)) . "')";
+
+$sql = "SELECT * FROM $table WHERE date IN $inClause ORDER BY date, time ASC";
+$result = $mysqli->query($sql);
+
+$data = $rsi = $bb = $ema20 = $ema60 = $volume = $macd = $macdHist = [];
+$plotLines = [];
+$seenDates = [];
+
+while ($row = $result->fetch_assoc()) {
+    $ts = strtotime($row['date'] . ' ' . $row['time']) * 1000 + (15 * 60 * 1000);
+
+    $open = (float)$row['open'];
+    $close = (float)$row['close'];
+    $vol = (float)$row['volume'];
+    $color = $close > $open ? '#f45b5b' : '#2f7ed8';
+
+    $data[] = [$ts, $open, (float)$row['high'], (float)$row['low'], $close];
+    $rsi[] = [$ts, round($row['rsi_14'], 2)];
+    $bb[] = [$ts, round($row['bb_lower'], 2), round($row['bb_center'], 2), round($row['bb_upper'], 2)];
+    $ema20[] = [$ts, round($row['ema_20'], 2)];
+    $ema60[] = [$ts, round($row['ema_60'], 2)];
+    $volume[] = ['x' => $ts, 'y' => $vol, 'color' => $color];
+
+    $macdVal = [
+        'ts' => $ts,
+        'macd' => round($row['macd'], 2),
+        'signal' => round($row['macd_signal'], 2),
+        'hist' => round($row['macd_hist'], 2)
+    ];
+    $macd[] = $macdVal;
+    $macdHist[] = [
+        'x' => $ts,
+        'y' => $macdVal['hist'],
+        'color' => $macdVal['hist'] >= 0 ? '#ff4136' : '#0074d9'
+    ];
+
+    $dateKey = date('Y-m-d', $ts / 1000);
+    if (!isset($seenDates[$dateKey])) {
+        $seenDates[$dateKey] = true;
+        $plotLines[] = [
+            'color' => '#cccccc',
+            'width' => 1,
+            'value' => $ts,
+            'dashStyle' => 'ShortDot',
+            'label' => [
+                'text' => date('m-d', $ts / 1000),
+                'rotation' => 0,
+                'align' => 'left',
+                'y' => 12,
+                'style' => ['color' => '#666', 'fontSize' => '10px']
+            ]
+        ];
     }
 }
-
-// y축 범위 계산 (데이터가 없으면 기본값 설정)
-if (count($values) > 0) {
-    $min = min($values);
-    $max = max($values);
-    $range = $max - $min;
-
-    if ($range < 10) {
-        // 범위가 너무 좁으면 여유를 줘서 8칸 확보
-        $center = ($min + $max) / 2;
-        $minY = floor($center - 4);  // 중심 기준으로 좌우 5pt
-        $maxY = ceil($center + 4);
-    } else {
-        $minY = floor($min);
-        $maxY = ceil($max);
-    }
-} else {
-    $minY = 0;
-    $maxY = 10;
+// 캔들 추가정보 조회
+$features = [];
+$featuresRes = $mysqli->query("SELECT * FROM $table_ft WHERE date IN $inClause ORDER BY date ASC");
+while ($row = $featuresRes->fetch_assoc()) {
+    $ts = $row['date'];
+    $features[$ts] = [
+        'body_pct' => round($row['body_pct'], 2),
+        'ema_gap' => round($row['ema_gap'], 2),
+        'macd_hist' => round($row['macd_hist'], 2),
+        'macd' => round($row['macd'], 2),
+        'candle_type' => $row['candle_type'],
+        'bb_width' => round($row['bb_width'], 2),
+        'ema_bb_gap' => round($row['ema_bb_gap'], 2),
+        'macd_hist_change' => round($row['macd_hist_change'], 2),
+        'index_vs_ema20' => round($row['index_vs_ema20'], 2),
+        'index_vs_ema60' => round($row['index_vs_ema60'], 2),
+        'rsi_14' => round($row['rsi_14'], 2),
+        'bb_position' => round($row['bb_position'], 2),
+        'lower_tail_pct' => round($row['lower_tail_pct'], 2)
+    ];
 }
-
-// JavaScript로 넘기기
-$y_axis_config = ['min' => $minY, 'max' => $maxY];
 ?>
 <!DOCTYPE html>
 <html lang="ko">
@@ -283,6 +218,7 @@ $y_axis_config = ['min' => $minY, 'max' => $maxY];
   <meta charset="UTF-8">
   <title><?= $date ?> 전략 차트</title>
   <script src="https://code.highcharts.com/stock/highstock.js"></script>
+  <script src="https://code.highcharts.com/highcharts-more.js"></script>
   <script src="https://code.highcharts.com/stock/indicators/indicators.js"></script>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -295,8 +231,8 @@ $y_axis_config = ['min' => $minY, 'max' => $maxY];
     }
     #layout {
       display: grid;
-      grid-template-columns: 6fr 3fr 2fr 3fr 3fr;
-      grid-template-rows: 100px 300px 300px auto;
+      grid-template-columns: 2fr 1fr 1fr 1fr;
+      grid-template-rows: 80px 280px 620px auto;
       gap: 2px;
       padding: 2px;
       box-sizing: border-box;
@@ -304,7 +240,7 @@ $y_axis_config = ['min' => $minY, 'max' => $maxY];
       overflow-x: hidden; /* 👈 가로 스크롤 제거 */
     }
     #metric-content {
-      grid-column: 1 / 18;
+      grid-column: 1 / 6;
       font-size: 16px;
       padding: 5px;
       /* background: #f9f9f9; */
@@ -317,22 +253,35 @@ $y_axis_config = ['min' => $minY, 'max' => $maxY];
       width: 100%; /* 너비 100%로 제한 */
       box-sizing: border-box; /* 패딩과 테두리를 너비에 포함 */
     }
-    #chart-1m, #snapshotChart {
-      grid-column: 1 / 18;
+    #chart-60m, #info-box {
+      grid-column: 1 / 6;
       height: 100%;
+    }
+    #candle-info, #feature-info {
+      padding: 10px;
+      font-size: 14px;
+      color: #333;
+      background: #f8f8f8;
+      border-top: 1px solid #ccc;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      line-height: 1.5em;
+    }
+    #info-box div {
+      min-width: 180px;
     }
   </style>
 </head>
 
-
-<form method="get" action="futures_chart.php" style="padding: 2px; border-bottom: 1px solid #ccc;">
+<!-- <form method="get" action="futures_chart_BB.php" style="padding: 2px; border-bottom: 1px solid #ccc;">
   📅 날짜 선택:
   <input type="date" id="date-picker" value="<?= $date ?>">
   <button type="button" onclick="reloadChart()">조회</button>
   &nbsp;
   <button type="submit" name="date" value="<?= $prev_date ?>">◀ 이전</button>
   <button type="submit" name="date" value="<?= $next_date ?>">다음 ▶</button>
-</form>
+</form> -->
 <input type=hidden id="date-picker" value="<?= $date ?>">
 
   <div id="layout">
@@ -350,13 +299,7 @@ $y_axis_config = ['min' => $minY, 'max' => $maxY];
       </a>
     </b>
     <hr style="margin:3px 0;">
-    <!-- 🔸 <b><?= $strategy['pattern_0845_0859'] ?? '-' ?> ( 갭: <?= $strategy['gap_percent'] ?? '-' ?>% )</b><br> -->
-    <!-- 🔁 일치: 09:00 <?= $strategy['match_last5_and_0900'] ? '✔' : '✘' ?><?= ' ('.$strategy['diff_0900_pt'] ?? '-' ?>pt, <?= $strategy['tick_range_0900'] ?? '-' ?>pt) , 09:01 <?= $strategy['match_last5_and_0901'] ? '✔' : '✘' ?><br> -->
-    <!-- 🟡 첫 15분봉: <b><?= $strategy['open_0845_0859'] ?? '-' ?> ~ <?= $strategy['close_0845_0859'] ?? '-' ?></b>  | 시종갭: <?= $strategy['diff_0845_0859_pt'] ?>pt<br> -->
-
-    🔥 나스닥: <?= colorize($market_index) ?? null ?>% | Morning Report: <?= $morning_report ?? null ?> / 🔥Evening Report: <?= $evening_report ?? null ?> <br>
-    🟡 시가: <?= $strategy['open'] ?>pt , <?= colorize($strategy['open_change_pct'] ?? null) ?>% , <?= colorize($strategy['open_change_pt'] ?? null) ?> pt | 고가: <?= $strategy['high'] ?>pt, <?= colorize($strategy['high_change_pct'] ?? null) ?>%, <?= colorize($strategy['high_change_pt'] ?? null) ?> pt | 저가: <?= $strategy['low'] ?>pt, <?= colorize($strategy['low_change_pct'] ?? null) ?>%, <?= colorize($strategy['low_change_pt'] ?? null) ?> pt | 종가: <?= $strategy['close'] ?>pt, <?= colorize($strategy['close_change_pct'] ?? null) ?>%, <?= colorize($strategy['close_change_pt'] ?? null) ?> pt | 변동성: <?= $strategy['high']-$strategy['low'] ?>pt | 5일 최고: <?= $strategy['high_5bd'] ?>pt | 5일 최저: <?= $strategy['low_5bd'] ?>pt | 5일 변동성: <?= $strategy['high_5bd']-$strategy['low_5bd'] ?>pt
-    <br>
+    🔥 나스닥: <?= colorize($market_index) ?? null ?>% | 🟡 시가: <?= $strategy['open'] ?>pt , <?= colorize($strategy['open_change_pct'] ?? null) ?>% , <?= colorize($strategy['open_change_pt'] ?? null) ?> pt | 종가: <?= $strategy['close'] ?>pt, <?= colorize($strategy['close_change_pct'] ?? null) ?>%, <?= colorize($strategy['close_change_pt'] ?? null) ?> pt&nbsp;&nbsp;&nbsp;
     🟢 순매수 현황 (천만원):
     외국인: <b><?= colorize($strategy['net_foreign'] ?? null) ?>(<?= colorize($strategy['cum_net_foreign'] ?? null) ?>)</b> |
     기관: <b><?= colorize($strategy['net_institution'] ?? null) ?>(<?= colorize($strategy['cum_net_institution'] ?? null) ?>)</b> |
@@ -371,18 +314,15 @@ $y_axis_config = ['min' => $minY, 'max' => $maxY];
   </div>
   <?php endif; ?>
 
-    <!-- <div id="chart-5m" class="chart-box"></div>
+    <div id="chart-5m" class="chart-box"></div>
     <div id="chart-15m" class="chart-box"></div>
-    <div id="chart-60m" class="chart-box"></div>
     <div id="chart-day" class="chart-box"></div>
     <div id="chart-week" class="chart-box"></div>
-
-    <div id="chart-1m" class="chart-box"></div>
-
-    <div id="snapshotChart">
-      <canvas id="lineChart" height="55"></canvas>
-    </div> -->
-
+    <div id="chart-60m" class="chart-box"></div>
+    <div id="info-box">
+        <div id="candle-info">🖱 캔들을 클릭하면 상세 정보가 여기에 표시됩니다.</div>
+        <div id="feature-info">📊 Feature 정보는 분봉 종가만 표시됩니다.</div>
+    </div>
   </div>
 
 <script>
@@ -419,7 +359,7 @@ function reloadChart() {
   }
 
   // ✅ 선택된 날짜로 페이지 새로 요청
-  window.location.href = `futures_chart.php?date=${newDate}`;
+  window.location.href = `futures_chart_BB.php?date=${newDate}`;
 }
 
 document.getElementById('date-picker').addEventListener('keydown', function(e) {
@@ -635,7 +575,6 @@ async function loadCharts(dateStr) {
   renderChart('chart-day', r1d.candles || [], r1d.data || []);
   renderChart('chart-5m',  r5Data, r5.data || [], plotLines5m, yAxisPlotBands);
   renderChart('chart-15m', r15.candles || [], r15.data || []);
-  renderChart('chart-60m', r60.candles || [], r60.data || []);
   renderChart('chart-1m',  r1mData, r1m.data || [], plotLines1m, yAxisPlotBands);
 
 
@@ -656,121 +595,270 @@ async function loadCharts(dateStr) {
 loadCharts(dateStr);
 
 
-const data = <?= json_encode($chart_data) ?>;
-const yAxisConfig = <?= json_encode($y_axis_config) ?>;
+// BB-RSI-EMA 차트 보여주기
+const featureMap = <?= json_encode($features) ?>;
 
-new Chart(document.getElementById('lineChart'), {
-  type: 'line',
-  data: {
-    labels: data.labels,
-    datasets: [
-      {
-       label: '종가',
-       data: data.prices,
-       borderColor: 'gray',
-       pointRadius: 0,
-       fill: false,
-       yAxisID: 'y1',
-       tension: 0.2
-      },
-      {
-        label: '5분 5이평',
-        data: data.sma5_5,
-        borderColor: 'red',
-        borderDash: [2, 2],
-        pointRadius: 0,
-        fill: false,
-        yAxisID: 'y1',
-        tension: 0.2
-      },
-      {
-        label: '5분 20이평',
-        data: data.sma5_20,
-        borderColor: 'orange',
-        borderDash: [2, 2],
-        pointRadius: 0,
-        fill: false,
-        yAxisID: 'y1',
-        tension: 0.2
-      },
-      {
-        label: '1분 5이평',
-        data: data.sma1_5,
-        borderColor: '#8A2BE2', // BlueViolet
-        borderDash: [10, 10],
-        borderWidth: 1,
-        pointRadius: 0,
-        fill: false,
-        yAxisID: 'y1',
-        tension: 0.2
-      },
-      {
-        label: '1분 20이평',
-        data: data.sma1_20,
-        borderColor: '#228B22', // ForestGreen
-        borderDash: [10, 10],
-        borderWidth: 1,
-        pointRadius: 0,
-        fill: false,
-        yAxisID: 'y1',
-        tension: 0.2
-      },
-      {
-        label: '1분 120이평',
-        data: data.sma1_120,
-        borderColor: '#A9A9A9', // DarkGray
-        borderDash: [10, 10],
-        pointRadius: 0,
-        fill: false,
-        yAxisID: 'y1',
-        tension: 0.2
-      },
-      {
-        type: 'bar',
-        label: '거래량',
-        data: data.volume,
-        backgroundColor: 'rgba(200, 200, 200, 0.4)',
-        yAxisID: 'y2'
-      }
-    ]
-  },
-  options: {
-    scales: {
-      y1: {
-        type: 'linear',
-        position: 'left',
-        title: { display: true, text: '가격 (pt)' },
-        grid: {
-          drawOnChartArea: true,   // ✅ 가로선 표시
-          color: 'rgba(0, 0, 0, 0.2)'  // 🔍 가로줄 색(연하게)
-        },
-        min: yAxisConfig.min,
-        max: yAxisConfig.max,
-        ticks: {
-          stepSize: 1,  // ✅ 1pt 간격으로 눈금 및 가로줄
-          callback: function(value) {
-            return value.toFixed(2);  // 소수 둘째자리까지 표시
-          }
-        }
-      },
-      y2: {
-        type: 'linear',
-        position: 'right',
-        title: { display: true, text: '거래량' },
-        grid: {
-          drawOnChartArea: false // ✅ 가로줄 제거!
-        }
-      }
-    },
-    plugins: {
-      legend: { position: 'top' },
-      title: { display: false, text: '종가 + 이평선 + 거래량' },
-      tooltip: {
-        mode: 'index',     // ✅ x축 기준으로 모든 dataset 툴팁 표시
-        intersect: false   // ✅ 포인터가 바를 찍지 않아도 툴팁 활성화
-      }
+function showCandleInfo(chart, ts, o, h, l, c) {
+    const getVal = (name) => {
+    const s = chart.series.find(s => s.name === name);
+    const p = s?.data.find(p => p.x === ts);
+    return p?.y ?? '-';
+    };
+    const macd = macdData.find(m => m.ts === ts);
+    const info = `
+    <div><b>${Highcharts.dateFormat('%Y-%m-%d', ts)}</b></div>
+    <div>
+        <b>시가</b>: ${o}<br>
+        <b>고가</b>: ${h}
+    </div>
+    <div>
+        <b>저가</b>: ${l}<br>
+        <b>종가</b>: ${c}
+    </div>
+    <div>
+        <b>EMA20</b>: ${getVal('EMA20')}<br>
+        <b>EMA60</b>: ${getVal('EMA60')}
+    </div>
+    <div>
+        <b>BB 상단</b>: ${getVal('BB 상단')}<br>
+        <b>BB 중심</b>: ${getVal('중심선')}<br>
+        <b>BB 하단</b>: ${getVal('BB 하단')}
+    </div>
+    <div>
+        <b>RSI</b>: ${getVal('RSI')}
+    </div>
+    <div>
+        <b>MACD</b>: ${macd?.macd ?? '-'}<br>
+        <b>Signal</b>: ${macd?.signal ?? '-'}<br>
+        <b>Histogram</b>: ${macd?.hist ?? '-'}
+    </div>
+    `;
+    document.getElementById('candle-info').innerHTML = info;
+}
+
+function showFeatureInfo(ts) {
+    const dateStr = Highcharts.dateFormat('%Y-%m-%d', ts);
+    const f = featureMap[dateStr];
+    if (!f) {
+    document.getElementById('feature-info').innerHTML = "<i>해당 날짜의 feature 데이터가 없습니다.</i>";
+    return;
     }
-  }
+
+    const line = (...args) => args.map(([k, v]) => `<b>${k}</b>: ${v}`).join('&nbsp;&nbsp;&nbsp;&nbsp;');
+
+    const info = `
+    <div><b>🧬 Feature (${dateStr})</b></div>
+    <div>
+        <b>candle_type</b>    : ${f.candle_type}
+    </div>
+    <div>
+        <b>body_pct</b>       : ${f.body_pct}<br>
+        <b>lower_tail_pct</b> : ${f.lower_tail_pct}
+    </div>
+    <div>
+        <b>bb_position</b>    : ${f.bb_position}<br>
+        <b>bb_width</b>       : ${f.bb_width}
+    </div>
+    <div>
+        <b>ema_gap</b>        : ${f.ema_gap}<br>
+        <b>ema_bb_gap</b>     : ${f.ema_bb_gap}
+    </div>
+    <div>
+        <b>index_vs_ema20</b> : ${f.index_vs_ema20}<br>
+        <b>index_vs_ema60</b> : ${f.index_vs_ema60}
+    </div>
+    <div>
+        <b>macd</b>             : ${f.macd}<br>
+        <b>macd_hist</b>        : ${f.macd_hist}<br>
+        <b>macd_hist_change</b> : ${f.macd_hist_change}
+    </div>
+    `;
+
+    document.getElementById('feature-info').innerHTML = info;
+}
+
+
+const macdData = <?= json_encode($macd) ?>;
+const macdHist = <?= json_encode($macdHist) ?>;
+
+Highcharts.stockChart('chart-60m', {
+    tooltip: { enabled: false },
+    chart: { zoomType: 'x' ,
+    events: {
+        load: function () {
+        // 차트 로딩 직후 실행할 코드
+        const chart = this;
+        const series = chart.series.find(s => s.name === 'Price');
+        if (series) {
+            const points = series.data.filter(p => {
+            const d = new Date(p.x);
+            return Highcharts.dateFormat('%Y-%m-%d', p.x) === '<?= $date ?>';
+            });
+            const last = points.at(-1);
+            if (last) {
+            showCandleInfo(chart, last.x, last.open, last.high, last.low, last.close);
+            showFeatureInfo(last.x);
+            }
+        }
+        }
+    }
+    },
+    xAxis: {
+    type: 'datetime',
+    tickInterval: 3600 * 1000,
+    labels: { enabled: false },
+    plotLines: <?= json_encode($plotLines) ?>
+    },
+    navigator: { enabled: false },
+    scrollbar: { enabled: true },
+    plotOptions: {
+    candlestick: {
+        point: {
+        events: {
+            click: function () {
+            const chart = this.series.chart;
+            showCandleInfo(chart, this.x, this.open, this.high, this.low, this.close);
+            showFeatureInfo(this.x);
+            }
+        }
+        }
+    }
+    },
+    yAxis: [
+    {
+        title: { text: 'Price', style: { color: '#2f7ed8' } },
+        height: '65%',
+        lineWidth: 2,
+        gridLineWidth: 1,
+        gridLineColor: '#cccccc'
+    },
+    {
+        title: { text: 'Volume', style: { color: '#333' } },
+        top: '65%',
+        height: '10%',
+        offset: 0,
+        lineWidth: 2,
+        gridLineWidth: 1,
+        gridLineColor: '#999999'
+    },
+    {
+        title: { text: 'RSI', style: { color: '#ff5733' } },
+        top: '75%',
+        height: '15%',
+        offset: 0,
+        lineWidth: 2,
+        gridLineWidth: 1,
+        gridLineColor: '#999999',
+        min: 0,
+        max: 100,
+        plotLines: [
+        { value: 70, color: 'gray', dashStyle: 'Dash', width: 1, label: { text: '70', align: 'right' } },
+        { value: 30, color: 'gray', dashStyle: 'Dash', width: 1, label: { text: '30', align: 'right' } }
+        ]
+    },
+    {
+        title: { text: 'MACD', style: { color: '#0074d9' } },
+        top: '90%',
+        height: '10%',
+        offset: 0,
+        lineWidth: 2,
+        gridLineWidth: 1,
+        gridLineColor: '#999999'
+    }
+    ],
+    series: [
+    {
+        type: 'candlestick',
+        name: 'Price',
+        data: <?= json_encode($data) ?>,
+        color: '#2f7ed8',
+        upColor: '#f45b5b',
+        zIndex: 5 // 캔들의 zIndex를 높게 설정
+    },
+    {
+        type: 'line',
+        name: 'EMA20',
+        data: <?= json_encode($ema20) ?>,
+        color: 'orange',
+        lineWidth: 1.5
+    },
+    {
+        type: 'line',
+        name: 'EMA60',
+        data: <?= json_encode($ema60) ?>,
+        color: 'green',
+        lineWidth: 1.5
+    },
+    {
+        type: 'arearange',
+        name: '볼린저밴드',
+        yAxis: 0,
+        data: <?= json_encode(array_map(fn($r) => [$r[0], $r[1], $r[3]], $bb)) ?>,
+        color: 'rgba(200,200,200,0.3)',
+        fillOpacity: 0.3,
+        lineWidth: 0,
+        linkedTo: ':previous'
+    },
+    {
+        type: 'line',
+        name: '중심선',
+        data: <?= json_encode(array_map(fn($r) => [$r[0], $r[2]], $bb)) ?>,
+        dashStyle: 'ShortDot',
+        color: '#000000'
+    },
+    {
+        type: 'line',
+        name: 'BB 상단',
+        data: <?= json_encode(array_map(fn($r) => [$r[0], $r[3]], $bb)) ?>,
+        color: '#e00000',
+        dashStyle: 'ShortDash'
+    },
+    {
+        type: 'line',
+        name: 'BB 하단',
+        data: <?= json_encode(array_map(fn($r) => [$r[0], $r[1]], $bb)) ?>,
+        color: '#00aacc',
+        dashStyle: 'ShortDash'
+    },
+    {
+        type: 'column',
+        name: '거래량',
+        data: <?= json_encode($volume) ?>,
+        yAxis: 1
+    },
+    {
+        type: 'line',
+        name: 'RSI',
+        data: <?= json_encode($rsi) ?>,
+        yAxis: 2,
+        color: '#888888',
+        zones: [
+        { value: 30, color: '#3b82f6' },
+        { value: 70, color: '#888888' },
+        { color: '#ef4444' }
+        ]
+    },
+    {
+        type: 'line',
+        name: 'MACD',
+        data: <?= json_encode(array_map(fn($r) => [$r['ts'], $r['macd']], $macd)) ?>,
+        yAxis: 3,
+        color: '#0074d9'
+    },
+    {
+        type: 'line',
+        name: 'MACD Signal',
+        data: <?= json_encode(array_map(fn($r) => [$r['ts'], $r['signal']], $macd)) ?>,
+        yAxis: 3,
+        color: '#ff4136'
+    },
+    {
+        type: 'column',
+        name: 'MACD Histogram',
+        data: macdHist,
+        yAxis: 3
+    }
+    ]
 });
 </script>
 </body>

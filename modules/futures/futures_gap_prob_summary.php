@@ -12,7 +12,7 @@ $selected = [
   'rsi' => $_GET['rsi'] ?? ''
 ];
 ?>
-
+<head>
 <style>
 .container { display: flex; gap: 16px; }
 .left-panel { width: 40%; border-right: 1px solid #ccc; padding: 12px; font-size: 13px; }
@@ -108,8 +108,8 @@ function sortCaseTable(colIndex) {
   const thead = table.querySelector("thead");
   const tbody = table.querySelector("tbody");
   const rows = Array.from(tbody.rows);
-
-  const textCols = [0, 2, 3, 5, 11, 12, 13, 15]; // 날짜, 시가, 60분 후, 기울기, MACD POSITION, MACD VS SIGNAL, MACD-HIST 증감, 캔들
+  
+  const textCols = [0, 2, 3, 6, 10, 16, 17, 18]; // 날짜, 시가, 60분 후, 캔들, 기울기, MACD POSITION, MACD VS SIGNAL, MACD-HIST 증감
   const isNumeric = !textCols.includes(colIndex);
 
   const currentSort = table.getAttribute("data-sort-col");
@@ -146,17 +146,20 @@ function sortCaseTable(colIndex) {
 }
 
 function openChartPopup(date, minute) {
-  const w = 1400, h = 1200;
+  const w = 1440, h = 1220;
   const left = (screen.width - w) / 2;
   const top = (screen.height - h) / 2;
   window.open(
-    `./futures_gap_case_chart.php?date=${date}&interval=${minute}`,
+    `./futures_chart_BB.php?date=${date}&interval=${minute}`,
     'bb_rsi_chart',
     `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=no`
   );
 }
 </script>
+</head>
 
+<body style="margin-left:150px">
+<?php include($_SERVER['DOCUMENT_ROOT'] . "/modules/common/futures_nav_menu.php"); ?>
 <div class="container">
   <!-- 왼쪽 패널 -->
   <div class="left-panel">
@@ -230,3 +233,4 @@ function openChartPopup(date, minute) {
     <div id="casePanel"><i>← 조합을 선택하면 여기에 사례가 표시됩니다</i></div>
   </div>
 </div>
+</body>

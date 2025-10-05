@@ -426,7 +426,6 @@ while ($row = $result->fetch_assoc()) {
     }
 
     dateList.forEach((d, idx) => drawChart(idx, d.date));
-
     // ✅ 인쇄 전/후 훅: 툴팁/크로스헤어 숨기고 레이아웃 안정화
     (function(){
       function hideAllChartOverlays() {

@@ -1,0 +1,59 @@
+[
+  {
+    "strategy_id": "rule001",
+    "description": "RSI 80이상",
+    "entry_exit_mode": {
+      "entry": "prev_close",
+      "exit": "open_price"
+    },
+    "direction": "SHORT",
+    "conditions": {
+      "prev_rsi14_min": 80
+    },
+    "comment" : "과매수구간, 갭하락 확률 ↑"
+  }
+ ,{
+    "strategy_id": "rule002",
+    "description": "RSI 20이하",
+    "entry_exit_mode": {
+      "entry": "prev_close",
+      "exit": "open_price"
+    },
+    "direction": "LONG",
+    "conditions": {
+      "prev_rsi14_max": 20
+    },
+    "comment" : "과매수구간, 갭하락 확률 ↑"
+  }
+ ,{
+    "strategy_id": "rule003",
+    "description": "GAP PT -5 이상",
+    "entry_exit_mode": {
+      "entry": "close_5m",
+      "exit": "close_5m_4"
+    },
+    "direction": "LONG",
+    "conditions": {
+      "up_5m_eq": 0
+    },
+    "comment" : "첫5분 음봉! 큰 하락 이후 반등. 첫5분 음봉 이후 9시 5분까지의 반등구간 매매 / 주의! 연속되는 5분봉 종가 하향 시 추가 하락 예측 됨"
+  }
+ ,{
+    "strategy_id": "rule004",
+    "description": "GAP PT -5 이상",
+    "entry_exit_mode": {
+      "entry": "close_5m",
+      "exit": "close_60m"
+    },
+    "direction": "LONG",
+    "conditions": {
+      "up_5m_eq": 1
+    },
+    "comment" : "첫5분 양봉! 갭하락 이후 곧바로 반등. 첫5분 종가 매수 후 60분봉 양봉 기대 매매 (시가까지 눌림 시 추가 매수 가능) / 60분봉 양봉 이후에는 다시 양봉 확률 높음, 추세 상승일 경우 지켜보기 / BUT 5분봉 양봉 크면 너무 힘을 많이 소진했을 확률 높음. 조심"
+  }
+ ,{
+    "strategy_id": "rule005",
+    "description": "GAP PT 3 이상",
+    "comment" : "갭상승, 이후 5분봉은 5선을 만나러 감. 방법은 횡보? 혹은 하락 / 갭을 띄웠기 때문에 힘이 크진 않은 상태. 갭상승 후 몸통큰 양봉 나오면 눌림 필수. 양봉3개 연속 나와도 눌림 필수 / 양봉에 매도 - 음봉 매수 전략도 유효할듯"
+  }
+]

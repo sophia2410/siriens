@@ -3,18 +3,16 @@ require_once $_SERVER['DOCUMENT_ROOT'] . "/modules/common/database.php";
 
 $date = $_GET['date'] ?? '';
 $interval = $_GET['interval'] ?? '60';
-if (!$date || !in_array($interval, ['15', '30', '60'])) {
+if (!$date || !in_array($interval, ['15', '60'])) {
   echo "날짜 또는 분봉(interval) 값이 올바르지 않습니다.";
   exit;
 }
 
 switch ($interval) {
   case '15':
-    $table = 'futures_bb_rsi_15m'; $dayRange = 2; break;
-  case '30':
-    $table = 'futures_bb_rsi_30m'; $dayRange = 5; break;
+    $table = 'futures_15min'; $table_ft = 'futures_bb_rsi_features_15m'; $dayRange = 2; break;
   default:
-    $table = 'futures_bb_rsi_60m'; $dayRange = 20; break;
+    $table = 'futures_60min'; $table_ft = 'futures_bb_rsi_features_60m'; $dayRange = 10; break;
 }
 
 $dates = [];
@@ -48,10 +46,10 @@ while ($row = $result->fetch_assoc()) {
     $color = $close > $open ? '#f45b5b' : '#2f7ed8';
 
     $data[] = [$ts, $open, (float)$row['high'], (float)$row['low'], $close];
-    $rsi[] = [$ts, round($row['rsi14'], 2)];
+    $rsi[] = [$ts, round($row['rsi_14'], 2)];
     $bb[] = [$ts, round($row['bb_lower'], 2), round($row['bb_center'], 2), round($row['bb_upper'], 2)];
-    $ema20[] = [$ts, round($row['ema20'], 2)];
-    $ema60[] = [$ts, round($row['ema60'], 2)];
+    $ema20[] = [$ts, round($row['ema_20'], 2)];
+    $ema60[] = [$ts, round($row['ema_60'], 2)];
     $volume[] = ['x' => $ts, 'y' => $vol, 'color' => $color];
 
     $macdVal = [
@@ -85,6 +83,27 @@ while ($row = $result->fetch_assoc()) {
         ];
     }
 }
+// 캔들 추가정보 조회
+$features = [];
+$featuresRes = $mysqli->query("SELECT * FROM $table_ft WHERE date IN $inClause ORDER BY date ASC");
+while ($row = $featuresRes->fetch_assoc()) {
+    $ts = $row['date'];
+    $features[$ts] = [
+        'body_pct' => round($row['body_pct'], 2),
+        'ema_gap' => round($row['ema_gap'], 2),
+        'macd_hist' => round($row['macd_hist'], 2),
+        'macd' => round($row['macd'], 2),
+        'candle_type' => $row['candle_type'],
+        'bb_width' => round($row['bb_width'], 2),
+        'ema_bb_gap' => round($row['ema_bb_gap'], 2),
+        'macd_hist_change' => round($row['macd_hist_change'], 2),
+        'index_vs_ema20' => round($row['index_vs_ema20'], 2),
+        'index_vs_ema60' => round($row['index_vs_ema60'], 2),
+        'rsi_14' => round($row['rsi_14'], 2),
+        'bb_position' => round($row['bb_position'], 2),
+        'lower_tail_pct' => round($row['lower_tail_pct'], 2)
+    ];
+}
 ?>
 <!DOCTYPE html>
 <html>
@@ -98,7 +117,7 @@ while ($row = $result->fetch_assoc()) {
       margin: 0; padding: 0; height: 100%;
     }
     #container { height: 800px; width: 100vw; }
-    #info-box {
+    #candle-info, #feature-info {
       padding: 10px;
       font-size: 14px;
       color: #333;
@@ -109,7 +128,7 @@ while ($row = $result->fetch_assoc()) {
       gap: 20px;
       line-height: 1.5em;
     }
-    #info-box div {
+    #info-box div, #feature-info div {
       min-width: 180px;
     }
   </style>
@@ -117,15 +136,114 @@ while ($row = $result->fetch_assoc()) {
 <body>
   <h2 style="margin:0; padding:10px;">📅 <?= $date ?> / <?= $interval ?>분봉 차트</h2>
   <div id="container"></div>
-  <div id="info-box">🖱 캔들을 클릭하면 상세 정보가 여기에 표시됩니다.</div>
+  <div id="info-box">
+    <div id="candle-info">🖱 캔들을 클릭하면 상세 정보가 여기에 표시됩니다.</div>
+    <div id="feature-info">📊 Feature 정보는 분봉 종가만 표시됩니다.</div>
+  </div>
+
 
   <script>
+    const featureMap = <?= json_encode($features) ?>;
+
+    function showCandleInfo(chart, ts, o, h, l, c) {
+      const getVal = (name) => {
+        const s = chart.series.find(s => s.name === name);
+        const p = s?.data.find(p => p.x === ts);
+        return p?.y ?? '-';
+      };
+      const macd = macdData.find(m => m.ts === ts);
+      const info = `
+        <div><b>${Highcharts.dateFormat('%Y-%m-%d %H:%M', ts)}</b></div>
+        <div>
+          <b>시가</b>: ${o}<br>
+          <b>고가</b>: ${h}<br>
+          <b>저가</b>: ${l}<br>
+          <b>종가</b>: ${c}
+        </div>
+        <div>
+          <b>EMA20</b>: ${getVal('EMA20')}<br>
+          <b>EMA60</b>: ${getVal('EMA60')}
+        </div>
+        <div>
+          <b>BB 상단</b>: ${getVal('BB 상단')}<br>
+          <b>BB 중심</b>: ${getVal('중심선')}<br>
+          <b>BB 하단</b>: ${getVal('BB 하단')}
+        </div>
+        <div>
+          <b>RSI</b>: ${getVal('RSI')}
+        </div>
+        <div>
+          <b>MACD</b>: ${macd?.macd ?? '-'}<br>
+          <b>Signal</b>: ${macd?.signal ?? '-'}<br>
+          <b>Histogram</b>: ${macd?.hist ?? '-'}
+        </div>
+      `;
+      document.getElementById('candle-info').innerHTML = info;
+    }
+
+    function showFeatureInfo(ts) {
+      const dateStr = Highcharts.dateFormat('%Y-%m-%d', ts);
+      const f = featureMap[dateStr];
+      if (!f) {
+        document.getElementById('feature-info').innerHTML = "<i>해당 날짜의 feature 데이터가 없습니다.</i>";
+        return;
+      }
+
+      const line = (...args) => args.map(([k, v]) => `<b>${k}</b>: ${v}`).join('&nbsp;&nbsp;&nbsp;&nbsp;');
+
+      const info = `
+        <div><b>🧬 Feature (${dateStr})</b></div>
+        <div>
+          <b>candle_type</b>    : ${f.candle_type}<br>
+          <b>body_pct</b>       : ${f.body_pct}<br>
+          <b>lower_tail_pct</b> : ${f.lower_tail_pct}
+        </div>
+        <div>
+          <b>bb_position</b>    : ${f.bb_position}<br>
+          <b>bb_width</b>       : ${f.bb_width}
+        </div>
+        <div>
+          <b>ema_gap</b>        : ${f.ema_gap}<br>
+          <b>ema_bb_gap</b>     : ${f.ema_bb_gap}<br>
+          <b>index_vs_ema20</b> : ${f.index_vs_ema20}<br>
+          <b>index_vs_ema60</b> : ${f.index_vs_ema60}
+        </div>
+        <div>
+          <b>macd</b>             : ${f.macd}<br>
+          <b>macd_hist</b>        : ${f.macd_hist}<br>
+          <b>macd_hist_change</b> : ${f.macd_hist_change}
+        </div>
+      `;
+
+      document.getElementById('feature-info').innerHTML = info;
+    }
+
+
     const macdData = <?= json_encode($macd) ?>;
     const macdHist = <?= json_encode($macdHist) ?>;
 
     Highcharts.stockChart('container', {
       tooltip: { enabled: false },
-      chart: { zoomType: 'x' },
+      chart: { zoomType: 'x' ,
+        events: {
+          load: function () {
+            // 차트 로딩 직후 실행할 코드
+            const chart = this;
+            const series = chart.series.find(s => s.name === 'Price');
+            if (series) {
+              const points = series.data.filter(p => {
+                const d = new Date(p.x);
+                return Highcharts.dateFormat('%Y-%m-%d', p.x) === '<?= $date ?>';
+              });
+              const last = points.at(-1);
+              if (last) {
+                showCandleInfo(chart, last.x, last.open, last.high, last.low, last.close);
+                showFeatureInfo(last.x);
+              }
+            }
+          }
+        }
+      },
       title: { text: '<?= $date ?> / <?= $interval ?>분봉 차트' },
       xAxis: {
         type: 'datetime',
@@ -140,41 +258,9 @@ while ($row = $result->fetch_assoc()) {
           point: {
             events: {
               click: function () {
-                const ts = this.x;
                 const chart = this.series.chart;
-                const getVal = (name) => {
-                  const s = chart.series.find(s => s.name === name);
-                  const p = s?.data.find(p => p.x === ts);
-                  return p?.y ?? '-';
-                };
-                const macd = macdData.find(m => m.ts === ts);
-                const info = `
-                  <div><b>${Highcharts.dateFormat('%Y-%m-%d %H:%M', ts)}</b></div>
-                  <div>
-                    <b>시가</b>: ${this.open}<br>
-                    <b>고가</b>: ${this.high}<br>
-                    <b>저가</b>: ${this.low}<br>
-                    <b>종가</b>: ${this.close}
-                  </div>
-                  <div>
-                    <b>EMA20</b>: ${getVal('EMA20')}<br>
-                    <b>EMA60</b>: ${getVal('EMA60')}
-                  </div>
-                  <div>
-                    <b>BB 상단</b>: ${getVal('BB 상단')}<br>
-                    <b>BB 중심</b>: ${getVal('중심선')}<br>
-                    <b>BB 하단</b>: ${getVal('BB 하단')}
-                  </div>
-                  <div>
-                    <b>RSI</b>: ${getVal('RSI')}
-                  </div>
-                  <div>
-                    <b>MACD</b>: ${macd?.macd ?? '-'}<br>
-                    <b>Signal</b>: ${macd?.signal ?? '-'}<br>
-                    <b>Histogram</b>: ${macd?.hist ?? '-'}
-                  </div>
-                `;
-                document.getElementById('info-box').innerHTML = info;
+                showCandleInfo(chart, this.x, this.open, this.high, this.low, this.close);
+                showFeatureInfo(this.x);
               }
             }
           }
@@ -228,7 +314,8 @@ while ($row = $result->fetch_assoc()) {
           name: 'Price',
           data: <?= json_encode($data) ?>,
           color: '#2f7ed8',
-          upColor: '#f45b5b'
+          upColor: '#f45b5b',
+          zIndex: 5 // 캔들의 zIndex를 높게 설정
         },
         {
           type: 'line',

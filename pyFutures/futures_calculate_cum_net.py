@@ -16,8 +16,8 @@ db = pymysql.connect(
 
 # 만기일 리스트 조회
 with db.cursor() as cursor:
-    cursor.execute("SELECT date FROM calendar WHERE futures_expiry_yn = 'Y' AND date >= '2023-09-14' ORDER BY date")
-    cursor.execute("SELECT date FROM calendar WHERE futures_expiry_yn = 'Y' AND date >= '2025-03-13' ORDER BY date")
+    cursor.execute("SELECT date FROM calendar WHERE futures_expiry_yn = 'Y' AND date >= '2023-03-09' ORDER BY date")
+    # cursor.execute("SELECT date FROM calendar WHERE futures_expiry_yn = 'Y' AND date >= '2025-03-13' ORDER BY date")
     expiry_dates = [row['date'] for row in cursor.fetchall()]
 
 # 누적 갱신

@@ -32,13 +32,10 @@ class DBUpdater:
             logging.error(traceback.format_exc())
 
     def __del__(self):
-        """소멸자: MariaDB 연결 해제"""
         try:
             self.conn.close()
-            logging.info("DB 연결 해제 성공")
-        except Exception as e:
-            logging.error(f"DB 연결 해제 실패: {str(e)}")
-            logging.error(traceback.format_exc())
+        except:
+            pass  # logging 제거
 
     # pykrxMarket --------------------------------------------------------------------------------------------------------------------------------------------------
     def get_ticker(self, date):
@@ -174,12 +171,14 @@ class DBUpdater:
         """KRX로부터 상장기업 목록 파일을 읽어와서 데이터프레임으로 반환"""
         try:
             url = 'http://kind.krx.co.kr/corpgeneral/corpList.do?method=download&searchType=13'
-            krx = pd.read_html(requests.get(url,
-                        headers={'referer': 'http://kind.krx.co.kr/',
-                                  'User-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36'}).text)[0]
+            html = requests.get(url, headers={
+                'referer': 'http://kind.krx.co.kr/',
+                'User-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36'
+            }).text
+            krx = pd.read_html(StringIO(html))[0]
             krx = krx[['종목코드', '회사명']]
             krx = krx.rename(columns={'종목코드': 'code', '회사명': 'company'})
-            krx.code = krx.code.map('{:06d}'.format)
+            krx.code = krx.code.astype(str).str.zfill(6)  # <-- 여기 핵심 수정
             logging.info("KRX 종목코드 읽기 성공")
             return krx
         except Exception as e:

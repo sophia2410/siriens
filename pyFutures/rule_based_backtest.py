@@ -63,8 +63,8 @@ def run_rule_backtest(date_from, date_to, json_path):
     with cnx.cursor() as cur:
         cur.execute("""
         SELECT cal.date, cal.futures_start_time,
-               prev.close AS prev_close, prev.open AS prev_open,
-               prev.bb_center AS prev_bb_center, prev.bb_upper AS prev_bb_upper, prev.bb_lower AS prev_bb_lower,
+               prev.close AS prev_close,
+               prev.bb_center AS prev_bb_center, prev.bb_upper AS prev_bb_upper, prev.bb_lower AS prev_bb_lower, ROUND(prev.bb_upper - prev.bb_lower,2) prev_bb_width,
                ROUND((prev.close - prev.bb_lower) / (prev.bb_upper - prev.bb_lower), 2) AS prev_bb_pos_ratio,
                ROUND((curr.open - prev.bb_lower) / (prev.bb_upper - prev.bb_lower), 2) AS bb_pos_ratio,
                prev.rsi_14 AS prev_rsi14,
@@ -72,14 +72,16 @@ def run_rule_backtest(date_from, date_to, json_path):
                curr.open AS open_price,
                curr.close AS close_60m,
                f5_1.close AS close_5m,
-               f5_5.close AS close_5m_5,
+               f5_4.close AS close_5m_4,
                f5_1.high - f5_1.low AS range_5m,
                f5_1.volume AS vol_5m,
                CASE WHEN f5_1.close > f5_1.open THEN 1 ELSE 0 END AS up_5m,
-               (f5_1.close - f5_1.open) / f5_1.open AS ret_5m,
+               f5_1.close - f5_1.open AS ret_5m,
+               (curr.close - f5_1.close) AS ret_5m_60m, 
+               (f5_4.close - f5_1.close) AS ret_5m_5m4, 
                (curr.open - prev.close) AS gap_pt,
                (curr.open - prev.close) / prev.close AS gap_pct,
-               CASE WHEN curr.open > prev.close THEN 1 ELSE 0 END AS gap_pos
+               CASE WHEN curr.open > prev.close THEN 1 ELSE 0 END AS gap_posㅔㅗㅔ
         FROM calendar cal
         JOIN (
             SELECT t1.* FROM futures_60min t1
@@ -95,7 +97,7 @@ def run_rule_backtest(date_from, date_to, json_path):
         JOIN (
             SELECT *, ROW_NUMBER() OVER (PARTITION BY date ORDER BY datetime) AS rn
             FROM futures_5min
-        ) f5_5 ON f5_5.date = cal.date AND f5_5.rn = 5
+        ) f5_4 ON f5_4.date = cal.date AND f5_4.rn = 4
         WHERE cal.date BETWEEN %s AND %s AND cal.cal_yn = 'Y'
         ORDER BY cal.date
         """, (date_from, date_to))

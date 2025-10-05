@@ -1,0 +1,67 @@
+[
+  {
+    "strategy_id": "rule001",
+    "description": "RSI 40~60, BB 중심 아래, 갭상",
+    "entry_exit_mode": {
+      "entry": "close_5m",
+      "exit": "close_60m"
+    },
+    "direction": "SHORT",
+    "conditions": {
+      "rsi14_min": 40,
+      "rsi14_max": 60,
+      "gap_pct_min": 0.002,
+      "gap_pos_eq": 1,
+      "bb_touch": "center"
+    }
+  }
+ ,{
+    "strategy_id": "rule002",
+    "description": "RSI 50~70, 갭상 + BB 상단 맞닿음",
+    "entry_exit_mode": {
+      "entry": "close_5m",
+      "exit": "close_60m"
+    },
+    "direction": "SHORT",
+    "conditions": {
+      "rsi14_min": 50,
+      "rsi14_max": 70,
+      "gap_pct_min": 0.004,
+      "bb_touch": "upper"
+    }
+  }
+ ,{
+    "strategy_id": "rule003",
+    "description": "전일 음봉, 이격도 -1% 이하",
+    "entry_exit_mode": {
+      "entry": "close_5m",
+      "exit": "close_60m"
+    },
+    "direction": "SHORT",
+    "conditions": {
+      "prev_candle": "bear",
+      "price_vs_ema20_max": -0.01
+    }
+  }
+ ,{
+    "strategy_id": "rule004",
+    "description": "갭하락 + RSI 과열로 숏",
+    "entry_exit_mode": {
+      "entry": "close_5m",
+      "exit": "close_60m"
+    },
+    "direction": "SHORT",
+    "conditions": {
+        "rsi14_max": 65,
+        "gap_pos_eq": 0,
+        "bb_touch": "upper"
+    }
+  }
+]
+
+키 이름 예	의미
+prev_close	전일 종가
+open_price	당일 시가
+close_5m	5분봉 첫 종가
+close_60m	60분봉 첫 종가
+close_5m_5	(추후 확장 가능) 5분봉 다섯 번째 종가

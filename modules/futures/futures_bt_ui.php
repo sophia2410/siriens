@@ -72,7 +72,7 @@ while ($row = $strategy_query->fetch_assoc()) {
 <style>
     .form-section label { font-weight: bold; display: block; margin-top: 8px; }
     .form-section input, .form-section select, .form-section textarea { width: 100%; padding: 6px; margin-bottom: 10px; }
-    .btn { background-color: #2980b9; color: white; border: none; padding: 8px 16px; cursor: pointer; }
+    .btn { background-color: #2980b9; color: white; border: none; padding: 8px 16px; cursor: pointer; text-decoration: none; height: 1.05cm;}
     .btn:hover { background-color: #1c5980; }
     .btn-danger { background-color: #c0392b; }
     .btn-danger:hover { background-color: #922b21; }
@@ -82,9 +82,10 @@ while ($row = $strategy_query->fetch_assoc()) {
 }
 </style>
 
-<body style="margin-left:150px">
-<?php include($_SERVER['DOCUMENT_ROOT'] . "/modules/common/futures_nav_menu.php"); ?>
-
+<!-- <body style="margin-left:150px"> -->
+<?php //include($_SERVER['DOCUMENT_ROOT'] . "/modules/common/futures_nav_menu.php"); 
+?>
+<body>
 <div style="display: flex; gap: 20px; padding: 20px;">
     <div style="width: 20%;">
         <h2><?= $edit_log ? '매매 수정' : '매매 등록' ?></h2>
@@ -122,7 +123,7 @@ while ($row = $strategy_query->fetch_assoc()) {
             <input type="text" name="price" value="<?= $edit_log['price'] ?? '' ?>" required>
 
             <label>수량</label>
-            <input type="number" name="qty" value="<?= $edit_log['qty'] ?? '2' ?>" required>
+            <input type="number" name="qty" value="<?= $edit_log['qty'] ?? '1' ?>" required>
 
             <label>비고</label>
             <textarea name="memo" rows="3"><?= htmlspecialchars($edit_log['memo'] ?? '') ?></textarea>
@@ -147,8 +148,7 @@ while ($row = $strategy_query->fetch_assoc()) {
         </form>
 
         <hr>
-
-        <?php if (strpos($strategy, 'BB') === 0): ?>
+        <?php if (substr($strategy, 3, 2) === 'BB'): ?>
             <div class="strategy-tip">
                 ⚠️ <strong>볼린저밴드 전략 :</strong><br><br>
                 (롱1) 하락-상승 추세전환<br>
@@ -163,7 +163,7 @@ while ($row = $strategy_query->fetch_assoc()) {
 
     <div style="width: 80%;">
         <h2><?= htmlspecialchars($strategy) ?> 전략 세트 목록</h2>
-        <div style="max-height: 800px; overflow-y: auto; border: 1px solid #ccc;">
+        <div style="max-height: 400px; overflow-y: auto; border: 1px solid #ccc;">
         <table>
             <tr>
                 <th>ID</th>
@@ -180,8 +180,22 @@ while ($row = $strategy_query->fetch_assoc()) {
             <?php while ($row = $sets_result->fetch_assoc()): ?>
             <tr>
                 <td><?= $row['id'] ?></td>
-                <td><?= $row['created_at'] ?></td>
-                <td><?= $row['closed_at'] ?? '-' ?></td>
+                <?php
+                $date = $row['created_at']; // 예: '2024-02-16'
+                $year = substr($date, 0, 4); // '2024'
+                $imageUrl = "/image/chart-captures-BB/{$year}/{$date}.png";
+                ?>
+                <td>
+                <a href="<?= $imageUrl ?>" target="_blank"><?= $date ?></a>
+                </td>
+                <?php
+                $date = $row['closed_at']; // 예: '2024-02-16'
+                $year = substr($date, 0, 4); // '2024'
+                $imageUrl = "/image/chart-captures-BB/{$year}/{$date}.png";
+                ?>
+                <td>
+                <a href="<?= $imageUrl ?>" target="_blank"><?= $date ?></a>
+                </td>
                 <td><?= $row['status'] ?></td>
                 <td><?= $row['direction'] ?? '-' ?></td>
                 <td><?= $row['total_qty'] ?? 0 ?></td>
@@ -190,7 +204,7 @@ while ($row = $strategy_query->fetch_assoc()) {
                 <td style="text-align:left; max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                     <?= htmlspecialchars($memo_map[$row['id']] ?? '-') ?>
                 </td>
-                <td><a class="btn" href="?strategy=<?= urlencode($strategy) ?>&set_id=<?= $row['id'] ?>">보기</a></td>
+                <td><a class="btn" href="?strategy=<?= urlencode($strategy) ?>&set_id=<?= $row['id'] ?>">▷</a></td>
             </tr>
             <?php endwhile; ?>
         </table>
@@ -218,7 +232,7 @@ while ($row = $strategy_query->fetch_assoc()) {
                 <td><?= $log['qty'] ?></td>
                 <td style="text-align:left;"><?= nl2br($log['memo'] ?? '') ?></td>
                 <td>
-                    <a class="btn" href="?strategy=<?= urlencode($strategy) ?>&set_id=<?= $selectedSetId ?>&edit_log_id=<?= $log['id'] ?>">수정</a>
+                    <a class="btn" href="?strategy=<?= urlencode($strategy) ?>&set_id=<?= $selectedSetId ?>&edit_log_id=<?= $log['id'] ?>">✏️</a>
                 </td>
                 <td>
                     <form method="post" action="futures_bt_process.php" style="display:inline-block;">
@@ -226,7 +240,7 @@ while ($row = $strategy_query->fetch_assoc()) {
                         <input type="hidden" name="id" value="<?= $log['id'] ?>">
                         <input type="hidden" name="strategy_name" value="<?= htmlspecialchars($strategy) ?>">
                         <input type="hidden" name="set_id" value="<?= $selectedSetId ?>">
-                        <button class="btn btn-danger" type="submit">삭제</button>
+                        <button class="btn btn-danger" type="submit">🗑️</button>
                     </form>
                 </td>
             </tr>
