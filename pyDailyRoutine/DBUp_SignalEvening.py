@@ -39,7 +39,7 @@ def extract_title(title):
 
 def main():
     print('처리중....................')
-    conn = pymysql.connect(host='siriens.mycafe24.com', user='siriens', password='hosting1004!', db='siriens', charset='utf8')
+    conn = pymysql.connect(host='siriens.mycafe24.com', user='siriens', password='mariadb1004!', db='siriens', charset='utf8')
     cur = conn.cursor()
     
     #파일명이 '20240901' 형식이라 문자형 일자 구해오기

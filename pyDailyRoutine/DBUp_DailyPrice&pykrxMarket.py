@@ -24,7 +24,7 @@ class DBUpdater:
     def __init__(self):
         """생성자: MariaDB 연결 및 종목코드 딕셔너리 생성"""
         try:
-            self.conn = pymysql.connect(host='siriens.mycafe24.com', user='siriens', password='hosting1004!', db='siriens', charset='utf8')
+            self.conn = pymysql.connect(host='siriens.mycafe24.com', user='siriens', password='mariadb1004!', db='siriens', charset='utf8')
             self.codes = dict()
             logging.info("DB 연결 성공")
         except Exception as e:

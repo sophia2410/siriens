@@ -23,8 +23,8 @@ INSERT INTO rule_based_rowdata (
     prev_bb_pos_ratio, bb_pos_ratio,
     prev_rsi14, prev_ema20, prev_ema60,
     open_price, close_60m, close_5m, close_5m_4,
-    range_5m, vol_5m, up_5m, ret_5m,
-    ret_5m_60m, ret_5m1_5m4,
+    range_5m, vol_5m, up_5m, up_5m_2, up_5m_3, up_5m_4, 
+    ret_5m, ret_5m_60m, ret_5m1_5m4,
     range_1m, vol_1m, up_1m, ret_1m,
     gap_pt, gap_pct, gap_pos
 )
@@ -43,6 +43,9 @@ SELECT
     (f5_1.high - f5_1.low) AS range_5m,
     f5_1.volume,
     CASE WHEN f5_1.close > f5_1.open THEN 1 ELSE 0 END,
+    CASE WHEN f5_2.close > f5_2.open THEN 1 ELSE 0 END,
+    CASE WHEN f5_3.close > f5_3.open THEN 1 ELSE 0 END,
+    CASE WHEN f5_4.close > f5_4.open THEN 1 ELSE 0 END,
     (f5_1.close - f5_1.open),
     (curr.close - f5_1.close),
     (f5_4.close - f5_1.close),
@@ -65,6 +68,14 @@ JOIN (
     SELECT *, ROW_NUMBER() OVER (PARTITION BY date ORDER BY datetime) AS rn
     FROM futures_5min
 ) f5_1 ON f5_1.date = cal.date AND f5_1.rn = 1
+JOIN (
+    SELECT *, ROW_NUMBER() OVER (PARTITION BY date ORDER BY datetime) AS rn
+    FROM futures_5min
+) f5_2 ON f5_2.date = cal.date AND f5_2.rn = 2
+JOIN (
+    SELECT *, ROW_NUMBER() OVER (PARTITION BY date ORDER BY datetime) AS rn
+    FROM futures_5min
+) f5_3 ON f5_3.date = cal.date AND f5_3.rn = 3
 JOIN (
     SELECT *, ROW_NUMBER() OVER (PARTITION BY date ORDER BY datetime) AS rn
     FROM futures_5min

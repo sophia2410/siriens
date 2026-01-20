@@ -45,7 +45,7 @@ def connect_db():
     return pymysql.connect(
         host='siriens.mycafe24.com',
         user='siriens',
-        password='hosting1004!',
+        password='mariadb1004!',
         db='siriens',
         charset='utf8'
     )

@@ -53,12 +53,14 @@ def parse_excel(filepath):
 # ✅ 테이블 최신 등록 시간
 def get_latest_datetime(cursor, table):
     cursor.execute(f"SELECT MAX(datetime) FROM {table}")
+    # cursor.execute(f"SELECT MAX(datetime) FROM {table} WHERE date < '2025-11-04'") # 특정일 미반영 처리로직
     row = cursor.fetchone()
     return row[0] if row[0] else datetime(2000, 1, 1)
 
 # ✅ INSERT 실행
 def insert_rows(df, table, cursor):
     latest_dt = get_latest_datetime(cursor, table)
+    print(f"latest_dt:{latest_dt}")
     df = df[df['datetime'] > latest_dt]
     print(f"{table}: {len(df)} rows to insert")
 

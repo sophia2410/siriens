@@ -104,9 +104,9 @@ with db.cursor() as cursor:
     db.commit()
 
 db.close()
-print("✅ 모든 분봉 데이터 업로드 완료 / 전략 생성 계속...")
+print("[OK] 모든 분봉 데이터 업로드 완료 / 전략 생성 계속...")
 
 generate_missing_features("futures_60min", "futures_bb_rsi_features_60m")
 generate_missing_features("futures_15min", "futures_bb_rsi_features_15m")
 
-print("✅ 전략 생성 완료")
+print("[OK] 전략 생성 완료")

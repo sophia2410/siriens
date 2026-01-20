@@ -371,7 +371,7 @@ $y_axis_config = ['min' => $minY, 'max' => $maxY];
   </div>
   <?php endif; ?>
 
-    <!-- <div id="chart-5m" class="chart-box"></div>
+    <div id="chart-5m" class="chart-box"></div>
     <div id="chart-15m" class="chart-box"></div>
     <div id="chart-60m" class="chart-box"></div>
     <div id="chart-day" class="chart-box"></div>
@@ -381,7 +381,7 @@ $y_axis_config = ['min' => $minY, 'max' => $maxY];
 
     <div id="snapshotChart">
       <canvas id="lineChart" height="55"></canvas>
-    </div> -->
+    </div>
 
   </div>
 

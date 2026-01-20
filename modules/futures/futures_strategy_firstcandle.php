@@ -1,11 +1,14 @@
 <?php
+
+// futures_strategy_candle_viewer.php에서 확장. 해당 페이지 제거 예정
+
 require $_SERVER['DOCUMENT_ROOT'] . "/modules/common/database.php"; // 공통 DB 연결
 
 // ✅ 필터 값 처리
 $rsi_from = $_GET['rsi_from'] ?? 0;
 $rsi_to   = $_GET['rsi_to'] ?? 100;
-$gap_from = $_GET['gap_from'] ?? 2;
-$gap_to   = $_GET['gap_to'] ?? 4;
+$gap_from = $_GET['gap_from'] ?? 100;
+$gap_to   = $_GET['gap_to'] ?? 100;
 $filter_interval = $_GET['filter_interval'] ?? '1m'; // 조회 조건 기준 분봉
 $chart_interval = $_GET['chart_interval'] ?? $filter_interval; // 차트 표시용 분봉
 $first_candle_dir = $_GET['first_candle_dir'] ?? 'all'; // all / up / down
@@ -13,6 +16,7 @@ $first_candle_size_from = $_GET['first_candle_size_from'] ?? '';
 $first_candle_size_to = $_GET['first_candle_size_to'] ?? '';
 $first_candle_range_from = $_GET['first_candle_range_from'] ?? '';
 $first_candle_range_to = $_GET['first_candle_range_to'] ?? '';
+$m5_combo = $_GET['m5_combo'] ?? '';
 
 // ✅ 조건에 맞는 날짜 데이터 조회
 $col_dir = $filter_interval === '5m' ? 'up_5m' : 'up_1m';
@@ -55,7 +59,35 @@ if ($first_candle_range_to !== '') {
   $params[] = $first_candle_range_to;
 }
 
-$sql .= " ORDER BY date DESC LIMIT 100";
+if ($m5_combo !== '') {
+  // 한글/숫자 매핑
+  $map = [
+    '양' => '1', '음' => '0'
+  ];
+
+  // 글자 단위 변환 (유니코드)
+  $norm = '';
+  foreach (preg_split('//u', $m5_combo, -1, PREG_SPLIT_NO_EMPTY) as $ch) {
+    if (isset($map[$ch]))      $norm .= $map[$ch];
+    elseif ($ch === '1' || $ch === '0') $norm .= $ch;
+    // 그 외 문자는 무시
+  }
+
+  // 3~4자리만 허용
+  $len = strlen($norm);
+  if ($len >= 3 && $len <= 4) {
+    $cols = ['up_5m','up_5m_2','up_5m_3','up_5m_4'];
+    $parts = [];
+    for ($i = 0; $i < $len; $i++) {
+      $parts[] = $cols[$i] . ' = ?';
+      $types  .= 'i';
+      $params[] = (int)$norm[$i]; // '1' or '0'
+    }
+    $sql .= ' AND ' . implode(' AND ', $parts);
+  }
+}
+
+$sql .= " ORDER BY date DESC LIMIT 500";
 
 $stmt = $mysqli->prepare($sql);
 $stmt->bind_param($types, ...$params);
@@ -76,7 +108,7 @@ while ($row = $result->fetch_assoc()) {
 <html>
 <head>
   <meta charset="utf-8">
-  <title>전략별 1분봉 비교</title>
+  <title>전략별 분봉 비교</title>
   <script src="https://code.highcharts.com/stock/highstock.js"></script>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <style>
@@ -203,6 +235,19 @@ while ($row = $result->fetch_assoc()) {
     <input type="number" name="first_candle_range_from" value="<?= $first_candle_range_from ?>" step="0.01" style="width:50px"> ~
     <input type="number" name="first_candle_range_to" value="<?= $first_candle_range_to ?>" step="0.01" style="width:50px">
 
+    5분봉 패턴:
+    <select name="m5_combo">
+      <option value="" <?= $m5_combo === '' ? 'selected' : '' ?>>전체</option>
+      <option value="양양양" <?= $m5_combo === '양양양' ? 'selected' : '' ?>>양양양 (111)</option>
+      <option value="음음음" <?= $m5_combo === '음음음' ? 'selected' : '' ?>>음음음 (000)</option>
+      <option value="양양음" <?= $m5_combo === '양양음' ? 'selected' : '' ?>>양양음 (110)</option>
+      <option value="양음음" <?= $m5_combo === '양음음' ? 'selected' : '' ?>>양음음 (100)</option>
+      <option value="양양양양"   <?= $m5_combo === '양양양양'   ? 'selected' : '' ?>>양양양양 (1111)</option>
+      <option value="양양양음"   <?= $m5_combo === '양양양음'   ? 'selected' : '' ?>>양양양음 (1110)</option>
+      <option value="음음음음"   <?= $m5_combo === '음음음음'   ? 'selected' : '' ?>>음음음음 (0000)</option>
+      <option value="음음음양"   <?= $m5_combo === '음음음양'   ? 'selected' : '' ?>>음음음양 (0001)</option>
+    </select>
+
     <button type="submit">조회</button>
   </form>
 
@@ -210,7 +255,10 @@ while ($row = $result->fetch_assoc()) {
     <?php foreach ($dates as $i => $d): ?>
       <div class="chart-item">    
         <div class="chart-title">
-          🗕️ <?= $d['date'] ?> | RSI <?= $d['rsi'] ?> | Gap <?= ($d['gap'] > 0 ? '+' : '') . $d['gap'] ?> pt | Ret <?= ($d['ret'] > 0 ? '+' : '') . $d['ret'] ?> pt
+          <a href="./futures_strategy_firstcandle_1m5m.php?date=<?= urlencode($d['date']) ?>" onclick="return openIntradayPopup(this.href);" style="text-decoration:none;">
+          🗕️
+          </a>
+          <?= $d['date'] ?> | RSI <?= $d['rsi'] ?> | Gap <?= ($d['gap'] > 0 ? '+' : '') . $d['gap'] ?> pt | Ret <?= ($d['ret'] > 0 ? '+' : '') . $d['ret'] ?> pt
         </div>
         <div id="chart-<?= $i ?>" style="height:300px;"></div>
       </div>
@@ -278,7 +326,7 @@ while ($row = $result->fetch_assoc()) {
                 .replace(/&/g,'&amp;').replace(/</g,'&lt;')
                 .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'));
 
-              const time = Highcharts.dateFormat('%Y-%m-%d %H:%M', this.x);
+              const time = Highcharts.dateFormat('%Y-%m-%d %H:%M', this.x, false);
               let html = `<b>${time}</b><br/>`;
 
               const pts = this.points || [this.point];
@@ -454,6 +502,48 @@ while ($row = $result->fetch_assoc()) {
       window.onbeforeprint = () => { hideAllChartOverlays(); reflowCharts(); };
       window.onafterprint  = () => { setTimeout(reflowCharts, 100); };
     })();
+
+
+    // 1,5분봉 모아서 보기 팝업 
+    const POPUP_W = 1500;
+    const POPUP_H = 480;
+
+    function openIntradayPopup(url, name = 'intraday_1m5m') {
+      const dualScreenLeft = window.screenLeft ?? window.screenX ?? 0;
+      const dualScreenTop  = window.screenTop  ?? window.screenY ?? 0;
+
+      const w = window.innerWidth  || document.documentElement.clientWidth  || screen.width;
+      const h = window.innerHeight || document.documentElement.clientHeight || screen.height;
+
+      // 화면 중앙 배치
+      const left = dualScreenLeft + Math.max(0, (w - POPUP_W) / 2);
+      const top  = dualScreenTop  + Math.max(0, (h - POPUP_H) / 2);
+
+      const features = [
+        `width=${POPUP_W}`,
+        `height=${POPUP_H}`,
+        `left=${left}`,
+        `top=${top}`,
+        'menubar=no',
+        'toolbar=no',
+        'location=no',
+        'status=no',
+        'resizable=yes',
+        'scrollbars=yes'
+      ].join(',');
+
+      // 같은 이름(name)으로 열면 중복 생성 대신 재사용/포커스
+      const win = window.open(url, name, features);
+
+      // 팝업 차단 시 새 탭 fallback
+      if (!win) {
+        window.open(url, '_blank', 'noopener,noreferrer');
+        return false;
+      }
+      try { win.focus(); } catch (e) {}
+      return false; // 기본 링크 이동 막기
+    }
   </script>
+
 </body>
 </html>

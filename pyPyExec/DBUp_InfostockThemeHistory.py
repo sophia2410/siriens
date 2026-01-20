@@ -19,7 +19,7 @@ def special_char(str):
 # 인포스탁 데이터 가져오기
 ##---------------------------------------------------------------------- 
 def call(link, file):
-    conn = pymysql.connect(host='siriens.mycafe24.com', user='siriens', password='hosting1004!', db='siriens', charset='utf8')
+    conn = pymysql.connect(host='siriens.mycafe24.com', user='siriens', password='mariadb1004!', db='siriens', charset='utf8')
     cur = conn.cursor()
 
     href = requests.get(link, headers={'User-agent': 'Mozilla/5.0'})
