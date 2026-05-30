@@ -76,7 +76,7 @@ if (!$mode) json_out(['ok'=>false,'msg'=>'mode is required'], 400);
 /** -----------------------------
  *  상태 계산(포지션/평단/실현손익 points)
  * ----------------------------- */
-function calc_state_from_trades($trades){
+function calc_state_from_trades($trades, $strict = true){
   $pos = 0;        // signed int: +long, -short
   $avg = null;     // float|null
   $realized = 0.0; // realized points
@@ -116,7 +116,13 @@ function calc_state_from_trades($trades){
     }
 
     if ($action === 'CLOSE_PART' || $action === 'CLOSE_ALL'){
-      if ($pos == 0) return [false, "무포지션에서는 청산 불가", null];
+      if ($pos == 0) {
+        if ($strict) {
+          return [false, "무포지션에서는 청산 불가", null];
+        } else {
+          continue; // 조회 모드에서는 무시하고 계속 불러오기
+        }
+      }
 
       $absPos = abs($pos);
       $closeQty = ($action === 'CLOSE_ALL') ? $absPos : min($absPos, $qtyReq);
@@ -130,6 +136,12 @@ function calc_state_from_trades($trades){
       else         $pos += $closeQty;
 
       if ($pos == 0) $avg = null;
+      continue;
+    }
+
+    if ($action === 'CLOSE_CARRY_LONG' || $action === 'CLOSE_CARRY_SHORT'){
+      // 전일 이월 포지션 청산 표시용 action.
+      // 현재 day의 진입 평단이 없으므로 일중 pos/realized 계산에는 반영하지 않는다.
       continue;
     }
 
@@ -188,7 +200,7 @@ function update_day_summary($mysqli, $day_id, $pnl_points, $fee_total, $POINT_VA
 
 function day_payload($mysqli, $day_id, $state, $POINT_VALUE){
   $stmt = $mysqli->prepare("
-    SELECT day_id, run_id, trade_date, start_at, pnl_points, pnl_amount, fee_total, pnl_amount_net, day_comment
+    SELECT day_id, run_id, trade_date, pnl_points, pnl_amount, fee_total, pnl_amount_net, day_comment
     FROM futures_sim_run_day
     WHERE day_id = ?
   ");
@@ -253,20 +265,18 @@ if ($mode === 'run_create'){
 if ($mode === 'day_get'){
   $run_id = as_int(req('run_id', 0));
   $trade_date = trim((string)req('trade_date',''));
-  $start_at = trim((string)req('start_at','09:00:00'));
 
   if ($run_id <= 0) json_out(['ok'=>false,'msg'=>'run_id is required'], 400);
   if ($trade_date === '') json_out(['ok'=>false,'msg'=>'trade_date is required'], 400);
-  if (strlen($start_at) === 5) $start_at .= ':00';
 
   // ✅ (run_id, trade_date) 유니크로 day 1개 고정
   // ✅ 중복이면 기존 day_id를 LAST_INSERT_ID로 되돌려 받음
   $stmt = $mysqli->prepare("
-    INSERT INTO futures_sim_run_day (run_id, trade_date, start_at)
-    VALUES (?, ?, ?)
+    INSERT INTO futures_sim_run_day (run_id, trade_date)
+    VALUES (?, ?)
     ON DUPLICATE KEY UPDATE day_id = LAST_INSERT_ID(day_id)
   ");
-  $stmt->bind_param('iss', $run_id, $trade_date, $start_at);
+  $stmt->bind_param('is', $run_id, $trade_date);
   $ok = $stmt->execute();
   $day_id = $stmt->insert_id;
   $stmt->close();
@@ -275,7 +285,7 @@ if ($mode === 'day_get'){
 
   // trades + state
   $trades = fetch_trades($mysqli, $day_id);
-  [$ok2, $msg2, $state] = calc_state_from_trades($trades);
+  [$ok2, $msg2, $state] = calc_state_from_trades($trades, false);
   if (!$ok2) json_out(['ok'=>false,'msg'=>$msg2], 400);
 
   // fee_total 합산

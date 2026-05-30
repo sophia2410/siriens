@@ -9,7 +9,7 @@ $speed = $_GET['speed'] ?? '1000';
 <head>
   <meta charset="utf-8">
   <title>선물차트 리플레이</title>
-  <script src="https://code.highcharts.com/stock/highstock.js"></script>
+  <?php require $_SERVER['DOCUMENT_ROOT'] . "/modules/common/highcharts.php"; ?>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <style>
     body{margin:0;padding:10px;font-family:sans-serif;background:#fafafa;}

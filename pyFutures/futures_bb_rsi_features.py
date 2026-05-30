@@ -109,7 +109,7 @@ def generate_missing_features(source_table, feature_table):
             body = abs(day_close - day_open)
             total = day_high - day_low
             if total == 0:
-                print(f"⚠️ {d} - 고가와 저가 동일 → 생략")
+                print(f"{d} - 고가와 저가 동일 → 생략")
                 continue
 
             body_pct = round(body / total, 3)
@@ -146,13 +146,13 @@ def generate_missing_features(source_table, feature_table):
                 ))
                 db.commit()
 
-            print(f"✅ [{source_table}] {d} 처리 완료")
+            print(f"[{source_table}] {d} 처리 완료")
 
         except Exception as e:
-            print(f"❌ [{source_table}] {d} 처리 중 오류: {e}")
+            print(f"[{source_table}] {d} 처리 중 오류: {e}")
 
     db.close()
-    print("🎉 전체 완료")
+    print("전체 완료")
 
 # 사용 예시:
 # generate_missing_features("futures_15min", "futures_bb_rsi_features_15m")

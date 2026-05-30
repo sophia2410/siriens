@@ -59,9 +59,11 @@ if($_SERVER["HTTP_HOST"] == 'localhost') {
     <li><a href="<?=$PATH?>modules/growth/journal_trade_register.php">시장 리뷰</a></li>
     <li><a href="<?=$PATH?>modules/futures/predict_rsi_gap_table_1min.php">RSI 기반 예측<br><font style='font-size:10pt'>갭/1분봉 방향</font></a></li>
     <!-- <li><a href="<?=$PATH?>modules/futures/futures_strategy_firstcandle.php">RSI 기반 캔들</a></li> -->
-    <li><a href="<?=$PATH?>modules/futures/futures_strategy_quick_dates.php">RSI 기반 캔들<br><font style='font-size:10pt'>일자구하기</font></a></li>
-    <li><a href="<?=$PATH?>modules/futures/futures_strategy_candle_viewer.php">RSI 기반 캔들<br><font style='font-size:10pt'>1분봉vs5분봉</font></a></li>
-    <li><a href="<?=$PATH?>modules/futures/futures_replay_view.php">차트 Replay</a></li>
+    <li><a href="<?=$PATH?>modules/futures/futures_strategy_quick_dates.php">차트<br><font style='font-size:10pt'>일자구하기</font></a></li>
+    <li><a href="<?=$PATH?>modules/futures/futures_strategy_candle_viewer.php">차트<br><font style='font-size:10pt'>조건별 검색</font></a></li>
+    <li><a href="<?=$PATH?>modules/futures/futures_strategy_candle_level30.php">차트<br><font style='font-size:10pt'>장초 고저 전략</font></a></li>
+    <li><a href="<?=$PATH?>modules/futures/futures_bs_view.php">B/S 복기</a></li>
+    <!-- <li><a href="<?=$PATH?>modules/futures/futures_replay_view.php">차트 Replay</a></li> -->
     <li><a href="<?=$PATH?>modules/futures/futures_replay_trade.php">차트 Replay+Trade</a></li>
     
     <li><a href="<?=$PATH?>modules/futures/futures_gap_prob_summary.php">확률분석<br><font style='font-size:10pt'>BB-RSI-EMA</font></a></li>

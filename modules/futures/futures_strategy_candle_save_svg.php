@@ -5,7 +5,7 @@ header('Content-Type: application/json; charset=utf-8');
 try {
   // === 경로 설정 ===
   $ATTACH_DIR = 'D:\\Obsidian\\Trader Sophia\\90 Attachments\\future_charts';
-  $MD_DIR     = 'D:\\Obsidian\\Trader Sophia\\☆ Futures\\♧ 전략F - 시가vs5이평 추세확인매매';
+  $MD_DIR     = 'D:\\Obsidian\\Trader Sophia\\☆ Futures';
 
   // MD 파일 위치(☆ Futures/♧ 전략-... 폴더)에서 Attachments로의 상대경로 (두 단계 ↑)
   $relToMd = '../../90 Attachments/future_charts/';

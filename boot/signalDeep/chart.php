@@ -3,7 +3,7 @@
 <head>
     <title>003160 Stock Chart</title>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://code.highcharts.com/stock/highstock.js"></script>
+    <?php require $_SERVER['DOCUMENT_ROOT'] . "/modules/common/highcharts.php"; ?>
     <script src="https://code.highcharts.com/modules/annotations.js"></script>
 </head>
 <body>

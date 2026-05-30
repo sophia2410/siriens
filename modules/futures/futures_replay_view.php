@@ -34,7 +34,7 @@ $api_url = dirname($_SERVER['PHP_SELF']) . '/replay_api_multi.php';
 <head>
   <meta charset="utf-8">
   <title>선물 리플레이 (60/15/5 + 1m)</title>
-  <script src="https://code.highcharts.com/stock/highstock.js"></script>
+  <?php require $_SERVER['DOCUMENT_ROOT'] . "/modules/common/highcharts.php"; ?>
   <style>
     body{margin:0;padding:10px;font-family:sans-serif;background:#fafafa;}
     .panel{border:1px solid #ddd;background:#fff;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.05);padding:10px;}

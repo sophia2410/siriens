@@ -1,4 +1,4 @@
-<!-- 60분봉 고중저 3레벨 전략 분석용 화면 -->
+<!-- 20분봉 고중저 3레벨 전략 분석용 화면 -->
 <?php
 require $_SERVER['DOCUMENT_ROOT'] . "/modules/common/database.php";
 session_start();
@@ -23,6 +23,9 @@ $candle_size_from  = p('candle_size_from', '');
 $candle_size_to    = p('candle_size_to', '');
 $candle_range_from = p('candle_range_from', '');
 $candle_range_to   = p('candle_range_to', '');
+
+$break_base    = p('break_base', '5m');   // '5m' or '1m'
+$confirm_next = (int)p('confirm_next', 0);
 
 // ✅ 특정일자: 줄바꿈/스페이스/콤마 모두 허용, 중복 제거
 $only_dates_raw = trim((string)p('only_dates', ''));
@@ -104,7 +107,7 @@ if (!empty($only_dates_list)) {
   $params = array_merge($params, $only_dates_list);
 }
 
-$sql .= " ORDER BY date";
+$sql .= " ORDER BY date DESC";
 
 $stmt = $mysqli->prepare($sql);
 $stmt->bind_param($types, ...$params);
@@ -126,7 +129,7 @@ while ($row = $result->fetch_assoc()) {
 <head>
   <meta charset="utf-8">
   <title>60분봉 레벨 전략(고/저/중간) 분석</title>
-  <script src="https://code.highcharts.com/stock/highstock.js"></script>
+  <?php require $_SERVER['DOCUMENT_ROOT'] . "/modules/common/highcharts.php"; ?>
   <script src="https://code.highcharts.com/modules/exporting.js"></script>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
@@ -150,7 +153,7 @@ while ($row = $result->fetch_assoc()) {
 
     .grid2{
       display:grid;
-      grid-template-columns: 1.3fr 1fr 1fr; /* 60m 조금 넓게 */
+      grid-template-columns: 1fr 1fr 1.5fr; /* 5m 조금 넓게 */
       gap:10px;
     }
 
@@ -208,6 +211,18 @@ while ($row = $result->fetch_assoc()) {
   최대변동:
   <input type="number" name="candle_range_from" value="<?= htmlspecialchars($candle_range_from, ENT_QUOTES) ?>" step="0.01" style="width:70px">~
   <input type="number" name="candle_range_to"   value="<?= htmlspecialchars($candle_range_to,   ENT_QUOTES) ?>" step="0.01" style="width:70px">
+
+  돌파 기준:
+  <select name="break_base">
+    <option value="5m" <?= $break_base==='5m'?'selected':'' ?>>5분봉 SMA20</option>
+    <option value="1m" <?= $break_base==='1m'?'selected':'' ?>>1분봉 SMA20</option>
+  </select>
+
+  <input type="hidden" name="confirm_next" value="0">
+  <label style="display:inline-flex;gap:6px;align-items:center;">
+    <input type="checkbox" name="confirm_next" value="1" <?= $confirm_next ? 'checked' : '' ?>>
+    다음 봉 유지 시 그 봉을 기준봉(확정봉)
+  </label>
 
   특정일자(콤마/줄바꿈):
   <textarea name="only_dates" rows="2" style="width:320px"
@@ -287,6 +302,85 @@ while ($row = $result->fetch_assoc()) {
     chart.yAxis[0].setExtremes(min - pad, max + pad, true, false);
   }
 
+  function buildBreakEvents(baseRows, opt = {}) {
+    const confirmNext = !!opt.confirmNext;
+    const events = [];
+
+    for (let i = 1; i < baseRows.length; i++) {
+      const prev = baseRows[i - 1];
+      const cur  = baseRows[i];
+
+      const prevSma = +prev.sma_20;
+      const curSma  = +cur.sma_20;
+      if (!isFinite(prevSma) || !isFinite(curSma)) continue;
+
+      const prevClose = +prev.close;
+      const curClose  = +cur.close;
+
+      const isLB = (prevClose <= prevSma) && (curClose > curSma); // LONG_RECLAIM
+      const isSB = (prevClose >= prevSma) && (curClose < curSma); // SHORT_BREAK
+      if (!isLB && !isSB) continue;
+
+      // ✅ “다음 봉에서 유지되면” 그 다음 봉을 기준봉으로
+      let ref = cur;
+      if (confirmNext) {
+        if (i + 1 >= baseRows.length) continue;
+        const nxt = baseRows[i + 1];
+        const nxtSma = +nxt.sma_20;
+        const nxtClose = +nxt.close;
+        if (!isFinite(nxtSma)) continue;
+
+        const ok = isLB ? (nxtClose > nxtSma) : (nxtClose < nxtSma);
+        if (!ok) continue;
+
+        ref = nxt; // ✅ 기준봉 = 다음봉(확정봉)
+      }
+
+      const ts = +ref.ts;  // 기준봉 시각
+      const type = isLB ? 'LB' : 'SB';
+
+      events.push({
+        id: `BR-${type}-${ts}`,
+        ts,
+        type
+      });
+    }
+
+    return events;
+  }
+
+  function applyBreakLines(chart, dateStr, interval, events) {
+    if (!chart || !events?.length) return;
+    if (interval !== '1m' && interval !== '5m' && interval !== '15m') return;
+
+    const xa = chart.xAxis[0];
+    const prefix = `br-${dateStr}-${interval}-`;
+
+    // 기존 time plotLines는 유지하고, 내 것만 골라서 제거/재추가
+    const kept = (xa.options.plotLines || []).filter(pl => {
+      const id = String(pl.id || '');
+      return !id.startsWith(prefix);
+    });
+
+    const added = events.map(ev => ({
+      id: prefix + ev.id,
+      value: ev.ts,
+      width: 1,
+      zIndex: 6,
+      // 색까지 구분하고 싶으면 여기서 LB/SB별로 color 지정 가능
+      label: {
+        text: ev.type,
+        align: 'left',
+        x: 4,
+        y: 12,
+        style: { fontSize: '10px', fontWeight: 'bold' }
+      }
+    }));
+
+    xa.update({ plotLines: kept.concat(added) }, false);
+    chart.redraw(false);
+  }
+
   function renderChart(containerId, dateStr, interval, payload){
     const rows = (payload?.data?.[interval] || []);
     if (!rows.length) return;
@@ -294,10 +388,10 @@ while ($row = $result->fetch_assoc()) {
     const candleId = `price-${interval}`;
     const meta = payload.meta || {};
 
-    const openPrice = (meta.session_open_5m != null) ? +meta.session_open_5m : +rows[0].open;
-    const lvlH = (meta.lvl_high != null) ? +meta.lvl_high : null;
-    const lvlL = (meta.lvl_low  != null) ? +meta.lvl_low  : null;
-    const lvlM = (meta.lvl_mid  != null) ? +meta.lvl_mid  : null;
+    const openPrice = (meta.session_open != null) ? +meta.session_open : +rows[0].open;
+    const lvlH = (meta.session_high20 != null) ? +meta.session_high20 : null;
+    const lvlL = (meta.session_low20  != null) ? +meta.session_low20  : null;
+    const lvlM = (meta.session_mid20  != null) ? +meta.session_mid20  : null;
 
     const { candles, sma5, sma20, sma120, volume } = buildSeries(rows);
 
@@ -307,6 +401,7 @@ while ($row = $result->fetch_assoc()) {
     const COLOR_L = 'rgba(79,195,255,0.95)';     // L (하늘)
     const COLOR_M = 'rgba(0,0,0,0.88)';          // ✅ M (진한 검은 계열)
 
+    const ts0905 = toTSLocal(dateStr, '09:05:00');
     const ts0945 = toTSLocal(dateStr, '09:45:00');
     const ts1045 = toTSLocal(dateStr, '10:45:00');
     const ts1145 = toTSLocal(dateStr, '11:45:00');
@@ -321,7 +416,7 @@ while ($row = $result->fetch_assoc()) {
       }
     });
 
-    Highcharts.stockChart(containerId, {
+    const chart = Highcharts.stockChart(containerId, {
       chart: {
         height: null,
         events: {
@@ -335,6 +430,7 @@ while ($row = $result->fetch_assoc()) {
         zoomType: '',
         panning: false,
         pinchType: '',
+        enableMouseTracking:false, 
         zooming: {
           type: undefined,
           mouseWheel: { enabled: false }
@@ -351,13 +447,26 @@ while ($row = $result->fetch_assoc()) {
       xAxis: {
         type: 'datetime',
         ordinal: true,
-        min: is1m ? toTSLocal(dateStr, '09:00:00') : undefined,
-        max: is1m ? toTSLocal(dateStr, '12:00:00') : undefined,
+        min: is1m ? toTSLocal(dateStr, '08:45:00') : undefined,
+        max: is1m ? toTSLocal(dateStr, '12:45:00') : undefined,
         labels: { style: { fontSize: '9px' } },
         crosshair: { width: 1, color: '#888', dashStyle: 'ShortDot' },
 
-        // ✅ 09:45, 10:45 초록 표시
+        // ✅ 09:45, 10:45.. 초록 표시
         plotLines: [
+          {
+            id: `t0905-${dateStr}-${interval}`,
+            value: ts0905,
+            color: 'rgba(167, 248, 215, 1)', // 연한 초록(기존 톤)
+            width: 5,
+            zIndex: 2,
+            label: {
+                text: '09:05',
+                align: 'left',
+                x: 5,
+                style: { fontSize: '10px', color: '#0a7a5a', fontWeight: 'bold' }
+            }
+          },
           {
             id: `t0945-${dateStr}-${interval}`,
             value: ts0945,
@@ -417,18 +526,18 @@ while ($row = $result->fetch_assoc()) {
                 style: { color:'#555', fontSize:'11px' }
                 }
             },
-            ...(lvlH==null?[]:[{
-                value: lvlH, color: COLOR_H, width: 2, zIndex: 4,
-                label: { text: `H ${lvlH.toFixed(2)}`, align:'left', x:5, style:{ fontSize:'11px', color: COLOR_H } }
-            }]),
-            ...(lvlM==null?[]:[{
-                value: lvlM, color: COLOR_M, width: 3, zIndex: 4, dashStyle:'ShortDot',
-                label: { text: `M ${lvlM.toFixed(2)}`, align:'left', x:5, style:{ fontSize:'11px', color: COLOR_M } }
-            }]),
-            ...(lvlL==null?[]:[{
-                value: lvlL, color: COLOR_L, width: 2, zIndex: 4,
-                label: { text: `L ${lvlL.toFixed(2)}`, align:'left', x:5, style:{ fontSize:'11px', color: COLOR_L } }
-            }]),
+            // ...(lvlH==null?[]:[{
+            //     value: lvlH, color: COLOR_H, width: 2, zIndex: 4,
+            //     label: { text: `H ${lvlH.toFixed(2)}`, align:'left', x:5, style:{ fontSize:'11px', color: COLOR_H } }
+            // }]),
+            // ...(lvlM==null?[]:[{
+            //     value: lvlM, color: COLOR_M, width: 3, zIndex: 4, dashStyle:'ShortDot',
+            //     label: { text: `M ${lvlM.toFixed(2)}`, align:'left', x:5, style:{ fontSize:'11px', color: COLOR_M } }
+            // }]),
+            // ...(lvlL==null?[]:[{
+            //     value: lvlL, color: COLOR_L, width: 2, zIndex: 4,
+            //     label: { text: `L ${lvlL.toFixed(2)}`, align:'left', x:5, style:{ fontSize:'11px', color: COLOR_L } }
+            // }]),
           ]
         },
         {
@@ -438,32 +547,48 @@ while ($row = $result->fetch_assoc()) {
       ],
 
       series: [
-        { type:'line', name:'SMA 120', data:sma120, color:'#666666cc', zIndex:1 },
-        { type:'line', name:'SMA 20',  data:sma20,  color:'#ffaa00',   zIndex:1 },
-        { type:'line', name:'SMA 5',   data:sma5,   color:'#db1bb4',   zIndex:1 },
+        { type:'line', name:'SMA 120', data:sma120, color:'#666666cc', zIndex:1, enableMouseTracking:false },
+        { type:'line', name:'SMA 20',  data:sma20,  color:'#ffaa00',   zIndex:1, enableMouseTracking:false },
+        { type:'line', name:'SMA 5',   data:sma5,   color:'#db1bb4',   zIndex:1, enableMouseTracking:false },
         { id: candleId, type:'candlestick', name:'Price', data:candles, zIndex:3, dataGrouping:{ enabled:false } },
         { type:'column', name:'Volume', data:volume, yAxis:1, zIndex:0 }
       ],
 
       // tooltip: { shared: true, valueDecimals: 2 },
       plotOptions: {
-        series: { states: { hover: { enabled: true } } },
+        series: { states: { hover: { enabled: true, enableMouseTracking:false } } },
         candlestick: { color:'#2f7ed8', upColor:'#f45b5b', lineColor:'#2f7ed8', upLineColor:'#f45b5b' }
       }
     });
+
+    // ✅ 1m/5m 차트에만 기준봉 세로선 찍기
+    if (payload?._breakEvents) {
+      applyBreakLines(chart, dateStr, interval, payload._breakEvents);
+    }
+
+    return chart;
   }
+
+  const BREAK_BASE   = <?= json_encode($break_base) ?>;        // '5m' or '1m'
+  const CONFIRM_NEXT = <?= $confirm_next ? 'true' : 'false' ?>;
 
   function loadAndRenderCard(idx, dateStr){
     $.getJSON(`./get_level_bundle.php?date=${encodeURIComponent(dateStr)}`, function(payload){
-      const meta = payload?.meta || {};
-      if (meta.lvl_high != null) {
-        const txt = `레벨(H/M/L): ${(+meta.lvl_high).toFixed(2)} / ${(+meta.lvl_mid).toFixed(2)} / ${(+meta.lvl_low).toFixed(2)}`;
-        const el = document.getElementById(`lvl-${idx}`);
-        if (el) el.textContent = txt;
-      } else {
-        const el = document.getElementById(`lvl-${idx}`);
-        if (el) el.textContent = '레벨 없음';
-      }
+      // const meta = payload?.meta || {};
+      // if (meta.lvl_high != null) {
+      //   const txt = `레벨(H/M/L): ${(+meta.lvl_high).toFixed(2)} / ${(+meta.lvl_mid).toFixed(2)} / ${(+meta.lvl_low).toFixed(2)}`;
+      //   const el = document.getElementById(`lvl-${idx}`);
+      //   if (el) el.textContent = txt;
+      // } else {
+      //   const el = document.getElementById(`lvl-${idx}`);
+      //   if (el) el.textContent = '레벨 없음';
+      // }
+
+      const rows1m = payload?.data?.['1m'] || [];
+      const rows5m = payload?.data?.['5m'] || [];
+
+      const baseRows = (BREAK_BASE === '1m') ? rows1m : rows5m;
+      payload._breakEvents = buildBreakEvents(baseRows, { confirmNext: CONFIRM_NEXT });
 
       renderChart(`c60-${idx}`, dateStr, '60m', payload);
       renderChart(`c15-${idx}`, dateStr, '15m', payload);

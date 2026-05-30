@@ -8,7 +8,7 @@ from tqdm import tqdm
 from datetime import datetime
 
 # 📁 엑셀 경로
-base_path = "C:/KiwoomHero4/temp"
+base_path = "E:/Project/202410/data/_futures/FuturesChart"
 excel_file = "chart_1week.xls"
 excel_path = os.path.join(base_path, excel_file)
 

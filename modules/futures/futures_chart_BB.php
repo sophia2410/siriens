@@ -217,7 +217,7 @@ while ($row = $featuresRes->fetch_assoc()) {
 <head>
   <meta charset="UTF-8">
   <title><?= $date ?> 전략 차트</title>
-  <script src="https://code.highcharts.com/stock/highstock.js"></script>
+  <?php require $_SERVER['DOCUMENT_ROOT'] . "/modules/common/highcharts.php"; ?>
   <script src="https://code.highcharts.com/highcharts-more.js"></script>
   <script src="https://code.highcharts.com/stock/indicators/indicators.js"></script>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>

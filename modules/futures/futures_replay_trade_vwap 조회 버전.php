@@ -8,8 +8,16 @@
 require $_SERVER['DOCUMENT_ROOT'] . "/modules/common/database.php";
 
 $date  = $_GET['date']  ?? date('Y-m-d');
-$speed = $_GET['speed'] ?? '3000';
-$start_at = $_GET['start_at'] ?? '09:44';
+$speed = $_GET['speed'] ?? '5000';
+
+$lvl = $_GET['lvl'] ?? '30'; // '30' or '60'
+
+// start_at이 명시되지 않았으면 lvl에 맞춰 기본값 자동 지정
+if (!isset($_GET['start_at']) || $_GET['start_at'] === '') {
+  $start_at = ($lvl === '30') ? '09:14' : '09:44';
+} else {
+  $start_at = $_GET['start_at'];
+}
 
 // ✅ 이전/다음 거래일
 $stmt_prev = $mysqli->prepare("SELECT MAX(date) FROM calendar WHERE date < ?");
@@ -34,19 +42,20 @@ $api_url = dirname($_SERVER['PHP_SELF']) . '/replay_api_multi.php';
 <head>
   <meta charset="utf-8">
   <title>선물 리플레이 (60/15/5 + 1m)</title>
-  <script src="https://code.highcharts.com/stock/highstock.js"></script>
+  <?php require $_SERVER['DOCUMENT_ROOT'] . "/modules/common/highcharts.php"; ?>
   <style>
     body{margin:0;padding:10px;font-family:sans-serif;background:#fafafa;}
     .panel{border:1px solid #ddd;background:#fff;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.05);padding:10px;}
     .topbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;}
-    .grid{display:grid;grid-template-columns:1.8fr 1.8fr 5fr;gap:8px;margin-bottom:8px;}
+    .grid{display:grid;grid-template-columns:2fr 1.6fr 4fr;gap:8px;margin-bottom:8px;}
     .bottom{display:grid;grid-template-columns:1fr;gap:8px;}
     .charttitle{font-weight:700;margin:0 0 6px;color:#333;}
     .stat{margin-left:auto;font-weight:400;margin-bottom:5px;}
     input,select,button{padding:6px 8px;}
     button{cursor:pointer;}
     @media (max-width:1200px){ .grid{grid-template-columns:1fr;} }
-
+    
+    .ui-hide { display:none !important; }
     .dbg{
       margin-top:8px; padding:8px; background:#0f172a; color:#e2e8f0;
       border-radius:8px; font-size:12px; display:none;
@@ -61,7 +70,7 @@ $api_url = dirname($_SERVER['PHP_SELF']) . '/replay_api_multi.php';
     .chk{display:flex;gap:6px;align-items:center;}
     .layout{
       display:grid;
-      grid-template-columns: 2fr 1fr;
+      grid-template-columns: 2.5fr 1fr;
       gap:12px;
       align-items:start;
     }
@@ -148,8 +157,16 @@ $api_url = dirname($_SERVER['PHP_SELF']) . '/replay_api_multi.php';
         <input type="hidden" id="prevDate" value="<?= htmlspecialchars($prev_date ?? '') ?>">
         <input type="hidden" id="nextDate" value="<?= htmlspecialchars($next_date ?? '') ?>">
 
+        <div><b>R/S 기준</b>
+          <select id="lvlMode" name="lvl">
+            <option value="30" <?= $lvl==='30'?'selected':'' ?>>장초 30분</option>
+            <option value="60" <?= $lvl==='60'?'selected':'' ?>>장초 60분</option>
+          </select>
+        </div>
+
         <div><b>속도</b>
           <select id="speed" name="speed">
+            <option value="3000" <?= $speed==='5000'?'selected':'' ?>>5초=1분</option>
             <option value="3000" <?= $speed==='3000'?'selected':'' ?>>3초=1분</option>
             <option value="2000" <?= $speed==='2000'?'selected':'' ?>>2초=1분</option>
             <option value="1000" <?= $speed==='1000'?'selected':'' ?>>1초=1분</option>
@@ -163,8 +180,8 @@ $api_url = dirname($_SERVER['PHP_SELF']) . '/replay_api_multi.php';
         <button type="button" id="btnStep">+1봉</button>
         <button type="button" id="btnReset">↺ 리셋</button>
 
-        <label class="chk"><input type="checkbox" id="chkFollow" checked>팔로우</label>
-        <button type="button" class="dbgbtn" id="btnDbg">DBG</button>
+        <label class="chk ui-hide"><input type="checkbox" id="chkFollow" checked>팔로우</label>
+        <button type="button" class="dbgbtn ui-hide" id="btnDbg">DBG</button>
 
         <!-- 상태 문구(로딩/진행) -->
         <div class="stat" id="stat">로딩 전</div>
@@ -214,7 +231,7 @@ $api_url = dirname($_SERVER['PHP_SELF']) . '/replay_api_multi.php';
   <div class="rightCol">
 
     <div class="panel">
-      <div class="simTitle">매매 연습</div>
+      <!-- <div class="simTitle">매매 연습</div> -->
 
       <div class="simBox">
         <div class="simRow">
@@ -238,16 +255,11 @@ $api_url = dirname($_SERVER['PHP_SELF']) . '/replay_api_multi.php';
             <div class="v" id="simDayIdKpi">-</div>
           </div>
         </div>
-
-        <div class="simRow" style="margin-top:8px;">
-          <label><b>시작시간</b></label>
-          <span id="simStartAtKpi">-</span>
-        </div>
       </div>
     </div>
 
     <div class="panel">
-      <div class="simTitle">상태</div>
+      <!-- <div class="simTitle">상태</div> -->
 
       <div class="simKPI">
 
@@ -282,6 +294,7 @@ $api_url = dirname($_SERVER['PHP_SELF']) . '/replay_api_multi.php';
           <span class="pill">Flip=<b id="lvFlip">-</b></span>
           <span class="pill">S=<b id="lvS">-</b></span>
           <span class="pill">1R=<b id="lv1R">-</b></span>
+          <span class="pill">Base=<b id="lvBase">-</b></span>
         </div>
         <div class="simKPI">
           <div class="kpi">
@@ -319,7 +332,7 @@ $api_url = dirname($_SERVER['PHP_SELF']) . '/replay_api_multi.php';
           <button type="button" id="btnQty2" class="qtyBtn">2</button>
           <button type="button" id="btnQty3" class="qtyBtn">3</button>
 
-          <input type="number" id="tradeQty" value="3" min="1" style="width:90px;">
+          <input type="number" id="tradeQty" value="2" min="1" style="width:90px;">
         </div>
 
         <button type="button" id="btnUndo">↩ 마지막 취소</button>
@@ -392,11 +405,13 @@ const API_URL  = <?= json_encode($api_url) ?>;
 const FIX_MAX_1  = 200;
 const FIX_MAX_5  = 83;
 const FIX_MAX_15 = 29;
-const FIX_MAX_60 = 29;
+const FIX_MAX_60 = 50;
 
 const SMA5_COLOR   = '#d32f2f';
 const SMA20_COLOR  = '#f9a825';
 const SMA120_COLOR = '#757575';
+const VWAP_COLOR = 'hsla(281, 97%, 34%, 0.65)';
+
 
 const HI_COLOR   = '#ff4fb3';
 const LO_COLOR   = '#4fc3ff';
@@ -512,22 +527,28 @@ function rowsToLine(rows, field){
 }
 
 /** ================== 차트 생성 ================== */
-function makeBaseChart(el, name){
-  return Highcharts.stockChart(el, {
+function makeBaseChart(el, name, indMode='sma'){
+  const isVwap = (indMode === 'vwap');
+
+  const ch = Highcharts.stockChart(el, {
     chart:{ animation:false, zooming:{mouseWheel:{enabled:false}, type:null}, panning:false },
     navigator:{enabled:false}, scrollbar:{enabled:false}, rangeSelector:{enabled:false},
     title:{text:''}, time:{useUTC:false},
-    // tooltip: { enabled: false },
     xAxis:{ type:'datetime', labels:{ format:'{value:%H:%M}', y:10, style:{ fontSize:'10px' } }, startOnTick:false, endOnTick:false },
     yAxis:[
       { height:'78%', lineWidth:1, labels:{ align:'right', x:4, reserveSpace:true, style:{ fontSize:'10px' } } },
       { top:'80%', height:'20%', offset:0, lineWidth:1, min:0 }
     ],
     series:[
-      { type:'candlestick', id: `cndl_${name}`, name, data:[], zIndex:4, dataGrouping:{enabled:false} }, // 0
-      { type:'line', name:'SMA 5', data:[], lineWidth:2, color:SMA5_COLOR, dataGrouping:{enabled:false} },   // 1
-      { type:'line', name:'SMA 20', data:[], lineWidth:2, color:SMA20_COLOR, dataGrouping:{enabled:false} }, // 2
-      { type:'line', name:'SMA 120', data:[], lineWidth:2, color:SMA120_COLOR, dataGrouping:{enabled:false} },//3
+      { type:'candlestick', id:`cndl_${name}`, name, data:[], zIndex:4, dataGrouping:{enabled:false} }, // 0
+
+      // 1) SMA5 자리 → VWAP로 대체(1m/5m에서만)
+      { type:'line', name: isVwap ? 'VWAP' : 'SMA 5', data:[], lineWidth:2, color: isVwap ? VWAP_COLOR : SMA5_COLOR, dataGrouping:{enabled:false}, zIndex:1 }, // 1
+
+      // 2,3) SMA20/120은 vwap 모드에서는 숨김
+      { type:'line', name:'SMA 20',  data:[], lineWidth:2, color:SMA20_COLOR,  dataGrouping:{enabled:false}, visible: !isVwap, showInLegend: !isVwap, zIndex:1 }, // 2
+      { type:'line', name:'SMA 120', data:[], lineWidth:2, color:SMA120_COLOR, dataGrouping:{enabled:false}, visible: !isVwap, showInLegend: !isVwap, zIndex:1 }, // 3
+
       { type:'column', name:'Vol', data:[], yAxis:1, dataGrouping:{enabled:false} } // 4
     ],
     plotOptions:{
@@ -535,13 +556,17 @@ function makeBaseChart(el, name){
       candlestick:{ color:'#2f7ed8', upColor:'#f45b5b', lineColor:'#2f7ed8', upLineColor:'#f45b5b' }
     }
   });
+
+  ch._indMode = indMode; // ✅ 모드 저장
+  return ch;
 }
-function make1mChart(){
-  return Highcharts.stockChart('chart1', {
+function make1mChart(indMode='vwap'){
+  const isVwap = (indMode === 'vwap');
+
+  const ch = Highcharts.stockChart('chart1', {
     chart:{ animation:false, zooming:{mouseWheel:{enabled:false}, type:null}, panning:false },
     navigator:{enabled:false}, scrollbar:{enabled:false}, rangeSelector:{enabled:false},
     title:{text:''}, time:{useUTC:false},
-    // tooltip: { enabled: false },
     xAxis:{ type:'datetime', labels:{ format:'{value:%H:%M}', y:10, style:{ fontSize:'10px' } }, startOnTick:false, endOnTick:false },
     yAxis:[
       { height:'80%', lineWidth:1, labels:{ align:'right', x:4, reserveSpace:true, style:{ fontSize:'10px' } } },
@@ -549,9 +574,9 @@ function make1mChart(){
     ],
     series:[
       { type:'candlestick', id:'cndl_1m', name:'1m', data:[], zIndex:4, dataGrouping:{enabled:false} }, // 0
-      { type:'line', name:'SMA 5', data:[], lineWidth:2, color:SMA5_COLOR, dataGrouping:{enabled:false} },   // 1
-      { type:'line', name:'SMA 20', data:[], lineWidth:2, color:SMA20_COLOR, dataGrouping:{enabled:false} }, // 2
-      { type:'line', name:'SMA 120', data:[], lineWidth:2, color:SMA120_COLOR, dataGrouping:{enabled:false} },//3
+      { type:'line', name: isVwap ? 'VWAP' : 'SMA 5', data:[], lineWidth:2, color: isVwap ? VWAP_COLOR : SMA5_COLOR, dataGrouping:{enabled:false}, zIndex:1 }, // 1
+      { type:'line', name:'SMA 20',  data:[], lineWidth:2, color:SMA20_COLOR,  dataGrouping:{enabled:false}, visible: !isVwap, showInLegend: !isVwap, zIndex:1 }, // 2
+      { type:'line', name:'SMA 120', data:[], lineWidth:2, color:SMA120_COLOR, dataGrouping:{enabled:false}, visible: !isVwap, showInLegend: !isVwap, zIndex:1 }, // 3
       { type:'column', name:'Vol', data:[], yAxis:1, dataGrouping:{enabled:false} } // 4
     ],
     plotOptions:{
@@ -559,19 +584,25 @@ function make1mChart(){
       candlestick:{ color:'#2f7ed8', upColor:'#f45b5b', lineColor:'#2f7ed8', upLineColor:'#f45b5b' }
     }
   });
+
+  ch._indMode = indMode;
+  return ch;
 }
+
 function destroyChart(ch){ try{ ch && ch.destroy(); }catch(e){} }
 function resetCharts(){
+  clearRedrawQueue();
+
   destroyChart(c1); destroyChart(c5); destroyChart(c15); destroyChart(c60);
   document.getElementById('chart1').innerHTML = '';
   document.getElementById('chart5').innerHTML = '';
   document.getElementById('chart15').innerHTML = '';
   document.getElementById('chart60').innerHTML = '';
 
-  c60 = makeBaseChart('chart60', '60m');
-  c15 = makeBaseChart('chart15', '15m');
-  c5  = makeBaseChart('chart5',  '5m');
-  c1  = make1mChart();
+  c60 = makeBaseChart('chart60', '60m', 'sma');
+  c15 = makeBaseChart('chart15', '15m', 'sma');
+  c5  = makeBaseChart('chart5',  '5m',  'vwap');   // ✅ 5m = vwap
+  c1  = make1mChart('vwap');                       // ✅ 1m = vwap
 
   initTimeMarks(c1, TIME_MARKS_BY_CHART.c1);
   initTimeMarks(c5, TIME_MARKS_BY_CHART.c5);
@@ -606,97 +637,145 @@ function applyHiLoLines(chart){
 }
 function applyHiLoLinesAll(){ applyHiLoLines(c1); applyHiLoLines(c5); applyHiLoLines(c15); applyHiLoLines(c60); }
 
-// ===== AUX(60분) 기준선 지연 표시 =====
-const AUX_MINUTES = 60;         // “60분봉이 지났을 때”
-let AUX_ANCHOR_MS = null;       // aux 기준 시작시각(ms) - API에서 결정
-let auxDrawn = false;           // aux를 이미 그렸는지(한번만)
+/** ================== R/S/Flip 기준(20/60 선택) ================== */
 
-function clearAuxLines(chart){
+// API에서 받은 장초 hilo 세트 저장
+let lvl30 = null; // {open, high, low, mid, start_hhmm, end_hhmm}
+let lvl60 = null;
+
+// 현재 선택 모드
+let LV_UNLOCK_MINUTES = 60;  // 20 or 60
+let LV_ANCHOR_MS = null;
+let lvDrawn = false;
+
+function getReplayNowTs(){
+  // 리플레이 진행 기준 "현재시각" (결정봉)
+  if (idx > 0 && today1 && today1[idx - 1]) return toMs(today1[idx - 1].datetime);
+  if (init1 && init1.length) return toMs(init1[init1.length - 1].datetime);
+  if (initNowTs != null) return +initNowTs;
+  return null;
+}
+
+function clearLevelLines(chart){
   if (!chart) return;
   const yAxis = chart.yAxis[0];
-  ['hi0845_aux','lo0845_aux','mid0845_aux'].forEach(id => {
+  ['lvl_hi','lvl_lo','lvl_op','lvl_mid'].forEach(id => {
     try{ yAxis.removePlotLine(id); }catch(e){}
   });
 }
-function clearAuxLinesAll(){
-  clearAuxLines(c1); clearAuxLines(c5); clearAuxLines(c15); clearAuxLines(c60);
+function clearLevelLinesAll(){
+  clearLevelLines(c1); clearLevelLines(c5); clearLevelLines(c15); clearLevelLines(c60);
 }
 
-function drawAuxLines(chart){
-  if (!chart) return;
-  if (hi_0845_aux == null || lo_0845_aux == null) return;
-
+function drawLevelLines(chart, lvl){
+  if (!chart || !lvl) return;
   const yAxis = chart.yAxis[0];
-  clearAuxLines(chart);
+  clearLevelLines(chart);
 
-  const auxHi = `rgba(255,79,179,0.9)`;
-  const auxLo = `rgba(79,195,255)`;
-  const auxMd = `rgb(0,0,0,0.85)`;
+  const tag = LV_UNLOCK_MINUTES;
 
-  yAxis.addPlotLine({
-    id:'hi0845_aux', value:hi_0845_aux, color:auxHi, width:2,
-    label:{ text:`(60) 고 ${hi_0845_aux.toFixed(2)}`, align:'left', x:5, style:{fontSize:'10px', color:auxHi} }
-  });
-  yAxis.addPlotLine({
-    id:'lo0845_aux', value:lo_0845_aux, color:auxLo, width:2,
-    label:{ text:`(60) 저 ${lo_0845_aux.toFixed(2)}`, align:'left', x:5, style:{fontSize:'10px', color:auxLo} }
-  });
-  if (mid_0845_aux != null){
+  if (lvl.high != null){
     yAxis.addPlotLine({
-      id:'mid0845_aux', value:mid_0845_aux, color:auxMd, width:3, dashStyle:'ShortDot',
-      label:{ text:`(60) 중 ${mid_0845_aux.toFixed(2)}`, align:'left', x:5, style:{fontSize:'10px', color:auxMd} }
+      id:'lvl_hi', value:+lvl.high, color:HI_COLOR, width:2,
+      label:{ text:`(${tag}) 고 ${(+lvl.high).toFixed(2)}`, align:'left', x:5, style:{fontSize:'10px', color:HI_COLOR} }
     });
   }
+  if (lvl.low != null){
+    yAxis.addPlotLine({
+      id:'lvl_lo', value:+lvl.low, color:LO_COLOR, width:2,
+      label:{ text:`(${tag}) 저 ${(+lvl.low).toFixed(2)}`, align:'left', x:5, style:{fontSize:'10px', color:LO_COLOR} }
+    });
+  }
+  if (lvl.open != null){
+    yAxis.addPlotLine({
+      id:'lvl_op', value:+lvl.open, color:OPEN_COLOR, width:1, dashStyle:'Dash',
+      label:{ text:`(시가 ${(+lvl.open).toFixed(2)}`, align:'left', x:5, style:{fontSize:'9px', color:'#111'} }
+    });
+  }
+  // if (lvl.mid != null){
+  //   yAxis.addPlotLine({
+  //     id:'lvl_mid', value:+lvl.mid, color:'rgba(0,0,0,0.85)', width:1, dashStyle:'ShortDot',
+  //     label:{ text:`(${tag}) 중 ${(+lvl.mid).toFixed(2)}`, align:'left', x:5, style:{fontSize:'10px', color:'#111'} }
+  //   });
+  // }
+}
+function drawLevelLinesAll(){
+  const lvl = (LV_UNLOCK_MINUTES === 30) ? lvl30 : lvl60;
+  drawLevelLines(c1, lvl);
+  drawLevelLines(c5, lvl);
+  drawLevelLines(c15, lvl);
+  drawLevelLines(c60, lvl);
 }
 
-function drawAuxLinesAll(){
-  drawAuxLines(c1); drawAuxLines(c5); drawAuxLines(c15); drawAuxLines(c60);
+function setLevelTexts(lvl, unlocked){
+  // Base 표시
+  setText('lvBase', unlocked ? `${LV_UNLOCK_MINUTES}m` : `${LV_UNLOCK_MINUTES}m(대기)`);
+
+  if (!unlocked || !lvl || lvl.high == null || lvl.low == null){
+    setText('lvR','-'); setText('lvS','-'); setText('lvFlip','-'); setText('lv1R','-');
+    return;
+  }
+  const R = Number(lvl.high);
+  const S = Number(lvl.low);
+  const Flip = (lvl.mid != null) ? Number(lvl.mid) : (R + S) / 2;
+  const oneR = (R - S) * 0.25;
+
+  setText('lvR', R.toFixed(2));
+  setText('lvS', S.toFixed(2));
+  setText('lvFlip', Flip.toFixed(2));
+  setText('lv1R', oneR.toFixed(2));
 }
 
-function setLv(id, v){
-  const el = document.getElementById(id);
-  if (el) el.textContent = v;
+function shouldUnlockLevels(nowTs){
+  if (!Number.isFinite(nowTs)) return false;
+  if (LV_ANCHOR_MS == null) return false;
+  return nowTs >= (LV_ANCHOR_MS + LV_UNLOCK_MINUTES * 60 * 1000);
 }
 
-function renderLevels60(nowTs){
-  // ✅ 60분 지나기 전엔 아직 기준값 확정 전 → '-' 유지
-  const unlocked = shouldUnlockAux(nowTs) || auxDrawn;
+function maybeUnlockLevels(nowTs, doRedraw){
+  if (lvDrawn) return;
 
-  if (!unlocked || hi_0845_aux == null || lo_0845_aux == null){
-    setLv('lvR','-'); setLv('lvS','-'); setLv('lvFlip','-'); setLv('lv1R','-');
+  const lvl = (LV_UNLOCK_MINUTES === 30) ? lvl30 : lvl60;
+  if (!lvl) return;
+
+  // 잠금 상태면 '-' 유지
+  if (!shouldUnlockLevels(nowTs)){
+    setLevelTexts(lvl, false);
     return;
   }
 
-  const R = Number(hi_0845_aux);
-  const S = Number(lo_0845_aux);
-  const Flip = (mid_0845_aux != null) ? Number(mid_0845_aux) : (R + S) / 2;
-  const oneR = (R - S) * 0.25;
+  // unlock 순간 1회만
+  lvDrawn = true;
+  drawLevelLinesAll();
+  setLevelTexts(lvl, true);
 
-  setLv('lvR', R.toFixed(2));
-  setLv('lvS', S.toFixed(2));
-  setLv('lvFlip', Flip.toFixed(2));
-  setLv('lv1R', oneR.toFixed(2));
+  if (doRedraw) queueRedrawAll();
+  dbgLine(`LEVEL lines ON (${LV_UNLOCK_MINUTES}m)`);
 }
 
-function shouldUnlockAux(nowTs){
-  if (!Number.isFinite(nowTs)) return false;
-  if (AUX_ANCHOR_MS == null) return false;
-  return nowTs >= (AUX_ANCHOR_MS + AUX_MINUTES * 60 * 1000);
-}
+function applyLevelMode(min){
+  const m = (min === 30 || min === 60) ? min : 60;
+  LV_UNLOCK_MINUTES = m;
 
-// “unlock 되는 순간”에만 1회 그리기
-function maybeUnlockAux(nowTs, doRedraw){
-  if (auxDrawn) return;
-  if (!shouldUnlockAux(nowTs)) return;
+  lvDrawn = false;
+  clearLevelLinesAll();
 
-  auxDrawn = true;
-  drawAuxLinesAll();
-  renderLevels60(nowTs);
+  const lvl = (m === 30) ? lvl30 : lvl60;
 
-  if (doRedraw) {
-    queueRedrawAll();
-  }
-  dbgLine('AUX lines ON (unlocked once)');
+  const startHHMM = lvl?.start_hhmm || '08:45';
+  LV_ANCHOR_MS = toTSLocal(DATE, startHHMM + ':00');
+
+  // 우선 대기 표시
+  setLevelTexts(lvl, false);
+
+  // 현재 리플레이 시각 기준으로 즉시 unlock 가능한지 판단
+  const nowTs = getReplayNowTs();
+  maybeUnlockLevels(nowTs, true);
+
+  // UI 반영 + 저장
+  const sel = document.getElementById('lvlMode');
+  if (sel) sel.value = String(m);
+  try{ localStorage.setItem('replay_level_mode', String(m)); }catch(e){}
 }
 
 /** ================== 시간 표시(세로선) - 차트별 커스텀 ================== */
@@ -714,10 +793,10 @@ function marksFromHHMM(list, idPrefix){
 // - 표시하고 싶은 시간을 "HH:MM" 형태로 넣기
 // - 차트에서 표시 안하고 싶으면 [] 로 두기
 const TIME_MARKS_CFG = {
-  m1:  ['08:45','09:45','10:45','11:45','12:45','13:45','14:45'],
-  m5:  ['08:45','09:45','10:45','11:45','12:45','13:45','14:45'],
-  m15: ['08:45','09:45','10:45','11:45','12:45','13:45','14:45'],
-  m60: ['08:45'] // 필요하면 넣고, 아니면 빈 배열
+  m1:  ['08:45','09:15','09:45','10:45','11:45','12:45','13:45','14:45'],
+  m5:  ['08:45','09:15','09:45','10:45','11:45','12:45','13:45','14:45'],
+  m15: ['08:45','09:15','10:45','11:45','12:45','13:45','14:45'],
+  // m60: ['08:45'] // 필요하면 넣고, 아니면 빈 배열
 };
 
 // 차트별 실제 marks 오브젝트 생성
@@ -1073,64 +1152,103 @@ function upsertLinePoint(series, x, y){
 
 /** ================== 5/15/60 진행봉 업데이트(핵심) ================== */
 function updatePartialSafe(chart, bucketMin, bar, officialMap, partialRef){
+  const isVwap = (chart._indMode === 'vwap');
   const bucketTs = bucketStart(bar.x, bucketMin);
 
+  // 버킷이 넘어가면 직전 버킷을 "공식 데이터"로 확정
   if (partialRef.obj && partialRef.obj.bucketTs !== bucketTs) {
     const prevTs = partialRef.obj.bucketTs;
     const off = officialMap.get(prevTs);
     if (off){
       ensureCandleAtX(chart, prevTs, +off.open, +off.high, +off.low, +off.close);
       ensureVolAtX(chart, prevTs, +(off.volume||0));
-      upsertLinePoint(chart.series[1], prevTs, off.sma_5   != null ? +off.sma_5   : null);
-      upsertLinePoint(chart.series[2], prevTs, off.sma_20  != null ? +off.sma_20  : null);
-      upsertLinePoint(chart.series[3], prevTs, off.sma_120 != null ? +off.sma_120 : null);
+
+      if (isVwap){
+        upsertLinePoint(chart.series[1], prevTs, (off.vwap_session != null ? +off.vwap_session : null));
+      } else {
+        upsertLinePoint(chart.series[1], prevTs, off.sma_5   != null ? +off.sma_5   : null);
+        upsertLinePoint(chart.series[2], prevTs, off.sma_20  != null ? +off.sma_20  : null);
+        upsertLinePoint(chart.series[3], prevTs, off.sma_120 != null ? +off.sma_120 : null);
+      }
     }
   }
 
+  // partial 누적(진행봉)
   if (!partialRef.obj || partialRef.obj.bucketTs !== bucketTs) {
-    partialRef.obj = { bucketTs, o:bar.o, h:bar.h, l:bar.l, c:bar.c, v:bar.v };
+    partialRef.obj = {
+      bucketTs,
+      o:bar.o, h:bar.h, l:bar.l, c:bar.c, v:bar.v,
+      vwap: isVwap ? bar.vwap : null
+    };
   } else {
     partialRef.obj.h = Math.max(partialRef.obj.h, bar.h);
     partialRef.obj.l = Math.min(partialRef.obj.l, bar.l);
     partialRef.obj.c = bar.c;
     partialRef.obj.v += bar.v;
+    if (isVwap) partialRef.obj.vwap = bar.vwap; // ✅ 최신 vwap로 갱신
   }
 
   const p = partialRef.obj;
+
   ensureCandleAtX(chart, p.bucketTs, p.o, p.h, p.l, p.c);
   ensureVolAtX(chart, p.bucketTs, p.v);
+
+  // ✅ VWAP는 진행 중에도 계속 업데이트
+  if (isVwap){
+    upsertLinePoint(chart.series[1], p.bucketTs, p.vwap);
+  }
 }
 
 /** ================== 트림 ================== */
 function trimChartByCandles(chart, maxCandles){
-  const sC = chart.series[0];
-  if (!sC || !sC.points) return;
+  if (!chart) return;
 
-  while (sC.points.length > maxCandles) sC.removePoint(0, false);
+  // ✅ 우리 기본 시리즈만 다룬다: 0=캔들, 1~3=SMA, 4=볼륨
+  const sC = chart.series?.[0];
+  if (!sC?.points?.length) return;
 
-  const xMin = sC.points.length ? sC.points[0].x : null;
+  while (sC.points.length > maxCandles){
+    const p0 = sC.points[0];
+    if (p0?.remove) p0.remove(false);
+    else break;
+  }
+
+  const xMin = sC.points[0]?.x;
   if (xMin == null) return;
 
-  for (let si=1; si<chart.series.length; si++){
-    const s = chart.series[si];
-    if (!s || !s.points) continue;
-    while (s.points.length && s.points[0].x < xMin) s.removePoint(0, false);
+  // SMA/볼륨도 캔들의 xMin 이전은 제거
+  for (const si of [1,2,3,4]){
+    const s = chart.series?.[si];
+    if (!s?.points?.length) continue;
+
+    while (s.points.length){
+      const p = s.points[0];
+      if (!p || p.x == null || p.x >= xMin) break;
+      if (p.remove) p.remove(false);
+      else break;
+    }
   }
 }
 
 /** ================== 팔로우 ================== */
 function applyFollowView(chart){
-  if (!chart) return;
-  if (!document.getElementById('chkFollow').checked) return;
+  if (!chart || chart.destroyed) return;
 
-  const s = chart.series[0];
-  const xs = s.xData || [];          // ✅ points 말고 xData 사용
-  if (xs.length < 2) return;
+  const cb = document.getElementById('chkFollow');
+  if (!cb || !cb.checked) return;
+
+  const s = chart.series && chart.series[0];
+  if (!s) return;
+
+  const xs = s.xData;
+  if (!xs || xs.length < 2) return;
+
+  const xa = chart.xAxis && chart.xAxis[0];
+  if (!xa) return;
 
   const xMin = xs[0];
   const xMax = xs[xs.length - 1];
 
-  const xa = chart.xAxis[0];
   const prev = chart._followExt || {min:null,max:null};
   if (prev.min === xMin && prev.max === xMax) return;
 
@@ -1142,6 +1260,26 @@ function applyFollowView(chart){
 const redrawQueue = [];
 const redrawQueued = new Set();
 let redrawRaf = null;
+let UI_LOCK = false;
+
+function clearRedrawQueue(){
+  redrawQueue.length = 0;
+  redrawQueued.clear();
+  if (redrawRaf){
+    cancelAnimationFrame(redrawRaf);
+    redrawRaf = null;
+  }
+}
+
+function lockUiOps(){
+  UI_LOCK = true;
+  stop();
+  clearRedrawQueue();  // ✅ 이걸로 끝
+}
+
+function unlockUiOps(){
+  UI_LOCK = false;
+}
 
 function queueRedraw(chart){
   if (!chart || redrawQueued.has(chart)) return;
@@ -1156,10 +1294,18 @@ function queueRedrawAll(){
 }
 function processRedrawQueue(){
   redrawRaf = null;
+  if (UI_LOCK) return;
   if (!redrawQueue.length) return;
 
   const chart = redrawQueue.shift();
   redrawQueued.delete(chart);
+
+  if (!chart || chart.destroyed || !chart.series || !chart.xAxis) {
+    if (redrawQueue.length){
+      redrawRaf = requestAnimationFrame(processRedrawQueue);
+    }
+    return;
+  }
 
   const t0 = performance.now();
   try{
@@ -1175,8 +1321,10 @@ function processRedrawQueue(){
     dbgLine(`redraw error: ${e.message || e}`);
     console.error(e);
   }
+
   const dt = performance.now() - t0;
   DBG.lastRedrawMs = dt;
+  
   if (dt > 50) dbgLine(`slow redraw ${dt.toFixed(1)}ms`);
 
   if (redrawQueue.length){
@@ -1198,15 +1346,31 @@ function resetToInit(){
   partial60 = initPartial60 ? { ...initPartial60 } : null;
 
   c1.series[0].setData(rowsToCandles(init1), false);
-  c1.series[1].setData(rowsToLine(init1, 'sma_5'), false);
-  c1.series[2].setData(rowsToLine(init1, 'sma_20'), false);
-  c1.series[3].setData(rowsToLine(init1, 'sma_120'), false);
+
+  if (c1._indMode === 'vwap'){
+    c1.series[1].setData(rowsToLine(init1, 'vwap_session'), false); // ✅ VWAP
+    c1.series[2].setData([], false);
+    c1.series[3].setData([], false);
+  } else {
+    c1.series[1].setData(rowsToLine(init1, 'sma_5'), false);
+    c1.series[2].setData(rowsToLine(init1, 'sma_20'), false);
+    c1.series[3].setData(rowsToLine(init1, 'sma_120'), false);
+  }
+
   c1.series[4].setData(rowsToVol(init1), false);
 
   c5.series[0].setData(rowsToCandles(init5), false);
-  c5.series[1].setData(rowsToLine(init5, 'sma_5'), false);
-  c5.series[2].setData(rowsToLine(init5, 'sma_20'), false);
-  c5.series[3].setData(rowsToLine(init5, 'sma_120'), false);
+
+  if (c5._indMode === 'vwap'){
+    c5.series[1].setData(rowsToLine(init5, 'vwap_session'), false); // ✅ VWAP
+    c5.series[2].setData([], false);
+    c5.series[3].setData([], false);
+  } else {
+    c5.series[1].setData(rowsToLine(init5, 'sma_5'), false);
+    c5.series[2].setData(rowsToLine(init5, 'sma_20'), false);
+    c5.series[3].setData(rowsToLine(init5, 'sma_120'), false);
+  }
+
   c5.series[4].setData(rowsToVol(init5), false);
 
   c15.series[0].setData(rowsToCandles(init15), false);
@@ -1220,25 +1384,13 @@ function resetToInit(){
   c60.series[2].setData(rowsToLine(init60, 'sma_20'), false);
   c60.series[3].setData(rowsToLine(init60, 'sma_120'), false);
   c60.series[4].setData(rowsToVol(init60), false);
-
-  applyHiLoLinesAll();
+  
+  drawLevelLinesAll();
   bsMarkChartReady();
 
-  // ✅ reset 시 aux는 항상 숨김부터 시작
-  clearAuxLinesAll();
-  auxDrawn = false;
-
-  // reset 시점의 “현재시간” 추정 (init1 마지막 봉 시간)
-  let initLastTs = null;
-  if (init1 && init1.length) initLastTs = toMs(init1[init1.length - 1].datetime);
-  if (!Number.isFinite(initLastTs)) initLastTs = initNowTs;
-
-  // ✅ 시작 자체가 이미 60분 이후면(예: 09:50부터 시작) 바로 표시되는 게 정상
-  if (shouldUnlockAux(initLastTs)){
-    auxDrawn = true;
-    drawAuxLinesAll();
-    renderLevels60(initLastTs);
-  }
+  // ✅ 20/60 선택 기준 적용(초기에는 잠금 상태로 시작)
+  const selMin = parseInt(document.getElementById('lvlMode')?.value || '60', 10) || 60;
+  applyLevelMode(selMin);
 
   if (initNowTs != null) updateTimeMarksAll(initNowTs);
 
@@ -1253,27 +1405,38 @@ function resetToInit(){
 
 /** ================== 1분봉 1개 진행 ================== */
 function addOrUpdate1m(bar){
+  // 캔들
   const s = c1.series[0];
   const pts = s.points || [];
   const last = pts[pts.length - 1];
+
   if (last && last.x === bar.x){
     last.update({ open:bar.o, high:bar.h, low:bar.l, close:bar.c }, false);
   } else {
     s.addPoint([bar.x,bar.o,bar.h,bar.l,bar.c], false);
   }
 
-  if (bar.sma5 != null) c1.series[1].addPoint([bar.x, bar.sma5], false);
-  if (bar.sma20 != null) c1.series[2].addPoint([bar.x, bar.sma20], false);
-  if (bar.sma120 != null) c1.series[3].addPoint([bar.x, bar.sma120], false);
+  // ✅ 지표
+  if (c1._indMode === 'vwap'){
+    upsertLinePoint(c1.series[1], bar.x, bar.vwap);
+  } else {
+    if (bar.sma5  != null) c1.series[1].addPoint([bar.x, bar.sma5], false);
+    if (bar.sma20 != null) c1.series[2].addPoint([bar.x, bar.sma20], false);
+    if (bar.sma120!= null) c1.series[3].addPoint([bar.x, bar.sma120], false);
+  }
 
+  // 볼륨
   const vS = c1.series[4];
   const vPts = vS.points || [];
   const vLast = vPts[vPts.length - 1];
+
   if (vLast && vLast.x === bar.x) vLast.update({ y:bar.v }, false);
   else vS.addPoint([bar.x, bar.v], false);
 }
 
 function addOne(opts){
+  if (UI_LOCK) return;
+
   opts = opts || {};
   const doStat   = (opts.stat !== false);
   const doRedraw = (opts.redraw !== false);
@@ -1290,6 +1453,7 @@ function addOne(opts){
     x,
     o:+r.open, h:+r.high, l:+r.low, c:+r.close,
     v:+(r.volume||0),
+    vwap: (r.vwap_session != null ? +r.vwap_session : null),
     sma5:  r.sma_5   != null ? +r.sma_5   : null,
     sma20: r.sma_20  != null ? +r.sma_20  : null,
     sma120:r.sma_120 != null ? +r.sma_120 : null
@@ -1314,7 +1478,7 @@ function addOne(opts){
 
   if (doStat) setStat(`${r.datetime} (${idx}/${today1.length})`);
   if (doRedraw) queueRedrawAll();
-  maybeUnlockAux(bar.x, doRedraw);
+  maybeUnlockLevels(bar.x, doRedraw);
 
   dbgKV();
 
@@ -1323,19 +1487,35 @@ function addOne(opts){
 
 /** ================== 재생 루프 ================== */
 let playing = false;
+
+// ✅ 예약 타이머/재진입 가드
+let tickTimer = null;
+let tickRunning = false;
+
 function play(){
   if (playing) return;
   playing = true;
+
+  // ✅ 남아있던 예약 타이머 제거(중복 tick 방지)
+  if (tickTimer){ clearTimeout(tickTimer); tickTimer = null; }
+
   dbgLine('PLAY');
-  tick();
+  tick(); // 즉시 1회 실행
 }
+
 function stop(){
-  if (!playing) return;
+  // ✅ playing=false 뿐 아니라, 예약된 tick도 반드시 취소
   playing = false;
+  if (tickTimer){ clearTimeout(tickTimer); tickTimer = null; }
   dbgLine('PAUSE');
 }
+
 function tick(){
   if (!playing) return;
+
+  // ✅ 재진입 방지(겹친 tick 차단)
+  if (tickRunning) return;
+  tickRunning = true;
 
   const sp = parseInt(document.getElementById('speed').value, 10);
   const t0 = performance.now();
@@ -1348,6 +1528,8 @@ function tick(){
     dbgLine(`tick crash: ${e.message || e}`);
     setStat('중단: tick crash (DBG 확인)');
     playing = false;
+    if (tickTimer){ clearTimeout(tickTimer); tickTimer = null; }
+    tickRunning = false;
     dbgKV();
     return;
   }
@@ -1357,7 +1539,12 @@ function tick(){
   if (dt > 60) dbgLine(`slow tick ${dt.toFixed(1)}ms at idx=${idx} last=${lastBarDt||''}`);
   dbgKV();
 
-  setTimeout(tick, Math.max(0, sp - dt));
+  tickRunning = false;
+
+  // ✅ 다음 tick 예약(ID 저장)
+  if (playing){
+    tickTimer = setTimeout(tick, Math.max(0, sp - dt));
+  }
 }
 
 /** ================== 1분전 되돌리기 ================== */
@@ -1391,7 +1578,7 @@ async function loadData(){
     + `&init_time=${encodeURIComponent(INIT_TIME)}`
     + `&max_prev_1m=${FIX_MAX_1}&max_prev_5m=${FIX_MAX_5}&max_prev_15m=${FIX_MAX_15}&max_prev_60m=${FIX_MAX_60}`
     + `&init_max_1m=${FIX_MAX_1}&init_max_5m=${FIX_MAX_5}&init_max_15m=${FIX_MAX_15}&init_max_60m=${FIX_MAX_60}`
-    + `&hi_lo_n=20&hi_lo_n2=60`;
+    + `&hi_lo_n=30&hi_lo_n2=60`;
 
   dbgLine(`API url: ${url}`);
 
@@ -1455,6 +1642,16 @@ async function loadData(){
     hi_0845   = +res.hilo_main.high;
     lo_0845   = +res.hilo_main.low;
     hiMeta = { start: res.hilo_main.start_hhmm, end: res.hilo_main.end_hhmm };
+
+    // ✅ 30분 기준 세트
+    lvl30 = {
+      open: open_0845,
+      high: hi_0845,
+      low:  lo_0845,
+      mid: (hi_0845 + lo_0845) / 2,
+      start_hhmm: res.hilo_main.start_hhmm || '08:45',
+      end_hhmm:   res.hilo_main.end_hhmm   || '09:14'
+    };
   }
 
   if (res.hilo_aux){
@@ -1466,11 +1663,15 @@ async function loadData(){
     : ((hi_0845_aux + lo_0845_aux) / 2); // ✅ 추가(안전)
     hiMetaAux = { start: res.hilo_aux.start_hhmm, end: res.hilo_aux.end_hhmm };
 
-    // ✅ aux 기준 시작시각(예: '08:45' 또는 그날의 실제 시작)
-    const auxStartHHMM = res.hilo_aux.start_hhmm || '08:45';
-    AUX_ANCHOR_MS = toTSLocal(DATE, auxStartHHMM + ':00');
-  } else {
-    AUX_ANCHOR_MS = null;
+    // ✅ 60분 기준 세트
+    lvl60 = {
+      open: open_0845_aux,
+      high: hi_0845_aux,
+      low:  lo_0845_aux,
+      mid:  mid_0845_aux,
+      start_hhmm: res.hilo_aux.start_hhmm || '08:45',
+      end_hhmm:   res.hilo_aux.end_hhmm   || '09:44'
+    };
   }
 
   initNowTs = (res.nowTs != null) ? +res.nowTs : null;
@@ -1499,8 +1700,21 @@ document.getElementById('btnNext').addEventListener('click', ()=>{
   document.querySelector('form').submit();
 });
 
+// ✅ R/S 기준(20/60) 변경 시 즉시 반영
+document.getElementById('lvlMode')?.addEventListener('change', (e)=>{
+  const m = parseInt(e.target.value, 10) || 60;
+
+  // ✅ base에 따라 시작시간 자동 변경
+  const startMap = { 20:'09:04', 60:'09:44' };
+  const inp = document.querySelector('input[name="start_at"]');
+  if (inp && startMap[m]) inp.value = startMap[m];
+
+  // ✅ 페이지 재조회(그래야 PHP/JS 상수 START_AT/INIT_TIME까지 같이 바뀜)
+  document.querySelector('form')?.submit();
+});
+
 // DBG 토글
-document.getElementById('btnDbg').addEventListener('click', ()=>{
+document.getElementById('btnDbg')?.addEventListener('click', ()=>{
   DBG.enabled = !DBG.enabled;
   document.getElementById('dbgPanel').style.display = DBG.enabled ? 'block' : 'none';
   if (DBG.enabled){
@@ -1508,18 +1722,18 @@ document.getElementById('btnDbg').addEventListener('click', ()=>{
     dbgKV();
   }
 });
-document.getElementById('btnDump').addEventListener('click', ()=>{
+document.getElementById('btnDump')?.addEventListener('click', ()=>{
   console.log('=== REPLAY STATE DUMP ===', {
     DATE, INIT_TIME, idx, today1_len: today1.length, lastBarDt,
     partial5, partial15, partial60,
     initPartial5, initPartial15, initPartial60,
     map5_size: map5.size, map15_size: map15.size, map60_size: map60.size,
     hilo: { open_0845, hi_0845, lo_0845, hiMeta },
-    follow: document.getElementById('chkFollow').checked,
+    follow: document.getElementById('chkFollow')?.checked,
   });
   dbgLine('dumped to console');
 });
-document.getElementById('btnClearLog').addEventListener('click', ()=>{
+document.getElementById('btnClearLog')?.addEventListener('click', ()=>{
   DBG.logLines = [];
   document.getElementById('dbgLog').textContent = '';
 });
@@ -1638,7 +1852,8 @@ function updateLiveKpis(){
   // 순손익(원): pts*POINT_VALUE - 수수료누적
   const feeTotal = Number(simDayState?.fee_total || 0);
   const netAmt = Math.round(totalPts * POINT_VALUE) - feeTotal;
-  setText('kpiNetAmt', Number.isFinite(netAmt) ? fmtInt(netAmt) : '-');
+  // 가격에 흔들리지 않고 매매하기 위해, 잠시 금액 막기 2026.02.15
+  // setText('kpiNetAmt', Number.isFinite(netAmt) ? fmtInt(netAmt) : '-');
 }
 
 async function apiPost(mode, payload){
@@ -1665,7 +1880,8 @@ function renderRuns(runs){
   (runs || []).forEach(r=>{
     const opt = document.createElement('option');
     opt.value = r.run_id;
-    opt.textContent = `${r.run_id}. ${r.run_name} (${r.start_date})`;
+    // opt.textContent = `${r.run_id}. ${r.run_name} (${r.start_date})`;
+    opt.textContent = `${r.run_id}. ${r.run_name}`;
     if (String(r.run_id) === cur) opt.selected = true;
     sel.appendChild(opt);
   });
@@ -1713,7 +1929,6 @@ function renderDay(day){
   simDayId = Number(day.day_id || 0);
   document.getElementById('simDayIdKpi').textContent = simDayId ? String(simDayId) : '-';
   document.getElementById('simDateKpi').textContent = day.trade_date || DATE;
-  document.getElementById('simStartAtKpi').textContent = day.start_at || INIT_TIME || '-';
 
   document.getElementById('kpiPos').textContent = day.pos_text || '-';
   document.getElementById('kpiAvg').textContent = (day.avg_price != null) ? fmtNum(day.avg_price, 2) : '-';
@@ -1751,6 +1966,8 @@ function simSetNowTsLabel(){
 })();
 
 async function loadRunListAndRestore(){
+  stop();
+
   setBusy(true);
   try{
     const j = await apiPost('run_list', {});
@@ -1762,7 +1979,14 @@ async function loadRunListAndRestore(){
     const sel = document.getElementById('simRunSelect');
     if (sel && simRunId){
       sel.value = String(simRunId);
-      await ensureDay();
+
+      lockUiOps();
+      try{
+        await ensureDay();
+      }finally{
+        unlockUiOps();
+        queueRedrawAll();
+      }
     }else{
       // 회차 없을 수 있음(정상) → 그냥 화면만 기본값
       simDayId = 0;
@@ -1799,7 +2023,13 @@ async function createRun(){
     const sel = document.getElementById('simRunSelect');
     if (sel) sel.value = String(simRunId);
 
-    await ensureDay();
+    lockUiOps();
+    try{
+      await ensureDay();
+    }finally{
+      unlockUiOps();
+      queueRedrawAll();
+    }
   }catch(e){
     toast(e.message || String(e));
   }finally{
@@ -1820,8 +2050,7 @@ async function ensureDay(){
   try{
     const j = await apiPost('day_get', {
       run_id: simRunId,
-      trade_date: DATE,
-      start_at: startAt,
+      trade_date: DATE
     });
     renderDay(j.day);
     renderTrades(j.trades);
@@ -1932,14 +2161,20 @@ document.getElementById('btnRunReload').addEventListener('click', loadRunListAnd
 document.getElementById('btnRunCreate').addEventListener('click', createRun);
 
 document.getElementById('simRunSelect').addEventListener('change', async (e)=>{
-  const v = e.target.value;
-  simRunId = v ? Number(v) : 0;
-  simDayId = 0;
+  lockUiOps();
+  try{
+    const v = e.target.value;
+    simRunId = v ? Number(v) : 0;
+    simDayId = 0;
 
-  if (simRunId) localStorage.setItem(LS_RUN_ID_KEY, String(simRunId));
-  else localStorage.removeItem(LS_RUN_ID_KEY);
+    if (simRunId) localStorage.setItem(LS_RUN_ID_KEY, String(simRunId));
+    else localStorage.removeItem(LS_RUN_ID_KEY);
 
-  await ensureDay();
+    await ensureDay();
+  }finally{
+    unlockUiOps();
+    queueRedrawAll();
+  }
 });
 
 function setQty(n){
@@ -1965,7 +2200,11 @@ setQty(parseInt(document.getElementById('tradeQty')?.value || '1', 10) || 1);
 // 사용자가 직접 숫자 바꾸면 active도 따라가게
 document.getElementById('tradeQty')?.addEventListener('input', (e)=>{
   const v = parseInt(e.target.value || '0', 10);
-  setQty(v === 2 ? 2 : 1); // 1/2만 active 처리
+
+  // ✅ input은 input값을 강제로 바꾸지 말고, active 표시만 맞춘다
+  document.getElementById('btnQty1')?.classList.toggle('active', v === 1);
+  document.getElementById('btnQty2')?.classList.toggle('active', v === 2);
+  document.getElementById('btnQty3')?.classList.toggle('active', v === 3);
 });
 
 document.getElementById('btnOpenLong').addEventListener('click', ()=>tradeAdd('OPEN_LONG'));
@@ -1990,7 +2229,6 @@ document.getElementById('btnResetR')?.addEventListener('click', resetToInit);
 
 // 초기 표시
 document.getElementById('simDateKpi').textContent = DATE;
-document.getElementById('simStartAtKpi').textContent = INIT_TIME || '-';
 simSetNowTsLabel();
 updateLiveKpis();
 

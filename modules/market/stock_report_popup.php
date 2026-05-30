@@ -86,7 +86,7 @@ while ($row = $result->fetch_assoc()) {
     <title>종목 대시보드</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://code.highcharts.com/stock/highstock.js"></script>
+    <?php require $_SERVER['DOCUMENT_ROOT'] . "/modules/common/highcharts.php"; ?>
     <script src="https://code.highcharts.com/modules/annotations.js"></script>
 </head>
 <body>

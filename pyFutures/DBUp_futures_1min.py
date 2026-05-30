@@ -5,6 +5,7 @@ import os
 from tqdm import tqdm
 from datetime import datetime
 from futures_bb_rsi_features import generate_missing_features
+from vwap_utils import recalc_and_update_vwap_for_dates
 
 # 📌 DB 설정 로드
 config = configparser.ConfigParser()
@@ -23,7 +24,7 @@ upload_list = [
     ("chart_1min.xls", "futures_1min")
 ]
 
-base_path = "C:/KiwoomHero4/temp"
+base_path = "E:/Project/202410/data/_futures/FuturesChart"
 
 # ✅ 엑셀 컬럼명 고정
 column_names = [
@@ -53,16 +54,22 @@ def parse_excel(filepath):
 # ✅ 테이블 최신 등록 시간
 def get_latest_datetime(cursor, table):
     cursor.execute(f"SELECT MAX(datetime) FROM {table}")
-    # cursor.execute(f"SELECT MAX(datetime) FROM {table} WHERE date < '2025-11-04'") # 특정일 미반영 처리로직
+    # cursor.execute(f"SELECT MAX(datetime) FROM {table} WHERE date < '2025-12-29'") # 특정일 미반영 처리로직
     row = cursor.fetchone()
     return row[0] if row[0] else datetime(2000, 1, 1)
 
 # ✅ INSERT 실행
 def insert_rows(df, table, cursor):
     latest_dt = get_latest_datetime(cursor, table)
+    df_new = df[df['datetime'] > latest_dt].copy()
     print(f"latest_dt:{latest_dt}")
     df = df[df['datetime'] > latest_dt]
     print(f"{table}: {len(df)} rows to insert")
+
+    if df_new.empty:
+        return
+
+    affected_dates = sorted(df_new["date"].unique().tolist())
 
     df_filtered = df[common_cols]
     sql = f"""
@@ -73,6 +80,10 @@ def insert_rows(df, table, cursor):
     """
     for _, row in tqdm(df_filtered.iterrows(), total=len(df_filtered)):
         cursor.execute(sql, tuple(row[col] if pd.notna(row[col]) else None for col in df_filtered.columns))
+
+    # ✅ INSERT 끝났으면, 해당 날짜들만 VWAP 재계산해서 UPDATE
+    recalc_and_update_vwap_for_dates(cursor, table, affected_dates)
+
 # ✅ 실행 메인
 with db.cursor() as cursor:
     for filename, table in upload_list:

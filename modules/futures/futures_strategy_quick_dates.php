@@ -5,8 +5,314 @@ session_start();
 // 자주 쓰는 쿼리들 정의
 $queries = [
     [
+        'id'    => 'start_gap_sma20_above_then_narrow',
+        'title' => '5분봉: 시작 큰 갭(20선 위) 후 점점 좁혀짐',
+        'sql'   => "
+            WITH base AS (
+                SELECT
+                    date,
+                    time,
+                    sma_20,
+                    vwap_session,
+                    (sma_20 - vwap_session) AS diff,
+                    ABS(sma_20 - vwap_session) AS abs_diff,
+                    ROW_NUMBER() OVER (PARTITION BY date ORDER BY time) AS rn
+                FROM futures_5min
+                WHERE sma_20 IS NOT NULL
+                AND vwap_session IS NOT NULL
+            ),
+            start_gap AS (
+                SELECT
+                    date,
+                    time AS start_time,
+                    diff AS start_diff,
+                    abs_diff AS start_abs_diff
+                FROM (
+                    SELECT
+                        *,
+                        ROW_NUMBER() OVER (PARTITION BY date ORDER BY abs_diff DESC, time ASC) AS rnk
+                    FROM base
+                    WHERE rn <= 3       -- 시작 3개 5분봉 안에서
+                    AND diff > 0      -- 20선이 위
+                    AND abs_diff >= 2.0
+                ) t
+                WHERE rnk = 1
+            )
+            SELECT GROUP_CONCAT(DATE_FORMAT(x.date, '%Y-%m-%d') ORDER BY x.date SEPARATOR ', ') AS dates
+            FROM (
+                SELECT DISTINCT s.date
+                FROM start_gap s
+                WHERE EXISTS (
+                    SELECT 1
+                    FROM base b
+                    WHERE b.date = s.date
+                    AND b.time > s.start_time
+                    AND b.abs_diff <= s.start_abs_diff * 0.7
+                )
+            ) x
+        "
+    ],
+    [
+        'id'    => 'start_gap_vwap_above_then_narrow',
+        'title' => '5분봉: 시작 큰 갭(VWAP 위) 후 점점 좁혀짐',
+        'sql'   => "
+            WITH base AS (
+                SELECT
+                    date,
+                    time,
+                    sma_20,
+                    vwap_session,
+                    (sma_20 - vwap_session) AS diff,
+                    ABS(sma_20 - vwap_session) AS abs_diff,
+                    ROW_NUMBER() OVER (PARTITION BY date ORDER BY time) AS rn
+                FROM futures_5min
+                WHERE sma_20 IS NOT NULL
+                AND vwap_session IS NOT NULL
+            ),
+            start_gap AS (
+                SELECT
+                    date,
+                    time AS start_time,
+                    diff AS start_diff,
+                    abs_diff AS start_abs_diff
+                FROM (
+                    SELECT
+                        *,
+                        ROW_NUMBER() OVER (PARTITION BY date ORDER BY abs_diff DESC, time ASC) AS rnk
+                    FROM base
+                    WHERE rn <= 3       -- 시작 3개 5분봉 안
+                    AND diff < 0      -- VWAP가 위
+                    AND abs_diff >= 3.0
+                ) t
+                WHERE rnk = 1
+            )
+            SELECT GROUP_CONCAT(DATE_FORMAT(x.date, '%Y-%m-%d') ORDER BY x.date SEPARATOR ', ') AS dates
+            FROM (
+                SELECT DISTINCT s.date
+                FROM start_gap s
+                WHERE EXISTS (
+                    SELECT 1
+                    FROM base b
+                    WHERE b.date = s.date
+                    AND b.time > s.start_time
+                    AND b.abs_diff <= s.start_abs_diff * 0.7
+                )
+            ) x
+        "
+    ],
+    [
+        'id'    => 'exclude_start_gap_narrow_dates',
+        'title' => '5분봉: 시작 큰 갭 후 좁혀짐(20선 위 / VWAP 위) 제외 일자',
+        'sql'   => "
+            WITH base AS (
+                SELECT
+                    date,
+                    time,
+                    sma_20,
+                    vwap_session,
+                    (sma_20 - vwap_session) AS diff,
+                    ABS(sma_20 - vwap_session) AS abs_diff,
+                    ROW_NUMBER() OVER (PARTITION BY date ORDER BY time) AS rn
+                FROM futures_5min
+                WHERE sma_20 IS NOT NULL
+                AND vwap_session IS NOT NULL
+            ),
+
+            -- 시작 3개 봉 안에서 20선이 위(diff > 0)이며 갭이 큰 시작점
+            start_gap_sma20_above AS (
+                SELECT
+                    date,
+                    time AS start_time,
+                    diff AS start_diff,
+                    abs_diff AS start_abs_diff
+                FROM (
+                    SELECT
+                        *,
+                        ROW_NUMBER() OVER (PARTITION BY date ORDER BY abs_diff DESC, time ASC) AS rnk
+                    FROM base
+                    WHERE rn <= 3
+                    AND diff > 0
+                    AND abs_diff >= 2.0
+                ) t
+                WHERE rnk = 1
+            ),
+
+            -- 시작 3개 봉 안에서 VWAP가 위(diff < 0)이며 갭이 큰 시작점
+            start_gap_vwap_above AS (
+                SELECT
+                    date,
+                    time AS start_time,
+                    diff AS start_diff,
+                    abs_diff AS start_abs_diff
+                FROM (
+                    SELECT
+                        *,
+                        ROW_NUMBER() OVER (PARTITION BY date ORDER BY abs_diff DESC, time ASC) AS rnk
+                    FROM base
+                    WHERE rn <= 3
+                    AND diff < 0
+                    AND abs_diff >= 3.0
+                ) t
+                WHERE rnk = 1
+            ),
+
+            -- 20선 위에서 시작했고 이후 갭이 유의미하게 좁혀진 날짜
+            sma20_above_then_narrow AS (
+                SELECT DISTINCT s.date
+                FROM start_gap_sma20_above s
+                WHERE EXISTS (
+                    SELECT 1
+                    FROM base b
+                    WHERE b.date = s.date
+                    AND b.time > s.start_time
+                    AND b.abs_diff <= s.start_abs_diff * 0.7
+                )
+            ),
+
+            -- VWAP 위에서 시작했고 이후 갭이 유의미하게 좁혀진 날짜
+            vwap_above_then_narrow AS (
+                SELECT DISTINCT s.date
+                FROM start_gap_vwap_above s
+                WHERE EXISTS (
+                    SELECT 1
+                    FROM base b
+                    WHERE b.date = s.date
+                    AND b.time > s.start_time
+                    AND b.abs_diff <= s.start_abs_diff * 0.7
+                )
+            ),
+
+            -- 위 두 패턴에 해당하는 전체 날짜
+            excluded_dates AS (
+                SELECT date FROM sma20_above_then_narrow
+                UNION
+                SELECT date FROM vwap_above_then_narrow
+            ),
+
+            -- futures_5min에 존재하는 전체 날짜
+            all_dates AS (
+                SELECT DISTINCT date
+                FROM futures_5min
+            )
+
+            SELECT GROUP_CONCAT(DATE_FORMAT(a.date, '%Y-%m-%d') ORDER BY a.date SEPARATOR ', ') AS dates
+            FROM all_dates a
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM excluded_dates e
+                WHERE e.date = a.date
+            )
+        "
+    ],
+    [
+        'id'    => 'near_high_after_first30bars',
+        'title' => '9:15 장초반 고점 근처',
+        'sql'   => "
+            SELECT GROUP_CONCAT(DATE_FORMAT(z.date, '%Y-%m-%d') ORDER BY z.date SEPARATOR ', ') AS dates
+            FROM (
+                    SELECT f.date, f.time, f.close
+                    FROM futures_1min f
+                    JOIN (
+                        -- 각 날짜별 첫 30봉의 고점/저점 계산
+                        SELECT date, MAX(high) AS high_30, MIN(low) AS low_30
+                        FROM (
+                            SELECT date, time, high, low
+                            FROM (
+                                SELECT date, time, high, low,
+                                    ROW_NUMBER() OVER (PARTITION BY date ORDER BY time) AS rn
+                                FROM futures_1min
+                            ) t
+                            WHERE rn <= 30   -- 첫 30봉
+                        ) x
+                        GROUP BY date
+                    ) y ON f.date = y.date
+                    WHERE f.time IN (
+                        SELECT time
+                        FROM (
+                            SELECT date, time,
+                                ROW_NUMBER() OVER (PARTITION BY date ORDER BY time) AS rn
+                            FROM futures_1min
+                        ) t
+                        WHERE rn = 31  -- 31봉
+                        AND t.date = f.date
+                    )
+                    AND f.open BETWEEN y.high_30 - 0.5 AND y.high_30 + 0.5
+            ) z
+        "
+    ],
+    [
+        'id'    => 'near_low_after_first30bars',
+        'title' => '9:15 장초반 저점 근처',
+        'sql'   => "
+            SELECT GROUP_CONCAT(DATE_FORMAT(z.date, '%Y-%m-%d') ORDER BY z.date SEPARATOR ', ') AS dates
+            FROM (
+                    SELECT f.date, f.time, f.close
+                    FROM futures_1min f
+                    JOIN (
+                        SELECT date, MAX(high) AS high_30, MIN(low) AS low_30
+                        FROM (
+                            SELECT date, time, high, low
+                            FROM (
+                                SELECT date, time, high, low,
+                                    ROW_NUMBER() OVER (PARTITION BY date ORDER BY time) AS rn
+                                FROM futures_1min
+                            ) t
+                            WHERE rn <= 30
+                        ) x
+                        GROUP BY date
+                    ) y ON f.date = y.date
+                    WHERE f.time IN (
+                        SELECT time
+                        FROM (
+                            SELECT date, time,
+                                ROW_NUMBER() OVER (PARTITION BY date ORDER BY time) AS rn
+                            FROM futures_1min
+                        ) t
+                        WHERE rn = 31  -- 31봉
+                        AND t.date = f.date
+                    )
+                    AND f.open BETWEEN y.low_30 - 0.5 AND y.low_30 + 0.5
+            ) z
+        "
+    ],
+    [
+        'id'    => 'mid_high_low_after_first30bars',
+        'title' => '9:15 장초반 중간지점',
+        'sql'   => "
+            SELECT GROUP_CONCAT(DATE_FORMAT(z.date, '%Y-%m-%d') ORDER BY z.date SEPARATOR ', ') AS dates
+            FROM (
+                    SELECT f.date, f.time, f.close
+                    FROM futures_1min f
+                    JOIN (
+                        SELECT date, MAX(high) AS high_30, MIN(low) AS low_30
+                        FROM (
+                            SELECT date, time, high, low
+                            FROM (
+                                SELECT date, time, high, low,
+                                    ROW_NUMBER() OVER (PARTITION BY date ORDER BY time) AS rn
+                                FROM futures_1min
+                            ) t
+                            WHERE rn <= 30
+                        ) x
+                        GROUP BY date
+                    ) y ON f.date = y.date
+                    WHERE f.time IN (
+                        SELECT time
+                        FROM (
+                            SELECT date, time,
+                                ROW_NUMBER() OVER (PARTITION BY date ORDER BY time) AS rn
+                            FROM futures_1min
+                        ) t
+                        WHERE rn = 31  -- 31봉
+                        AND t.date = f.date
+                    )
+                    AND f.open BETWEEN y.low_30 + 0.5 AND y.high_30 - 0.5 
+            ) z
+        "
+    ],
+    [
         'id'    => 'HIGH_BREAK_1245',
-        'title' => '장초반 고점 돌파 (~12:45)',
+        'title' => '장초반 고점 돌파 (~11:20)',
         'sql'   => "
             SELECT GROUP_CONCAT(DATE_FORMAT(z.date, '%Y-%m-%d') ORDER BY z.date SEPARATOR ', ') AS dates
             FROM (
@@ -27,7 +333,7 @@ $queries = [
                 JOIN (
                 SELECT
                     date,
-                    MAX(CASE WHEN rn <= 4 THEN high END) AS base_high4
+                    MAX(CASE WHEN rn <= 6 THEN high END) AS base_high4
                 FROM (
                     SELECT
                     f.date, f.time, f.high,
@@ -40,17 +346,19 @@ $queries = [
                 ) t
                 GROUP BY date
                 ) b ON x.date = b.date
-                WHERE x.time <= '12:45:00'
-                AND x.rn > 4
+                WHERE x.time <= '11:20:00'
+                AND x.rn > 6
                 AND x.high > b.base_high4
                 GROUP BY x.date, b.base_high4
                 ORDER BY x.date
             ) z
+            WHERE z.date > '2025-01-01'
+            AND ( hit_candles like '%09:%' or hit_candles like '%10:%' )
         "
     ],
     [
         'id'    => 'LOW_BREAK_1245',
-        'title' => '장초반 저점 이탈 (~12:45)',
+        'title' => '장초반 저점 이탈 (~11:20)',
         'sql'   => "
             SELECT GROUP_CONCAT(DATE_FORMAT(z.date, '%Y-%m-%d') ORDER BY z.date SEPARATOR ', ') AS dates
             FROM (
@@ -71,7 +379,7 @@ $queries = [
                 JOIN (
                 SELECT
                     date,
-                    MIN(CASE WHEN rn <= 4 THEN low END) AS base_low4
+                    MIN(CASE WHEN rn <= 6 THEN low END) AS base_low4
                 FROM (
                     SELECT
                     f.date, f.time, f.low,
@@ -84,12 +392,14 @@ $queries = [
                 ) t
                 GROUP BY date
                 ) b ON x.date = b.date
-                WHERE x.time <= '12:45:00'
-                AND x.rn > 4
+                WHERE x.time <= '11:20:00'
+                AND x.rn > 6
                 AND x.low < b.base_low4
                 GROUP BY x.date, b.base_low4
                 ORDER BY x.date
             ) z
+            WHERE z.date > '2025-01-01'
+            AND ( hit_candles like '%09:%' or hit_candles like '%10:%' )
         "
     ],
     [
@@ -230,323 +540,286 @@ $queries = [
             ) z
         "
     ],
-    // 장초반 대응 용. 60분 1호봉 이후 대응으로 변환
-    // [
-    //     'id'    => 'min1_above_sma5_0845_0859',
-    //     'title' => '1분봉 연속 5선위 (08:45~08:59)',
-    //     'sql'   => "
-    //         SELECT GROUP_CONCAT(DATE_FORMAT(z.date, '%Y-%m-%d') ORDER BY z.date SEPARATOR ', ') AS dates
-    //         FROM (
-    //             SELECT distinct a.date 
-    //             FROM futures_1min a
-    //             JOIN (
-    //                 SELECT date, count(*) 
-    //                 FROM futures_1min 
-    //                 WHERE time between 084500 AND 085900 AND close > sma_5 
-    //                 GROUP BY date having count(*) > 11
-    //             ) b 
-    //             ON b.date = a.date
-    //         ) z
-    //     "
-    // ],
-    // [
-    //     'id'    => 'min1_above_sma5_0855_0859',
-    //     'title' => '1분봉 연속 5선아래 (08:55~08:59)',
-    //     'sql'   => "
-    //         SELECT GROUP_CONCAT(DATE_FORMAT(z.date, '%Y-%m-%d') ORDER BY z.date SEPARATOR ', ') AS dates
-    //         FROM (
-    //             SELECT distinct a.date 
-    //             FROM futures_1min a
-    //             JOIN (
-    //                 SELECT date, count(*) 
-    //                 FROM futures_1min 
-    //                 WHERE time between 084500 AND 085900 AND close < sma_5 
-    //                 GROUP BY date having count(*) > 11
-    //             ) b 
-    //             ON b.date = a.date
-    //         ) z
-    //     "
-    // ],
-    // [
-    //     'id'    => 'min5_0900_big_bull',
-    //     'title' => '09:00 5분봉 장대양봉 (1pt이상)',
-    //     'sql'   => "
-    //         SELECT GROUP_CONCAT(DATE_FORMAT(z.date, '%Y-%m-%d') ORDER BY z.date SEPARATOR ', ') AS dates
-    //         FROM (
-    //             SELECT * 
-    //             FROM futures_5min
-    //             WHERE time = 090000 AND close - open  > 1
-    //         ) z
-    //     "
-    // ],
-    // [
-    //     'id'    => 'min5_0900_big_bear',
-    //     'title' => '09:00 5분봉 장대음봉 (1pt이상)',
-    //     'sql'   => "
-    //         SELECT GROUP_CONCAT(DATE_FORMAT(z.date, '%Y-%m-%d') ORDER BY z.date SEPARATOR ', ') AS dates
-    //         FROM (
-    //             SELECT * 
-    //             FROM futures_5min
-    //             WHERE time = 090000 AND close - open < -1
-    //         ) z
-    //     "
-    // ],
-    // [
-    //     'id'    => 'min5_continuous_bull',
-    //     'title' => '5분봉 3연속 양봉',
-    //     'sql'   => "
-    //         SELECT GROUP_CONCAT(DATE_FORMAT(z.date, '%Y-%m-%d') ORDER BY z.date SEPARATOR ', ') AS dates
-    //         FROM (
-    //             SELECT distinct a.date 
-    //             FROM futures_5min a
-    //             JOIN (
-    //                 SELECT date, count(*) 
-    //                 FROM futures_5min 
-    //                 WHERE time between 084500 AND 085500 
-    //                 AND close > open
-    //                 GROUP BY date having count(*) = 3
-    //             ) b 
-    //             ON b.date = a.date
-    //         ) z
-    //     "
-    // ],
-    // [
-    //     'id'    => 'min5_continuous_bear',
-    //     'title' => '5분봉 3연속 음봉',
-    //     'sql'   => "
-    //         SELECT GROUP_CONCAT(DATE_FORMAT(z.date, '%Y-%m-%d') ORDER BY z.date SEPARATOR ', ') AS dates
-    //         FROM (
-    //             SELECT distinct a.date 
-    //             FROM futures_5min a
-    //             JOIN (
-    //                 SELECT date, count(*) 
-    //                 FROM futures_5min 
-    //                 WHERE time between 084500 AND 085500 
-    //                 AND close < open
-    //                 GROUP BY date having count(*) = 3
-    //             ) b 
-    //             ON b.date = a.date
-    //         ) z
-    //     "
-    // ],
-    // [
-    //     'id'    => 'min5_down_sma5_early',
-    //     'title' => '5분봉 5선 아래',
-    //     'sql'   => "
-    //         SELECT GROUP_CONCAT(DATE_FORMAT(z.date, '%Y-%m-%d') ORDER BY z.date SEPARATOR ', ') AS dates
-    //         FROM (
-    //             SELECT distinct a.date 
-    //             FROM futures_5min a
-    //             JOIN (
-    //                 SELECT date, count(*) 
-    //                 FROM futures_5min 
-    //                 WHERE time between 084500 AND 090000 AND close < sma_5 
-    //                 GROUP BY date having count(*) = 4
-    //             ) b 
-    //             ON b.date = a.date
-    //         ) z
-    //     "
-    // ],
-    // [
-    //     'id'    => 'min5_down_sma5_0900',
-    //     'title' => '9:00 5분봉 시가 돌파 + 양봉',
-    //     'sql'   => "
-    //         SELECT GROUP_CONCAT(DATE_FORMAT(z.date, '%Y-%m-%d') ORDER BY z.date SEPARATOR ', ') AS dates
-    //         FROM (
-    //             SELECT distinct a.date 
-    //             FROM futures_5min a
-    //             JOIN (
-    //                 SELECT date
-    //                 FROM futures_5min
-    //                 WHERE time = 090000 AND close > sma_5 AND sma_5 > open
-    //             ) b 
-    //             ON b.date = a.date
-    //         ) z
-    //     "
-    // ],
-    // [
-    //     'id'    => 'min5_up_sma5_0900',
-    //     'title' => '9:00 5분봉 시가 이탈 + 음봉',
-    //     'sql'   => "
-    //         SELECT GROUP_CONCAT(DATE_FORMAT(z.date, '%Y-%m-%d') ORDER BY z.date SEPARATOR ', ') AS dates
-    //         FROM (
-    //             SELECT distinct a.date 
-    //             FROM futures_5min a
-    //             JOIN (
-    //                 SELECT date
-    //                 FROM futures_5min
-    //                 WHERE time = 090000 AND close < sma_5 AND sma_5 < open
-    //             ) b 
-    //             ON b.date = a.date
-    //         ) z
-    //     "
-    // ],
-    // [
-    //     'id'    => 'gap_up_min5_big_bull',
-    //     'title' => '갭상승 + 5분 장대양봉',
-    //     'sql'   => "
-    //         SELECT GROUP_CONCAT(DATE_FORMAT(z.date, '%Y-%m-%d') ORDER BY z.date SEPARATOR ', ') AS dates
-    //         FROM (
-    //             SELECT * 
-    //             FROM rule_based_rowdata
-    //             WHERE ret_5m > 0.99 AND gap_pos = 1
-    //         ) z
-    //     "
-    // ],
-    // [
-    //     'id'    => 'gap_up_min1_big_bull',
-    //     'title' => '갭상승 + 1분 장대양봉',
-    //     'sql'   => "
-    //         SELECT GROUP_CONCAT(DATE_FORMAT(z.date, '%Y-%m-%d') ORDER BY z.date SEPARATOR ', ') AS dates
-    //         FROM (
-    //             SELECT *
-    //             FROM rule_based_rowdata
-    //             WHERE ret_1m > 0.99 AND gap_pos = 1
-    //         ) z
-    //     "
-    // ],
-    // [
-    //     'id'    => 'gap_down_min5_big_bull',
-    //     'title' => '갭하락 + 5분 장대양봉',
-    //     'sql'   => "
-    //         SELECT GROUP_CONCAT(DATE_FORMAT(z.date, '%Y-%m-%d') ORDER BY z.date SEPARATOR ', ') AS dates
-    //         FROM (
-    //             SELECT * 
-    //             FROM rule_based_rowdata
-    //             WHERE ret_5m > 0.99 AND gap_pos = 0
-    //         ) z
-    //     "
-    // ],
-    // [
-    //     'id'    => 'gap_down_min1_big_bull',
-    //     'title' => '갭하락 + 1분 장대양봉',
-    //     'sql'   => "
-    //         SELECT GROUP_CONCAT(DATE_FORMAT(z.date, '%Y-%m-%d') ORDER BY z.date SEPARATOR ', ') AS dates
-    //         FROM (
-    //             SELECT *
-    //             FROM rule_based_rowdata
-    //             WHERE ret_1m > 0.99 AND gap_pos = 0
-    //         ) z
-    //     "
-    // ],
-    // [
-    //     'id'    => 'gap_up_min5_big_bear',
-    //     'title' => '갭상승 + 5분 장대음봉',
-    //     'sql'   => "
-    //         SELECT GROUP_CONCAT(DATE_FORMAT(z.date, '%Y-%m-%d') ORDER BY z.date SEPARATOR ', ') AS dates
-    //         FROM (
-    //             SELECT * 
-    //             FROM rule_based_rowdata
-    //             WHERE ret_5m < -0.99 AND gap_pos = 1
-    //         ) z
-    //     "
-    // ],
-    // [
-    //     'id'    => 'gap_up_min1_big_bear',
-    //     'title' => '갭상승 + 1분 장대음봉',
-    //     'sql'   => "
-    //         SELECT GROUP_CONCAT(DATE_FORMAT(z.date, '%Y-%m-%d') ORDER BY z.date SEPARATOR ', ') AS dates
-    //         FROM (
-    //             SELECT *
-    //             FROM rule_based_rowdata
-    //             WHERE ret_1m < -0.99 AND gap_pos = 1
-    //         ) z
-    //     "
-    // ],
-    // [
-    //     'id'    => 'gap_down_min5_big_bear',
-    //     'title' => '갭하락 + 5분 장대음봉',
-    //     'sql'   => "
-    //         SELECT GROUP_CONCAT(DATE_FORMAT(z.date, '%Y-%m-%d') ORDER BY z.date SEPARATOR ', ') AS dates
-    //         FROM (
-    //             SELECT * 
-    //             FROM rule_based_rowdata
-    //             WHERE ret_5m < -0.99 AND gap_pos = 0
-    //         ) z
-    //     "
-    // ],
-    // [
-    //     'id'    => 'gap_down_min1_big_bear',
-    //     'title' => '갭하락 + 1분 장대음봉',
-    //     'sql'   => "
-    //         SELECT GROUP_CONCAT(DATE_FORMAT(z.date, '%Y-%m-%d') ORDER BY z.date SEPARATOR ', ') AS dates
-    //         FROM (
-    //             SELECT *
-    //             FROM rule_based_rowdata
-    //             WHERE ret_1m < -0.99 AND gap_pos = 0
-    //         ) z
-    //     "
-    // ],
-    // [
-    //     'id'    => 'min1_0901_open_above_sma20',
-    //     'title' => '09:01 1분봉 20선 위',
-    //     'sql'   => "
-    //         SELECT GROUP_CONCAT(DATE_FORMAT(z.date, '%Y-%m-%d') ORDER BY z.date SEPARATOR ', ') AS dates
-    //         FROM (
-    //             SELECT DISTINCT a.date 
-    //             FROM futures_1min a
-    //             JOIN (
-    //                 SELECT date 
-    //                 FROM futures_1min 
-    //                 WHERE time = 090100 
-    //                 AND open > sma_20
-    //             ) b 
-    //             ON b.date = a.date
-    //         ) z
-    //     "
-    // ],
-    // [
-    //     'id'    => 'min1_0901_open_below_sma20',
-    //     'title' => '09:01 1분봉 20선 아래',
-    //     'sql'   => "
-    //         SELECT GROUP_CONCAT(DATE_FORMAT(z.date, '%Y-%m-%d') ORDER BY z.date SEPARATOR ', ') AS dates
-    //         FROM (
-    //             SELECT DISTINCT a.date 
-    //             FROM futures_1min a
-    //             JOIN (
-    //                 SELECT date 
-    //                 FROM futures_1min 
-    //                 WHERE time = 090100 
-    //                 AND open < sma_20
-    //             ) b 
-    //             ON b.date = a.date
-    //         ) z
-    //     "
-    // ],
-    // [
-    //     'id'    => 'early_session_rise_specific_time_point',
-    //     'title' => '9:30까지 6pt 이상 상승',
-    //     'sql'   => "
-    //         SELECT GROUP_CONCAT(DATE_FORMAT(z.date, '%Y-%m-%d') ORDER BY z.date SEPARATOR ', ') AS dates
-    //         FROM (
-    //             SELECT sp.date
-    //             FROM
-    //             (
-    //                 -- 일자별 첫 번째 5분봉(시작 시가)
-    //                 SELECT f.date, f.open AS open_start
-    //                 FROM futures_5min f
-    //                 JOIN (
-    //                     SELECT date, MIN(time) AS first_time
-    //                     FROM futures_5min
-    //                     GROUP BY date
-    //                 ) s ON f.date = s.date AND f.time = s.first_time
-    //             ) sp
-    //             JOIN
-    //             (
-    //                 -- 일자별 09:30:00 이하에서 가장 늦은 시점의 종가
-    //                 SELECT f.date, f.close AS close_930
-    //                 FROM futures_5min f
-    //                 JOIN (
-    //                     SELECT date, MAX(time) AS t_930
-    //                     FROM futures_5min
-    //                     WHERE time <= '10:00:00' -- 특정시간
-    //                     GROUP BY date
-    //                 ) x ON f.date = x.date AND f.time = x.t_930
-    //             ) p ON sp.date = p.date
-    //             WHERE p.close_930 - sp.open_start >= 6 -- 특정포인트
-    //         ) z
-    //     "
-    // ],
+    [
+        'id'    => 'min5_0900_big_bull',
+        'title' => '09:00 5분봉 장대양봉 (1pt이상)',
+        'sql'   => "
+            SELECT GROUP_CONCAT(DATE_FORMAT(z.date, '%Y-%m-%d') ORDER BY z.date SEPARATOR ', ') AS dates
+            FROM (
+                SELECT * 
+                FROM futures_5min
+                WHERE time = 090000 AND close - open  > 1
+            ) z
+        "
+    ],
+    [
+        'id'    => 'min5_0900_big_bear',
+        'title' => '09:00 5분봉 장대음봉 (1pt이상)',
+        'sql'   => "
+            SELECT GROUP_CONCAT(DATE_FORMAT(z.date, '%Y-%m-%d') ORDER BY z.date SEPARATOR ', ') AS dates
+            FROM (
+                SELECT * 
+                FROM futures_5min
+                WHERE time = 090000 AND close - open < -1
+            ) z
+        "
+    ],
+    [
+        'id'    => 'min5_continuous_bull',
+        'title' => '5분봉 3연속 양봉',
+        'sql'   => "
+            SELECT GROUP_CONCAT(DATE_FORMAT(z.date, '%Y-%m-%d') ORDER BY z.date SEPARATOR ', ') AS dates
+            FROM (
+                SELECT distinct a.date 
+                FROM futures_5min a
+                JOIN (
+                    SELECT date, count(*) 
+                    FROM futures_5min 
+                    WHERE time between 084500 AND 085500 
+                    AND close > open
+                    GROUP BY date having count(*) = 3
+                ) b 
+                ON b.date = a.date
+            ) z
+        "
+    ],
+    [
+        'id'    => 'min5_continuous_bear',
+        'title' => '5분봉 3연속 음봉',
+        'sql'   => "
+            SELECT GROUP_CONCAT(DATE_FORMAT(z.date, '%Y-%m-%d') ORDER BY z.date SEPARATOR ', ') AS dates
+            FROM (
+                SELECT distinct a.date 
+                FROM futures_5min a
+                JOIN (
+                    SELECT date, count(*) 
+                    FROM futures_5min 
+                    WHERE time between 084500 AND 085500 
+                    AND close < open
+                    GROUP BY date having count(*) = 3
+                ) b 
+                ON b.date = a.date
+            ) z
+        "
+    ],
+    [
+        'id'    => 'min5_down_sma5_early',
+        'title' => '5분봉 5선 아래',
+        'sql'   => "
+            SELECT GROUP_CONCAT(DATE_FORMAT(z.date, '%Y-%m-%d') ORDER BY z.date SEPARATOR ', ') AS dates
+            FROM (
+                SELECT distinct a.date 
+                FROM futures_5min a
+                JOIN (
+                    SELECT date, count(*) 
+                    FROM futures_5min 
+                    WHERE time between 084500 AND 090000 AND close < sma_5 
+                    GROUP BY date having count(*) = 4
+                ) b 
+                ON b.date = a.date
+            ) z
+        "
+    ],
+    [
+        'id'    => 'min5_down_sma5_0900',
+        'title' => '9:00 5분봉 시가 돌파 + 양봉',
+        'sql'   => "
+            SELECT GROUP_CONCAT(DATE_FORMAT(z.date, '%Y-%m-%d') ORDER BY z.date SEPARATOR ', ') AS dates
+            FROM (
+                SELECT distinct a.date 
+                FROM futures_5min a
+                JOIN (
+                    SELECT date
+                    FROM futures_5min
+                    WHERE time = 090000 AND close > sma_5 AND sma_5 > open
+                ) b 
+                ON b.date = a.date
+            ) z
+        "
+    ],
+    [
+        'id'    => 'min5_up_sma5_0900',
+        'title' => '9:00 5분봉 시가 이탈 + 음봉',
+        'sql'   => "
+            SELECT GROUP_CONCAT(DATE_FORMAT(z.date, '%Y-%m-%d') ORDER BY z.date SEPARATOR ', ') AS dates
+            FROM (
+                SELECT distinct a.date 
+                FROM futures_5min a
+                JOIN (
+                    SELECT date
+                    FROM futures_5min
+                    WHERE time = 090000 AND close < sma_5 AND sma_5 < open
+                ) b 
+                ON b.date = a.date
+            ) z
+        "
+    ],
+    [
+        'id'    => 'gap_up_min5_big_bull',
+        'title' => '갭상승 + 5분 장대양봉',
+        'sql'   => "
+            SELECT GROUP_CONCAT(DATE_FORMAT(z.date, '%Y-%m-%d') ORDER BY z.date SEPARATOR ', ') AS dates
+            FROM (
+                SELECT * 
+                FROM rule_based_rowdata
+                WHERE ret_5m > 0.99 AND gap_pos = 1
+            ) z
+        "
+    ],
+    [
+        'id'    => 'gap_up_min1_big_bull',
+        'title' => '갭상승 + 1분 장대양봉',
+        'sql'   => "
+            SELECT GROUP_CONCAT(DATE_FORMAT(z.date, '%Y-%m-%d') ORDER BY z.date SEPARATOR ', ') AS dates
+            FROM (
+                SELECT *
+                FROM rule_based_rowdata
+                WHERE ret_1m > 0.99 AND gap_pos = 1
+            ) z
+        "
+    ],
+    [
+        'id'    => 'gap_down_min5_big_bull',
+        'title' => '갭하락 + 5분 장대양봉',
+        'sql'   => "
+            SELECT GROUP_CONCAT(DATE_FORMAT(z.date, '%Y-%m-%d') ORDER BY z.date SEPARATOR ', ') AS dates
+            FROM (
+                SELECT * 
+                FROM rule_based_rowdata
+                WHERE ret_5m > 0.99 AND gap_pos = 0
+            ) z
+        "
+    ],
+    [
+        'id'    => 'gap_down_min1_big_bull',
+        'title' => '갭하락 + 1분 장대양봉',
+        'sql'   => "
+            SELECT GROUP_CONCAT(DATE_FORMAT(z.date, '%Y-%m-%d') ORDER BY z.date SEPARATOR ', ') AS dates
+            FROM (
+                SELECT *
+                FROM rule_based_rowdata
+                WHERE ret_1m > 0.99 AND gap_pos = 0
+            ) z
+        "
+    ],
+    [
+        'id'    => 'gap_up_min5_big_bear',
+        'title' => '갭상승 + 5분 장대음봉',
+        'sql'   => "
+            SELECT GROUP_CONCAT(DATE_FORMAT(z.date, '%Y-%m-%d') ORDER BY z.date SEPARATOR ', ') AS dates
+            FROM (
+                SELECT * 
+                FROM rule_based_rowdata
+                WHERE ret_5m < -0.99 AND gap_pos = 1
+            ) z
+        "
+    ],
+    [
+        'id'    => 'gap_up_min1_big_bear',
+        'title' => '갭상승 + 1분 장대음봉',
+        'sql'   => "
+            SELECT GROUP_CONCAT(DATE_FORMAT(z.date, '%Y-%m-%d') ORDER BY z.date SEPARATOR ', ') AS dates
+            FROM (
+                SELECT *
+                FROM rule_based_rowdata
+                WHERE ret_1m < -0.99 AND gap_pos = 1
+            ) z
+        "
+    ],
+    [
+        'id'    => 'gap_down_min5_big_bear',
+        'title' => '갭하락 + 5분 장대음봉',
+        'sql'   => "
+            SELECT GROUP_CONCAT(DATE_FORMAT(z.date, '%Y-%m-%d') ORDER BY z.date SEPARATOR ', ') AS dates
+            FROM (
+                SELECT * 
+                FROM rule_based_rowdata
+                WHERE ret_5m < -0.99 AND gap_pos = 0
+            ) z
+        "
+    ],
+    [
+        'id'    => 'gap_down_min1_big_bear',
+        'title' => '갭하락 + 1분 장대음봉',
+        'sql'   => "
+            SELECT GROUP_CONCAT(DATE_FORMAT(z.date, '%Y-%m-%d') ORDER BY z.date SEPARATOR ', ') AS dates
+            FROM (
+                SELECT *
+                FROM rule_based_rowdata
+                WHERE ret_1m < -0.99 AND gap_pos = 0
+            ) z
+        "
+    ],
+    [
+        'id'    => 'min1_0901_open_above_sma20',
+        'title' => '09:01 1분봉 20선 위',
+        'sql'   => "
+            SELECT GROUP_CONCAT(DATE_FORMAT(z.date, '%Y-%m-%d') ORDER BY z.date SEPARATOR ', ') AS dates
+            FROM (
+                SELECT DISTINCT a.date 
+                FROM futures_1min a
+                JOIN (
+                    SELECT date 
+                    FROM futures_1min 
+                    WHERE time = 090100 
+                    AND open > sma_20
+                ) b 
+                ON b.date = a.date
+            ) z
+        "
+    ],
+    [
+        'id'    => 'min1_0901_open_below_sma20',
+        'title' => '09:01 1분봉 20선 아래',
+        'sql'   => "
+            SELECT GROUP_CONCAT(DATE_FORMAT(z.date, '%Y-%m-%d') ORDER BY z.date SEPARATOR ', ') AS dates
+            FROM (
+                SELECT DISTINCT a.date 
+                FROM futures_1min a
+                JOIN (
+                    SELECT date 
+                    FROM futures_1min 
+                    WHERE time = 090100 
+                    AND open < sma_20
+                ) b 
+                ON b.date = a.date
+            ) z
+        "
+    ],
+    [
+        'id'    => 'early_session_rise_specific_time_point',
+        'title' => '9:30까지 6pt 이상 상승',
+        'sql'   => "
+            SELECT GROUP_CONCAT(DATE_FORMAT(z.date, '%Y-%m-%d') ORDER BY z.date SEPARATOR ', ') AS dates
+            FROM (
+                SELECT sp.date
+                FROM
+                (
+                    -- 일자별 첫 번째 5분봉(시작 시가)
+                    SELECT f.date, f.open AS open_start
+                    FROM futures_5min f
+                    JOIN (
+                        SELECT date, MIN(time) AS first_time
+                        FROM futures_5min
+                        GROUP BY date
+                    ) s ON f.date = s.date AND f.time = s.first_time
+                ) sp
+                JOIN
+                (
+                    -- 일자별 09:30:00 이하에서 가장 늦은 시점의 종가
+                    SELECT f.date, f.close AS close_930
+                    FROM futures_5min f
+                    JOIN (
+                        SELECT date, MAX(time) AS t_930
+                        FROM futures_5min
+                        WHERE time <= '10:00:00' -- 특정시간
+                        GROUP BY date
+                    ) x ON f.date = x.date AND f.time = x.t_930
+                ) p ON sp.date = p.date
+                WHERE p.close_930 - sp.open_start >= 6 -- 특정포인트
+            ) z
+        "
+    ],
     [
         'id'    => '2024.01~03',
         'title' => '2024년 1~3월',
@@ -648,6 +921,19 @@ $queries = [
                 FROM calendar 
                 WHERE yyyy='2025' 
                 AND mm in ('10', '11', '12')
+            ) z
+        "
+    ],
+    [
+        'id'    => '2026.01~03',
+        'title' => '2026년 1~3월',
+        'sql'   => "
+            SELECT GROUP_CONCAT(DATE_FORMAT(z.date, '%Y-%m-%d') ORDER BY z.date SEPARATOR ', ') AS dates
+            FROM (
+                SELECT date 
+                FROM calendar 
+                WHERE yyyy='2026' 
+                AND mm in ('01', '02', '03')
             ) z
         "
     ],

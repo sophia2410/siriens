@@ -9,14 +9,13 @@ function p($name, $default=null) {
   return $default;
 }
 
-// ✅ 필터 값 처리 (기존 변수 대체)
 $rsi_from = p('rsi_from', 0);
 $rsi_to   = p('rsi_to', 100);
-$gap_from = p('gap_from',100);
+$gap_from = p('gap_from', 100);
 $gap_to   = p('gap_to', 100);
 
 $filter_interval = p('filter_interval', '1m');
-$chart_interval  = p('chart_interval', '5m15m60m');
+$chart_interval  = p('chart_interval', '1m5m');
 
 $bar_index = max(1, (int) p('bar_index', 1));
 
@@ -27,7 +26,10 @@ $candle_range_from = p('candle_range_from', '');
 $candle_range_to   = p('candle_range_to', '');
 
 $m5_combo    = p('m5_combo', '');
-$bar_preset  = p('bar_preset', '100');
+$bar_preset  = p('bar_preset', '1m200_5m75');
+
+$show_sma_1m = (int)p('show_sma_1m', 1); // 기본 ON
+$show_sma_5m = (int)p('show_sma_5m', 1); // 기본 ON
 
 // ✅ 특정일자: 줄바꿈/스페이스/콤마 모두 허용, 중복 제거
 $only_dates_raw = trim((string)p('only_dates', ''));
@@ -41,11 +43,11 @@ if ($only_dates_raw !== '') {
 
 // 분봉 테이블 매핑 (조건기준에 맞춤)
 $cond_table =
-  $filter_interval === '5m'  ? 'futures_5min'  :
+  $filter_interval === '5m'   ? 'futures_5min'  :
   ($filter_interval === '15m' ? 'futures_15min' :
   ($filter_interval === '60m' ? 'futures_60min' : 'futures_1min'));
 
-// 날짜별 N번째 봉의 방향/변동/크기 계산 (ROW_NUMBER로 N번째 추출)
+// 날짜별 N번째 봉의 방향/변동/크기 계산
 $joinSql = "
 JOIN (
   SELECT d, up, ret, rng
@@ -53,8 +55,8 @@ JOIN (
     SELECT
       DATE(datetime)                 AS d,
       (close > open)                 AS up,
-      (close - open)                 AS ret,   -- pt
-      (high - low)                   AS rng,   -- pt
+      (close - open)                 AS ret,
+      (high - low)                   AS rng,
       ROW_NUMBER() OVER (
         PARTITION BY DATE(datetime)
         ORDER BY datetime ASC
@@ -73,8 +75,7 @@ $sql = "
     AND gap_pt BETWEEN ? AND ?
 ";
 
-// 바인딩 순서: 쿼리 왼쪽→오른쪽 순서대로
-$types  = 'idddd';           // i: rn(=bar_index), dddd: rsi/gap 범위
+$types  = 'idddd';
 $params = [$bar_index, $rsi_from, $rsi_to, $gap_from, $gap_to];
 
 if ($candle_dir !== 'all') {
@@ -126,9 +127,9 @@ if (!empty($only_dates_list)) {
   $params = array_merge($params, $only_dates_list);
 }
 
-// $sql .= " ORDER BY date DESC LIMIT 100";
-// $sql .= " ORDER BY date DESC";
-$sql .= " ORDER BY date";
+$sql .= " AND date >= '2025-01-01'";
+$sql .= " ORDER BY date DESC";
+// $sql .= " ORDER BY date";
 
 $stmt = $mysqli->prepare($sql);
 $stmt->bind_param($types, ...$params);
@@ -137,7 +138,12 @@ $result = $stmt->get_result();
 
 $dates = [];
 while ($row = $result->fetch_assoc()) {
-  $dates[] = ['date'=>$row['date'],'rsi'=>$row['prev_rsi14'],'gap'=>$row['gap_pt'],'ret'=>$row['ret']];
+  $dates[] = [
+    'date' => $row['date'],
+    'rsi'  => $row['prev_rsi14'],
+    'gap'  => $row['gap_pt'],
+    'ret'  => $row['ret']
+  ];
 }
 ?>
 <!DOCTYPE html>
@@ -145,7 +151,7 @@ while ($row = $result->fetch_assoc()) {
 <head>
   <meta charset="utf-8">
   <title>전략별 분봉 비교</title>
-  <script src="https://code.highcharts.com/stock/highstock.js"></script>
+  <?php require $_SERVER['DOCUMENT_ROOT'] . "/modules/common/highcharts.php"; ?>
   <script src="https://code.highcharts.com/modules/exporting.js"></script>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <style>
@@ -165,6 +171,7 @@ while ($row = $result->fetch_assoc()) {
     .chart-title { font-weight:bold; margin-bottom:5px; font-size:14px; color:#333; }
     .chart-pair { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
     .chart-pair.single { grid-template-columns:1fr; }
+    .chart-pair.duo-5m1m { grid-template-columns: 1fr 2fr; } /* 5분 : 1분 = 1 : 2 */
     .chart-pair.triple { grid-template-columns: 1fr 1.5fr 1.5fr; }
     .chart-one { display:flex; flex-direction:column; min-width:0; } /* ← 줄바꿈 허용 */
     /* 5분봉 / 15분봉 배경색 */
@@ -194,6 +201,7 @@ while ($row = $result->fetch_assoc()) {
       /* 1m·5m는 가로 유지 */
       .chart-pair { grid-template-columns: 1fr 1fr !important; gap: 2mm !important; }
       .chart-pair.single { grid-template-columns: 1fr !important; }
+      .chart-pair.duo-5m1m { grid-template-columns: 1fr 2fr !important; }
       .chart-pair.triple { grid-template-columns: 1fr 1fr 1fr !important; }
 
       /* 잘림 방지 & 색상 */
@@ -216,14 +224,13 @@ while ($row = $result->fetch_assoc()) {
 </head>
 <body>
   <form method="post" accept-charset="utf-8" class="filter-box" id="filterForm">
-    전일 RSI:
-    <input type="number" step="1" name="rsi_from" value="<?= htmlspecialchars($rsi_from, ENT_QUOTES) ?>" style="width:40px"> ~
+    전일RSI:
+    <input type="number" step="1" name="rsi_from" value="<?= htmlspecialchars($rsi_from, ENT_QUOTES) ?>" style="width:40px">~
     <input type="number" step="1" name="rsi_to"   value="<?= htmlspecialchars($rsi_to,   ENT_QUOTES) ?>" style="width:40px">
 
     갭(pt):
-    <input type="number" step="0.1" name="gap_from" value="<?= htmlspecialchars($gap_from, ENT_QUOTES) ?>" style="width:50px"> ~
-    <input type="number" step="0.1" name="gap_to"   value="<?= htmlspecialchars($gap_to,   ENT_QUOTES) ?>" style="width:50px">
-    /
+    <input type="number" step="0.1" name="gap_from" value="<?= htmlspecialchars($gap_from, ENT_QUOTES) ?>" style="width:45px">~
+    <input type="number" step="0.1" name="gap_to"   value="<?= htmlspecialchars($gap_to,   ENT_QUOTES) ?>" style="width:45px">
 
     조건기준:
     <select name="filter_interval" id="filter_interval">
@@ -246,12 +253,12 @@ while ($row = $result->fetch_assoc()) {
     </select>
 
     크기:
-    <input type="number" name="candle_size_from" value="<?= htmlspecialchars($candle_size_from, ENT_QUOTES) ?>" step="0.01" style="width:50px">~
-    <input type="number" name="candle_size_to"   value="<?= htmlspecialchars($candle_size_to,   ENT_QUOTES) ?>" step="0.01" style="width:50px">
+    <input type="number" name="candle_size_from" value="<?= htmlspecialchars($candle_size_from, ENT_QUOTES) ?>" step="0.01" style="width:30px">~
+    <input type="number" name="candle_size_to"   value="<?= htmlspecialchars($candle_size_to,   ENT_QUOTES) ?>" step="0.01" style="width:30px">
 
     최대변동:
-    <input type="number" name="candle_range_from" value="<?= htmlspecialchars($candle_range_from, ENT_QUOTES) ?>" step="0.01" style="width:50px">~
-    <input type="number" name="candle_range_to"   value="<?= htmlspecialchars($candle_range_to,   ENT_QUOTES) ?>" step="0.01" style="width:50px">
+    <input type="number" name="candle_range_from" value="<?= htmlspecialchars($candle_range_from, ENT_QUOTES) ?>" step="0.01" style="width:30px">~
+    <input type="number" name="candle_range_to"   value="<?= htmlspecialchars($candle_range_to,   ENT_QUOTES) ?>" step="0.01" style="width:30px">
 
     표시차트:
     <select name="chart_interval" id="chart_interval">
@@ -268,11 +275,13 @@ while ($row = $result->fetch_assoc()) {
 
     캔들 수:
     <select name="bar_preset" id="bar_preset">
-      <option value="1m16_5m3" <?= $bar_preset==='1m16_5m3' ? 'selected' : '' ?>>1분 16 / 5분 3</option>
+      <option value="1m200_5m75" <?= $bar_preset==='1m200_5m75' ? 'selected' : '' ?>>1분 200 / 5분 75</option>
       <option value="40"       <?= $bar_preset==='40'       ? 'selected' : '' ?>>전체 40</option>
       <option value="75"       <?= $bar_preset==='75'       ? 'selected' : '' ?>>전체 75</option>
       <option value="100"      <?= $bar_preset==='100'      ? 'selected' : '' ?>>전체 100</option>
-      <option value="150"      <?= $bar_preset==='150'      ? 'selected' : '' ?>>전체 150</option>
+      <option value="160"      <?= $bar_preset==='160'      ? 'selected' : '' ?>>전체 160</option>
+      <option value="240"      <?= $bar_preset==='240'      ? 'selected' : '' ?>>전체 240</option>
+      <option value="420"      <?= $bar_preset==='420'      ? 'selected' : '' ?>>전체 420</option>
     </select>
 
     5분봉 패턴:
@@ -289,8 +298,22 @@ while ($row = $result->fetch_assoc()) {
     </select>
 
     특정일자(콤마):
-    <textarea name="only_dates" rows="3" style="width:260px"
+    <textarea name="only_dates" rows="3" style="width:200px"
       placeholder="2025-10-24, 2025-10-02&#10;2025-09-19"><?= htmlspecialchars(implode(', ', $only_dates_list) ?: $only_dates_raw, ENT_QUOTES) ?></textarea>
+
+    <!-- 1m SMA -->
+    <input type="hidden" name="show_sma_1m" value="0">
+    <label style="display:flex;align-items:center;gap:6px;">
+      <input type="checkbox" name="show_sma_1m" value="1" <?= $show_sma_1m ? 'checked' : '' ?>>
+      1mSMA
+    </label>
+
+    <!-- 5m SMA -->
+    <input type="hidden" name="show_sma_5m" value="0">
+    <label style="display:flex;align-items:center;gap:6px;">
+      <input type="checkbox" name="show_sma_5m" value="1" <?= $show_sma_5m ? 'checked' : '' ?>>
+      5mSMA
+    </label>
 
     <button type="submit">조회</button>
     <button type="button" id="btnExportMd">MD 내보내기</button>
@@ -334,17 +357,14 @@ while ($row = $result->fetch_assoc()) {
     const VOL_THRESHOLD_1M = 3300;
     const VOL_THRESHOLD_5M = 12000;
 
-    // === 1m 5/20 교차 표시 옵션 ===
-    const SHOW_1M_CROSS_ON_5M      = true;   // 기능 전체 ON/OFF
-    const SHOW_1M_CROSS_FLAGS      = false;  // 플래그(G/D) 표시 여부
-    const SHOW_1M_CROSS_BANDS      = true;   // 배경 세로 막대(음영) 표시 여부
-    const CROSS_BAND_MODE          = 'stripe'; // 'stripe' | 'regime'
-    const CROSS_BAND_MINUTES       = 5;      // stripe 모드일 때 막대 폭(분)
-    const CROSS_WINDOW_MINUTES     = 60;     // 장초반 범위(분)
-    const COLOR_GOLD_BAND          = 'rgba(255, 196,   0, 0.3)';
-    const COLOR_DEAD_BAND          = 'rgba(138, 144, 153, 0.3)';
-    const COLOR_GOLD_EDGE = '#B38F00';
-    const COLOR_DEAD_EDGE = '#6E737A';
+    // ✅ 이평선 색상
+    const SMA5_COLOR   = '#d32f2f';
+    const SMA20_COLOR  = '#f9a825';
+    const SMA120_COLOR = '#757575';
+
+    const SHOW_SMA_1M = <?= json_encode((bool)$show_sma_1m) ?>;
+    const SHOW_SMA_5M = <?= json_encode((bool)$show_sma_5m) ?>;
+    
     window._cache1m = window._cache1m || new Map();              // 1분 캐시
 
     // 5분 버킷 도우미
@@ -403,11 +423,17 @@ while ($row = $result->fetch_assoc()) {
 
     // ── 프리셋 → interval별 캔들 수
     function barsFor(interval) {
-      if (barPreset === '1m16_5m3') { if (interval === '1m') return 20; if (interval === '5m') return 7; return 6; }
+      if (barPreset === '1m200_5m75') {
+        if (interval === '1m') return 200;
+        if (interval === '5m') return 75;
+        return 75; // 15m, 60m은 필요 시 기본값
+      }
       if (barPreset === '40') return 40;
       if (barPreset === '75') return 75;
       if (barPreset === '100') return 100;
-      if (barPreset === '150') return 150;
+      if (barPreset === '160') return 160;
+      if (barPreset === '240') return 240;
+      if (barPreset === '420') return 420;
       return 75;
     }
 
@@ -453,56 +479,53 @@ while ($row = $result->fetch_assoc()) {
       chart._displayBars = n;
 
       const full = chart._fullSeries;
-      if (!full) return;
-
-      // series id로 찾아서 표시 구간만 업데이트
-      const price = chart.get(chart._priceSeriesId);
-      const s120  = chart.get(`sma120-${interval}`);
-      const s20   = chart.get(`sma20-${interval}`);
-      const s5    = chart.get(`sma5-${interval}`);
-      const vol   = chart.get(`vol-${interval}`);
-
-      if (price) price.setData(full.candles.slice(-n), false);
-      if (s120)  s120.setData(full.sma120.slice(-n), false);
-      if (s20)   s20.setData(full.sma20.slice(-n),  false);
-      if (s5)    s5.setData(full.sma5.slice(-n),   false);
-      if (vol)   vol.setData(full.volume.slice(-n), false);
-
+      const targets = chart._sliceTargets || [];
+      for (const t of targets) {
+        const s = chart.get(t.id);
+        const arr = full?.[t.key];
+        if (s && Array.isArray(arr)) s.setData(arr.slice(-n), false);
+      }
       chart.redraw();
     }
 
     // 캔들 수 → 카드 높이(px)
-    function computeHeight(n) { if (n <= 20) return 280; if (n <= 40) return 300; return 350; }
+    function computeHeight(n) { if (n <= 20) return 280; if (n <= 40) return 300; if (n > 400) return 500; return 350; }
 
     // 화면용(span) 매핑은 기존 spanForPreset(sel) 유지
     function spanForPreset(sel) {
+      if (barPreset === '1m200_5m75') return 12; // 하루당 한 줄 전체폭
+
       const isBoth = (sel === '1m5m' || sel === '5m15m');
       const isTriple = (sel === '1m5m15m' || sel === '5m15m60m');
+
       if (isBoth) {
-        if (barPreset === '1m16_5m3') return 3;
-        if (barPreset === '40')       return 4;
-        if (barPreset === '75')       return 6;
+        if (barPreset === '40')  return 4;
+        if (barPreset === '75')  return 6;
         return 12;
       } else if (isTriple) {
-        if (barPreset === '1m16_5m3') return 3;
-        if (barPreset === '40')       return 4;
+        if (barPreset === '40')  return 4;
         return 12;
       } else {
-        if (barPreset === '1m16_5m3') return 1;
-        if (barPreset === '40')       return 2;
-        if (barPreset === '75')       return 3;
-        return 4;
+        if (barPreset === '40')  return 2;
+        if (barPreset === '75')  return 4;
+        if (barPreset === '240')  return 12;
+        if (barPreset === '420')  return 12;
+        return 6;
       }
     }
 
     // 인쇄용(pspan) 매핑 – "더 넓게" 보이게 설계
     function printSpanForPreset(sel) {
+      if (barPreset === '1m200_5m75') return 8; // 인쇄도 하루당 한 줄
+
       const isBoth = (sel === '1m5m' || sel === '5m15m' || sel === '1m5m15m' || sel === '5m15m60m');
       if (isBoth) return 4;
-      if (barPreset === '150')      return 8;
-      if (barPreset === '100')      return 8;
-      if (barPreset === '75')       return 8;
-      if (barPreset === '40')       return 4;
+      if (barPreset === '420') return 8;
+      if (barPreset === '240') return 8;
+      if (barPreset === '160') return 8;
+      if (barPreset === '100') return 8;
+      if (barPreset === '75')  return 8;
+      if (barPreset === '40')  return 4;
       return 2;
     }
 
@@ -547,7 +570,7 @@ while ($row = $result->fetch_assoc()) {
     function clearEarlyLines(chart) {
       if (!chart || !chart.yAxis || !chart.yAxis[0]) return;
       const yAxis = chart.yAxis[0];
-      ['hi20_main','lo20_main','hi60_aux','lo60_aux','mid60_aux'].forEach(id => {
+      ['hi30_main','lo30_main','hi60_aux','lo60_aux','mid60_aux'].forEach(id => {
         try { yAxis.removePlotLine(id); } catch (e) {}
       });
     }
@@ -555,100 +578,98 @@ while ($row = $result->fetch_assoc()) {
     function drawEarlyLines(chart, baseRow, dayStr, interval) {
       if (!chart || !chart.yAxis || !chart.yAxis[0] || !baseRow) return;
 
-      const h20 = baseRow.session_high20;
-      const l20 = baseRow.session_low20;
+      const h30 = baseRow.session_high30;
+      const l30 = baseRow.session_low30;
+      const m20 = (h30 != null && l30 != null) ? ((+h30 + +l30) / 2) : null;
       const h60 = baseRow.session_high60;
       const l60 = baseRow.session_low60;
       const m60 = (h60 != null && l60 != null) ? ((+h60 + +l60) / 2) : null;
 
-      if (h20 == null || l20 == null) return;
+      if (h30 == null || l30 == null) return;
       // if (interval !== '1m' && interval !== '5m' && interval !== '15m') return; // 전체 차트 그리기 위해 주석처리.. 향후 삭제 가능할듯 26.01.08
 
-      const yAxis = chart.yAxis[0];
-      clearEarlyLines(chart);
+      // const yAxis = chart.yAxis[0];
+      // clearEarlyLines(chart);
 
-      const colorHi = 'rgba(255,79,179,0.9)';  // 분홍
-      const colorLo = 'rgba(79,195,255,1)';    // 하늘색
-      const colorMid = 'rgba(0,0,0,0.85)';     // mid는 진한 검은 계열
+      // const colorHi = 'rgba(255,79,179,0.95)';     // H
+      // const colorLo = 'rgba(79,195,255,0.95)';     // L
 
-      yAxis.addPlotLine({
-        id: 'hi20_main',
-        value: +h20,
-        color: colorHi,
-        width: 1,
-        dashStyle: 'ShortDot',
-        zIndex: 5,
-        // label: {
-        //   text: `(20) 고 ${(+h20).toFixed(2)}`,
-        //   align: 'right',
-        //   style: { fontSize: '10px', color: colorHi }
-        // }
-      });
+      // // 15분 고/저 우선 막기. 시뮬레이션 위해 2026.03.22
+      // yAxis.addPlotLine({
+      //   id: 'hi30_main',
+      //   value: +h30,
+      //   color: colorHi,
+      //   width: 2,
+      //   dashStyle: 'Solid',
+      //   zIndex: 5,
+      //   label: {
+      //     text: `H ${(+h30).toFixed(2)}`,
+      //     align: 'left',
+      //     style: { fontSize: '10px', color: colorHi }
+      //   }
+      // })
+      // yAxis.addPlotLine({
+      //   id: 'lo30_main',
+      //   value: +l30,
+      //   color: colorLo,
+      //   width: 2,
+      //   dashStyle: 'Solid',
+      //   zIndex: 5,
+      //   label: {
+      //     text: `L ${(+l30).toFixed(2)}`,
+      //     align: 'left',
+      //     style: { fontSize: '10px', color: colorLo }
+      //   }
+      // });
 
-      yAxis.addPlotLine({
-        id: 'lo20_main',
-        value: +l20,
-        color: colorLo,
-        width: 1,
-        dashStyle: 'ShortDot',
-        zIndex: 5,
-        // label: {
-        //   text: `(20) 저 ${(+l20).toFixed(2)}`,
-        //   align: 'right',
-        //   style: { fontSize: '10px', color: colorLo }
-        // }
-      });
+      // 30분 고저로 전략 변경. 우선 주석처리 26.01.24
+      // if (h60 != null) {
+      //   yAxis.addPlotLine({
+      //     id: 'hi60_aux',
+      //     value: +h60,
+      //     color: colorHi,
+      //     width: 2,
+      //     dashStyle: 'ShortDot',
+      //     zIndex: 4,
+      //     label: {
+      //       text: `(60) 고 ${(+h60).toFixed(2)}`,
+      //       align: 'left',
+      //       x: 5,
+      //       style: { fontSize: '10px', color: colorHi }
+      //     }
+      //   });
+      // }
 
-      if (h60 != null) {
-        yAxis.addPlotLine({
-          id: 'hi60_aux',
-          value: +h60,
-          color: colorHi,
-          width: 2,
-          dashStyle: 'Solid',
-          zIndex: 4,
-          label: {
-            text: `(60) 고 ${(+h60).toFixed(2)}`,
-            align: 'left',
-            x: 5,
-            style: { fontSize: '10px', color: colorHi }
-          }
-        });
-      }
+      // if (l60 != null) {
+      //   yAxis.addPlotLine({
+      //     id: 'lo60_aux',
+      //     value: +l60,
+      //     color: colorLo,
+      //     width: 2,
+      //     dashStyle: 'ShortDot',
+      //     zIndex: 4,
+      //     label: {
+      //       text: `(60) 저 ${(+l60).toFixed(2)}`,
+      //       align: 'left',
+      //       x: 5,
+      //       style: { fontSize: '10px', color: colorLo }
+      //     }
+      //   });
+      // }
+    }
 
-      if (l60 != null) {
-        yAxis.addPlotLine({
-          id: 'lo60_aux',
-          value: +l60,
-          color: colorLo,
-          width: 2,
-          dashStyle: 'Solid',
-          zIndex: 4,
-          label: {
-            text: `(60) 저 ${(+l60).toFixed(2)}`,
-            align: 'left',
-            x: 5,
-            style: { fontSize: '10px', color: colorLo }
-          }
-        });
-      }
 
-      if (m60 != null) {
-        yAxis.addPlotLine({
-          id: 'mid60_aux',
-          value: +m60,
-          color: colorMid,
-          width: 2,
-          dashStyle: 'ShortDot',
-          zIndex: 4,
-          label: {
-            text: `(60) 중 ${(+m60).toFixed(2)}`,
-            align: 'left',
-            x: 5,
-            style: { fontSize: '10px', color: colorMid }
-          }
-        });
-      }
+    function fitYAxisToCandles(chart, candleSeriesId, extraPaddingPct = 0.18) {
+      const s = chart.get(candleSeriesId);
+      if (!s) return;
+
+      const ext = s.getExtremes();
+      if (!isFinite(ext.dataMin) || !isFinite(ext.dataMax)) return;
+
+      const range = Math.max(0.01, ext.dataMax - ext.dataMin);
+      const pad = range * extraPaddingPct;
+
+      chart.yAxis[0].setExtremes(ext.dataMin - pad, ext.dataMax + pad, true, false);
     }
 
     // ── 공통 차트 드로잉
@@ -738,6 +759,27 @@ while ($row = $result->fetch_assoc()) {
           return { from: xAxis.toValue(leftPx, true), to: xAxis.toValue(rightPx, true) };
         }
 
+        function pickFieldFromRows(rows, candidates){
+          if (!Array.isArray(rows)) return null;
+          for (const r of rows){
+            for (const k of candidates){
+              if (r && r[k] != null && r[k] !== '' && isFinite(+r[k])) return k;
+            }
+          }
+          return null;
+        }
+        function toLine(rows, field){
+          const out=[];
+          if (!field) return out;
+          rows.forEach(r=>{
+            const v = +r[field];
+            if (isFinite(v)) out.push([tsLocal(r), v]);
+          });
+          return out;
+        }
+
+        const vwapKey = pickFieldFromRows(data, ['vwap_session']);
+
         const dayStr = date;
         const firstTodayRow = data.find(r => String(r.datetime).slice(0,10) === dayStr);
         const firstTS = firstTodayRow ? tsLocal(firstTodayRow) : null;
@@ -749,22 +791,112 @@ while ($row = $result->fetch_assoc()) {
           ? +sessionOpen
           : parseFloat(firstTodayRow ? firstTodayRow.open : data[0].open);
 
-        const candles = data.map(r => [ tsLocal(r), +r.open, +r.high, +r.low, +r.close ]);
-        const sma5    = data.map(r => [ tsLocal(r), +r.sma_5 ]);
-        const sma20   = data.map(r => [ tsLocal(r), +r.sma_20 ]);
-        const sma120  = data.map(r => [ tsLocal(r), +r.sma_120 ]);
-        const volume  = data.map(r => ({ x: tsLocal(r), y:+r.volume, color: r.close>r.open ? '#f45b5b':'#2f7ed8' }));
+        const rows = viewData;          // ✅ 화면에 그릴 데이터(슬라이스 적용)
+        const fullRows = data;          // ✅ 캐시/리사이즈용 전체(요청 limit 범위)
+
         const volumeMax = interval==='1m' ? 8000 : (interval==='5m' ? 30000 : 50000);
 
-        const thresholds = { '1m': VOL_THRESHOLD_1M, '5m': VOL_THRESHOLD_5M };
-        const volThreshold = thresholds[interval] ?? null;
-        const volAxisMax  = volThreshold ? Math.max(volumeMax, volThreshold * 1.05) : volumeMax;
+        const isVwap  = (interval === '1m' || interval === '5m' || interval === '15m');
+        const isShort = (interval === '1m' || interval === '5m'); // ✅ 1m/5m 구분용
+
+        // ✅ 1m/5m만 SMA 표시 여부를 조회조건으로 제어
+        const showSma =
+          (interval === '1m') ? SHOW_SMA_1M :
+          (interval === '5m') ? SHOW_SMA_5M :
+          true; // 15m/60m은 항상 SMA
+
+        const candles = rows.map(r => [ tsLocal(r), +r.open, +r.high, +r.low, +r.close ]);
+        const vwap    = isVwap ? toLine(rows, vwapKey) : [];
+
+        const volume = rows.map(r => ({
+          x: tsLocal(r),
+          y: +r.volume,
+          color: (+r.close >= +r.open) ? '#f45b5b' : '#2f7ed8'
+        }));
+
+        // ✅ 1m/5m은 20선만 만들고, 15m/60m은 5/20/120 전부 생성
+        const sma20  = showSma ? toLine(rows, 'sma_20') : [];
+        const sma5   = (showSma) ? toLine(rows, 'sma_5')   : [];
+        const sma120 = (showSma && !isShort) ? toLine(rows, 'sma_120') : [];
+
+        const series = [];
+
+        // ✅ SMA는 showSma일 때만
+        if (showSma) {
+          if (isShort) {
+            // ✅ 1m/5m: 5/20선만
+            series.push(
+              { id:`sma20-${interval}`, type:'line', name:'SMA 20', data:sma20, color:SMA20_COLOR, lineWidth:2, zIndex:1, enableMouseTracking:false, dataGrouping:{enabled:false} },
+              { id:`sma5-${interval}`,   type:'line', name:'SMA 5',   data:sma5,   color:SMA5_COLOR,   lineWidth:2, zIndex:1, enableMouseTracking:false, dataGrouping:{enabled:false} }
+            );
+          } else {
+            // ✅ 15m/60m: 5/20/120
+            series.push(
+              { id:`sma120-${interval}`, type:'line', name:'SMA 120', data:sma120, color:SMA120_COLOR, lineWidth:1, zIndex:1, enableMouseTracking:false, dataGrouping:{enabled:false} },
+              { id:`sma20-${interval}`,  type:'line', name:'SMA 20',  data:sma20,  color:SMA20_COLOR,  lineWidth:2, zIndex:1, enableMouseTracking:false, dataGrouping:{enabled:false} },
+              { id:`sma5-${interval}`,   type:'line', name:'SMA 5',   data:sma5,   color:SMA5_COLOR,   lineWidth:1, zIndex:1, enableMouseTracking:false, dataGrouping:{enabled:false} }
+            );
+          }
+        }
+
+        // ✅ 캔들 먼저
+        series.push({ id: priceSeriesId, type:'candlestick', name:'Price', data:candles, zIndex:3, dataGrouping:{enabled:false} });
+
+        // ✅ 거래량 추가
+        series.push({
+          id: `volume-${interval}`,
+          type: 'column',
+          name: 'Volume',
+          data: volume,
+          yAxis: 1,
+          zIndex: 1,
+          borderWidth: 0,
+          pointPadding: 0.05,
+          groupPadding: 0.05,
+          dataGrouping: { enabled: false }
+        });
+
+        // ✅ VWAP은 1m/5m에서만 (캔들 뒤 + zIndex 높게)
+        if (isVwap) {
+          series.push({
+            id:`vwap-${interval}`,
+            type:'line',
+            name:'VWAP',
+            data: vwap,
+            lineWidth: 3,
+            zIndex: 10,
+            color: '#6d28d9',
+            dataGrouping:{enabled:false}
+          });
+        }
+
+        // 거래량 max 표시
+        // const thresholds = { '1m': VOL_THRESHOLD_1M, '5m': VOL_THRESHOLD_5M };
+        // const volThreshold = thresholds[interval] ?? null;
+        // const volAxisMax  = volThreshold ? Math.max(volumeMax, volThreshold * 1.05) : volumeMax;
+
+        const volThreshold = null;
+        const volAxisMax = null;
 
         const TOOLTIP_TIME_ANCHOR = 'end';
 
         const chart = Highcharts.stockChart(containerId, {
-          chart:{ height:null, zooming:{ mouseWheel:{enabled:false}, type:null }, panning:false, panKey:null,
-                  events:{ load(){ this.customShowTooltip=false; } } },
+          chart:{
+            height:null,
+            zooming:{ mouseWheel:{enabled:false}, type:null },
+            panning:false,
+            panKey:null,
+            events:{
+              load(){
+                this.customShowTooltip = false;
+
+                // ✅ 1분봉만: SMA 때문에 눌리는 느낌 해결 + 캔들 크게
+                if (interval === '1m') {
+                  fitYAxisToCandles(this, priceSeriesId, 0.18);
+                }
+              }
+            }
+          },
           exporting: { enabled: false },
           navigator:{enabled:false}, scrollbar:{enabled:false}, rangeSelector:{enabled:false},
           title:{text:''}, time:{useUTC:false},
@@ -787,8 +919,11 @@ while ($row = $result->fetch_assoc()) {
             crosshair: { width: 1, color: '#888', dashStyle: 'ShortDot' }
           },
           yAxis:[
-            { height:'80%', lineWidth:1, plotLines:[{ color:'gray', value:openPrice, width:1, dashStyle:'Dash',
-              label:{ text:`시가 ${openPrice}`, align:'left', style:{ color:'#666', fontSize:'11px' } } }]},
+            { height:'83%', lineWidth:1, startOnTick:false, endOnTick:false, minPadding:0.01, maxPadding:0.01,
+              plotLines:[{ color:'gray', value:openPrice, width:1, dashStyle:'Dash',
+              // label:{ text:`시가 ${openPrice}`, align:'left', style:{ color:'#666', fontSize:'11px' } } 
+              }]
+            },
             {
               top:'83%', height:'17%', offset:0, lineWidth:1,
               min:0, max: volAxisMax,
@@ -808,13 +943,7 @@ while ($row = $result->fetch_assoc()) {
               }] : []
             }
           ],
-          series: [
-            { id:`sma120-${interval}`, type:'line', name:'SMA 120', data:sma120, color:'#666666ff', zIndex: 1 },
-            { id:`sma20-${interval}`,  type:'line', name:'SMA 20',  data:sma20,  color:'#ffaa00',   zIndex: 1 },
-            { id:`sma5-${interval}`,   type:'line', name:'SMA 5',   data:sma5,   color:'#db1bb4',   zIndex: 1 },
-            { id: priceSeriesId, type:'candlestick', name:'Price', data:candles, zIndex: 3, dataGrouping:{ enabled:false }},
-            { id:`vol-${interval}`, type:'column', name:'Volume', data:volume, yAxis:1, zIndex: 0 }
-          ],
+          series: series,
           tooltip:{
             shared:true, split:false, useHTML:true,
             formatter:function(){
@@ -863,6 +992,17 @@ while ($row = $result->fetch_assoc()) {
           }
         });
 
+        chart._sliceTargets = [
+          { id: priceSeriesId,        key: 'candles' },
+          { id: `volume-${interval}`, key: 'volume'  },
+          ...(isVwap ? [{ id: `vwap-${interval}`, key: 'vwap' }] : []),
+          ...(showSma ? [
+            { id: `sma120-${interval}`, key: 'sma120' },
+            { id: `sma20-${interval}`,  key: 'sma20'  },
+            { id: `sma5-${interval}`,   key: 'sma5'   }
+          ] : [])
+        ];
+
         // ✅ adaptive slice를 위한 원본(가져온 구간) 저장: capBars만큼(프리셋 범위 내)
         chart._priceSeriesId = priceSeriesId;
         chart._adaptiveSlice = isAdaptive;
@@ -870,19 +1010,20 @@ while ($row = $result->fetch_assoc()) {
 
         // full series(가져온 데이터 기준) 만들어 저장
         // (여기서는 "data"로 full을 만들고, 이미 위에서는 viewData로 표시 생성함)
-        const fullCandles = data.map(r => [ tsLocal(r), +r.open, +r.high, +r.low, +r.close ]);
-        const fullSma5    = data.map(r => [ tsLocal(r), +r.sma_5 ]);
-        const fullSma20   = data.map(r => [ tsLocal(r), +r.sma_20 ]);
-        const fullSma120  = data.map(r => [ tsLocal(r), +r.sma_120 ]);
-        const fullVolume  = data.map(r => ({ x: tsLocal(r), y:+r.volume, color: r.close>r.open ? '#f45b5b':'#2f7ed8' }));
+        const fullCandles = fullRows.map(r => [ tsLocal(r), +r.open, +r.high, +r.low, +r.close ]);
+        const fullVolume  = fullRows.map(r => ({ x: tsLocal(r), y:+r.volume, color: r.close>r.open ? '#f45b5b':'#2f7ed8' }));
 
-        chart._fullSeries = {
-          candles: fullCandles,
-          sma5: fullSma5,
-          sma20: fullSma20,
-          sma120: fullSma120,
-          volume: fullVolume
-        };
+        const full = { candles: fullCandles, volume: fullVolume };
+
+        if (isVwap) {
+          full.vwap = toLine(fullRows, vwapKey);
+        } else {
+          full.sma5   = toLine(fullRows, 'sma_5');
+          full.sma20  = toLine(fullRows, 'sma_20');
+          full.sma120 = toLine(fullRows, 'sma_120');
+        }
+
+        chart._fullSeries = full;
 
         // 현재 표시 봉수 기록(내보내기/리사이즈 대응)
         chart._displayBars = displayBars;
@@ -902,88 +1043,21 @@ while ($row = $result->fetch_assoc()) {
         }
 
         drawEarlyLines(chart, baseRow, dayStr, interval);
-
-//1분봉 골든,데드크로스 표시 잠시 막기 25.11.22
-        // // === 1m 5/20 교차 → 5분 차트에 표시 ===
-        // if (SHOW_1M_CROSS_ON_5M && interval === '5m') {
-        //   const nBars1m = Math.max(120, barsFor('1m')); // 장초반 60분 여유치
-        //   const get1m = (date) => {
-        //     if (window._cache1m.has(date)) return Promise.resolve(window._cache1m.get(date));
-        //     const url = `./get_1min_data.php?date=${encodeURIComponent(date)}&interval=1m&limit=${nBars1m}`;
-        //     return $.getJSON(url).then(d => { window._cache1m.set(date, d||[]); return d||[]; });
-        //   };
-
-        //   get1m(date).then(m1 => {
-        //     if (!m1 || !m1.length) return;
-
-        //     function toTS(s){
-        //       const m = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})$/.exec(String(s));
-        //       if (!m) return Date.parse(String(s).replace(' ', 'T'));
-        //       const [_, Y,M,D,h,mn,sc] = m.map(Number);
-        //       return new Date(Y, M-1, D, h, mn, sc).getTime();
-        //     }
-        //     const tsLocal = r => r.ts ?? toTS(r.datetime);
-
-        //     // 장초반 1시간 구간
-        //     const firstToday = m1.find(r => String(r.datetime).slice(0,10) === date);
-        //     if (!firstToday) return;
-        //     const T0 = tsLocal(firstToday);
-        //     const T1 = T0 + CROSS_WINDOW_MINUTES*60*1000;
-
-        //     // 스캔용 전체 행(경계용으로 T0 직전 1개 포함)
-        //     const rowsAll = m1
-        //       .map(r => ({ t: tsLocal(r), s5:+r.sma_5, s20:+r.sma_20 }))
-        //       .filter(r => isFinite(r.s5) && isFinite(r.s20));
-
-        //     const idxFirst = rowsAll.findIndex(r => r.t >= T0);
-        //     const startIdx = Math.max(1, idxFirst+1); // 첫봉 제외
-
-        //     // 교차 시점 수집 (장초반 구간만)
-        //     const gold = [], dead = [];
-        //     for (let i = startIdx; i < rowsAll.length && rowsAll[i].t <= T1; i++) {
-        //       const p = rowsAll[i-1], c = rowsAll[i];
-        //       if (p.s5 < p.s20 && c.s5 >= c.s20) gold.push({ x: c.t });
-        //       if (p.s5 > p.s20 && c.s5 <= c.s20) dead.push({ x: c.t });
-        //     }
-
-        //     // ── 배경 세로 막대(plotBands)
-        //     if (SHOW_1M_CROSS_BANDS) {
-        //       const xa = chart.xAxis[0];
-        //       const pser = chart.get(priceSeriesId);
-        //       const painted = new Set();
-        //       gold.forEach(ev => {
-        //         const { from, to } = bandRangeAlignedToCandle(pser,ev.x);
-        //         if (painted.has(from)) return;
-        //         addBandWithEdges(xa, from, to, COLOR_GOLD_BAND, COLOR_GOLD_EDGE);
-        //         painted.add(from);
-        //       });
-        //       dead.forEach(ev => {
-        //         const { from, to } = bandRangeAlignedToCandle(pser,ev.x);
-        //         if (painted.has(from)) return;
-        //         addBandWithEdges(xa, from, to, COLOR_DEAD_BAND, COLOR_DEAD_EDGE);
-        //         painted.add(from);
-        //       });
-        //     }
-
-        //     chart.redraw();
-        //   }).catch(()=>{ /* 조용히 무시 */ });
-        // }
-//1분봉 골든,데드크로스 표시 잠시 막기 25.11.22
-
-
         // === 09:00 & 09:30 기준선 ===
         if (interval === '1m' || interval === '5m' || interval === '15m') setTimeout(()=>{
           const xa   = chart.xAxis[0];
 
-          const ts0904 = toTS(dayStr + ' 09:04:00');
-          const ts0945 = toTS(dayStr + ' 09:45:00');
-          const ts1045 = toTS(dayStr + ' 10:45:00');
-          const ts1145 = toTS(dayStr + ' 11:45:00');
+          const ts0900 = toTS(dayStr + ' 09:00:00');
+          const ts0930 = toTS(dayStr + ' 09:30:00');
+          const ts1000 = toTS(dayStr + ' 10:00:00');
+          const ts1030 = toTS(dayStr + ' 10:30:00');
+          const ts1100 = toTS(dayStr + ' 11:00:00');
+          const ts1130 = toTS(dayStr + ' 11:30:00');
 
-          if (interval === '1m') {
+          if (interval === '1m' || interval === '5m' ) {
             xa.addPlotLine({
-              id: `_line-0904-${dayStr}-${interval}`,
-              value: ts0904,
+              id: `_line-0900-${dayStr}-${interval}`,
+              value: ts0900,
               color: 'rgba(253, 250, 38, 1)',
               width: 5,
               zIndex: 0
@@ -991,28 +1065,51 @@ while ($row = $result->fetch_assoc()) {
           }
 
           xa.addPlotLine({
-            id: `_line-0945-${dayStr}-${interval}`,
-            value: ts0945,
+            id: `_line-0930-${dayStr}-${interval}`,
+            value: ts0930,
             color: 'rgba(167, 248, 215, 1)',
             width: 5,
             zIndex: 2
           });
 
+
+          if (interval === '1m' || interval === '5m' ) {
+            xa.addPlotLine({
+              id: `_line-1000-${dayStr}-${interval}`,
+              value: ts1000,
+              color: 'rgba(253, 250, 38, 1)',
+              width: 5,
+              zIndex: 0
+            });
+          }
+
           xa.addPlotLine({
-            id: `_line-1045-${dayStr}-${interval}`,
-            value: ts1045,
+            id: `_line-1030-${dayStr}-${interval}`,
+            value: ts1030,
             color: 'rgba(167, 248, 215, 1)',
             width: 5,
             zIndex: 2
           });
 
+
+          if (interval === '1m' || interval === '5m' ) {
+            xa.addPlotLine({
+              id: `_line-1100-${dayStr}-${interval}`,
+              value: ts1100,
+              color: 'rgba(253, 250, 38, 1)',
+              width: 5,
+              zIndex: 0
+            });
+          }
+
           xa.addPlotLine({
-            id: `_line-1145-${dayStr}-${interval}`,
-            value: ts1145,
+            id: `_line-1130-${dayStr}-${interval}`,
+            value: ts1130,
             color: 'rgba(167, 248, 215, 1)',
             width: 5,
             zIndex: 2
           });
+
         }, 0);
 
         // 클릭 기반 툴팁/크로스헤어
@@ -1071,7 +1168,7 @@ while ($row = $result->fetch_assoc()) {
 
       // 기본값: 모두 숨김
       [wrapL, wrapM, wrapR].forEach(w => { if (w) w.style.display = 'none'; });
-      pair.classList.remove('single', 'triple');
+      pair.classList.remove('single', 'triple', 'duo-5m1m');
 
       function show(wrap, boxId, labelText, interval, opts = {}) {
         if (wrap) {
@@ -1084,10 +1181,10 @@ while ($row = $result->fetch_assoc()) {
 
       // (표시 순서: 60 → 15 → 5 → 1, 가능한 조합 내에서 유지)
       if (sel === '1m5m') {
+        pair.classList.add('duo-5m1m');
         // 5m(좌) + 1m(우)
         show(wrapL, `chart-l-${idx}`, '5분', '5m');
         show(wrapR, `chart-r-${idx}`, '1분', '1m');
-
       } else if (sel === '5m15m') {
         // 15m(좌) + 5m(우)
         show(wrapL, `chart-l-${idx}`, '15분', '15m');

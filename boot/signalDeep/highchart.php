@@ -3,7 +3,7 @@
 <head>
     <title>Candlestick Chart for 003160</title>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://code.highcharts.com/stock/highstock.js"></script>
+    <?php require $_SERVER['DOCUMENT_ROOT'] . "/modules/common/highcharts.php"; ?>
 </head>
 <body>
     <div id="container" style="height: 600px; min-width: 310px"></div>

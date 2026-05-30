@@ -15,10 +15,10 @@ switch ($interval) {
   default   : $table = 'futures_1min';  break;
 }
 
-// 1) 5분봉 초반 4개(20분) + 12개(60분) 기준 시가/고가/저가 계산 (기존 유지)
+// 1) 5분봉 초반 6개(30분) + 12개(60분) 기준 시가/고가/저가 계산 (기존 유지)
 $sessionOpen   = null;
-$sessionHigh20  = null;
-$sessionLow20   = null;
+$sessionHigh30  = null;
+$sessionLow30   = null;
 $sessionHigh60 = null;
 $sessionLow60  = null;
 
@@ -38,8 +38,8 @@ $rowsLv = $resLv->fetch_all(MYSQLI_ASSOC);
 if ($rowsLv) {
   $sessionOpen = (float)$rowsLv[0]['open'];
 
-  $highs20 = [];
-  $lows20  = [];
+  $highs30 = [];
+  $lows30  = [];
   $highs60 = [];
   $lows60  = [];
 
@@ -50,14 +50,14 @@ if ($rowsLv) {
     $highs60[] = $h;
     $lows60[]  = $l;
 
-    if ($idx < 4) {
-      $highs20[] = $h;
-      $lows20[]  = $l;
+    if ($idx < 6) {
+      $highs30[] = $h;
+      $lows30[]  = $l;
     }
   }
 
-  if ($highs20) $sessionHigh20 = max($highs20);
-  if ($lows20)  $sessionLow20  = min($lows20);
+  if ($highs30) $sessionHigh30 = max($highs30);
+  if ($lows30)  $sessionLow30  = min($lows30);
   if ($highs60) $sessionHigh60 = max($highs60);
   if ($lows60)  $sessionLow60  = min($lows60);
 }
@@ -65,16 +65,24 @@ if ($rowsLv) {
 // 2) 데이터 조회: "오늘 시작부터" 우선 채우고, 남으면 전일~5거래일 전에서 채우기
 $rows = [];
 
+function selectColsByTable($table){
+  $cols = "datetime, open, high, low, close, volume, sma_5, sma_20, sma_120, vwap_session";
+  return $cols;
+}
+
 if ($interval === '1m') {
   // ── 1m: (기존 유지) 당일 N봉만
+  $cols = selectColsByTable($table);
+
   $sql = "
     SELECT UNIX_TIMESTAMP(datetime)*1000 AS ts,
-           datetime, open, high, low, close, volume, sma_5, sma_20, sma_120
+          {$cols}
     FROM {$table}
     WHERE date = ?
     ORDER BY datetime ASC
     LIMIT ?
   ";
+
   $stmt = $mysqli->prepare($sql);
   $stmt->bind_param('si', $date, $limit);
   $stmt->execute();
@@ -83,14 +91,17 @@ if ($interval === '1m') {
 
 } else {
   // ── 2-1) 오늘 데이터(시작부터 ASC)로 limit 먼저 채우기
+  $cols = selectColsByTable($table);
+
   $sqlToday = "
     SELECT UNIX_TIMESTAMP(datetime)*1000 AS ts,
-           datetime, open, high, low, close, volume, sma_5, sma_20, sma_120
+          {$cols}
     FROM {$table}
     WHERE date = ?
     ORDER BY datetime ASC
     LIMIT ?
   ";
+
   $stmtToday = $mysqli->prepare($sqlToday);
   $stmtToday->bind_param('si', $date, $limit);
   $stmtToday->execute();
@@ -126,15 +137,18 @@ if ($interval === '1m') {
 
     // 전일~5거래일 전 범위에서 "오늘 직전" 최근 봉들
     // (DESC로 뽑은 뒤, 최종은 ASC가 되어야 하므로 나중에 reverse)
+    $cols = selectColsByTable($table);
+
     $sqlPrev = "
       SELECT UNIX_TIMESTAMP(datetime)*1000 AS ts,
-             datetime, open, high, low, close, volume, sma_5, sma_20, sma_120
+            {$cols}
       FROM {$table}
       WHERE date >= ?
         AND date < ?
       ORDER BY datetime DESC
       LIMIT ?
     ";
+
     $stmtPrev = $mysqli->prepare($sqlPrev);
     $stmtPrev->bind_param('ssi', $fromDate, $date, $remain);
     $stmtPrev->execute();
@@ -153,8 +167,8 @@ if ($interval === '1m') {
 $data = [];
 foreach ($rows as $row) {
   $row['session_open']   = $sessionOpen;
-  $row['session_high20'] = $sessionHigh20;
-  $row['session_low20']  = $sessionLow20;
+  $row['session_high30'] = $sessionHigh30;
+  $row['session_low30']  = $sessionLow30;
   $row['session_high60'] = $sessionHigh60;
   $row['session_low60']  = $sessionLow60;
   $data[] = $row;

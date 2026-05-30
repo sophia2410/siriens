@@ -6,7 +6,7 @@ from tqdm import tqdm
 from datetime import datetime
 
 # 📁 엑셀 기본 경로
-base_path = "C:/KiwoomHero4/temp"
+base_path = "E:/Project/202410/data/_futures/FuturesChart"
 
 # ✅ 공통 컬럼 정의 및 매핑
 column_names = [

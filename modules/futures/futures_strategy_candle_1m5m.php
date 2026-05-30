@@ -14,7 +14,7 @@ if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
 <head>
   <meta charset="utf-8">
   <title>특정일자 1분봉/5분봉 차트</title>
-  <script src="https://code.highcharts.com/stock/highstock.js"></script>
+  <?php require $_SERVER['DOCUMENT_ROOT'] . "/modules/common/highcharts.php"; ?>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <style>
     body { margin: 0; padding: 10px; font-family: sans-serif; }

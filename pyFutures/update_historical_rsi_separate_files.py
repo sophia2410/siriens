@@ -13,7 +13,7 @@ from datetime import datetime
 # =====================================================================
 
 # 하드코딩된 데이터 디렉토리 경로
-base_path = "C:/KiwoomHero4/temp"
+base_path = "E:/Project/202410/data/_futures/FuturesChart"
 # DB 설정 파일 경로 (필요시 수정)
 config_path = "E:/Project/202410/www/boot/common/db/database_config.ini"
 

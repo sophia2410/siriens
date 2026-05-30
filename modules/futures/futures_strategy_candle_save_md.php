@@ -4,7 +4,7 @@ header('Content-Type: application/json; charset=utf-8');
 
 try {
   // ======= 환경설정 =======
-  $MD_DIR = 'D:\\Obsidian\\Trader Sophia\\☆ Futures\\♧ 전략F - 시가vs5이평 추세확인매매';
+  $MD_DIR = 'D:\\Obsidian\\Trader Sophia\\☆ Futures';
 
   // ======= 입력 =======
   $raw = file_get_contents('php://input');

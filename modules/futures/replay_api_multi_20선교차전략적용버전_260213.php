@@ -2,9 +2,13 @@
 require $_SERVER['DOCUMENT_ROOT'] . "/modules/common/database.php";
 header('Content-Type: application/json; charset=utf-8');
 
+// ✅ JSON 응답에 Notice/Warning HTML이 섞이면 프론트 JSON.parse가 깨짐
+ini_set('display_errors', '0');
+error_reporting(E_ALL & ~E_NOTICE & ~E_WARNING);
+
 $date = $_GET['date'] ?? '';
 $start_time = $_GET['start'] ?? '08:45:00';
-$end_time   = $_GET['end']   ?? '15:45:00';
+$end_time   = $_GET['end']   ?? '15:00:00';
 
 $max_prev_1m  = isset($_GET['max_prev_1m'])  ? (int)$_GET['max_prev_1m']  : 500;
 $max_prev_5m  = isset($_GET['max_prev_5m'])  ? (int)$_GET['max_prev_5m']  : 300;
@@ -16,7 +20,7 @@ $init_max_5m  = isset($_GET['init_max_5m'])  ? (int)$_GET['init_max_5m']  : 83;
 $init_max_15m = isset($_GET['init_max_15m']) ? (int)$_GET['init_max_15m'] : 29;
 $init_max_60m = isset($_GET['init_max_60m']) ? (int)$_GET['init_max_60m'] : 29;
 
-$hi_lo_n = isset($_GET['hi_lo_n']) ? (int)$_GET['hi_lo_n'] : 30;
+$hi_lo_n = isset($_GET['hi_lo_n']) ? (int)$_GET['hi_lo_n'] : 20;
 $hi_lo_n2 = isset($_GET['hi_lo_n2']) ? (int)$_GET['hi_lo_n2'] : 60;
 
 
@@ -57,18 +61,10 @@ function getPrevTradingDateFromCal($mysqli, $date, $n = 1){
   return $dates[$n-1] ?? null;
 }
 
-function selectColsByTable($table){
-  // 기본 공통 컬럼
-  $cols = "datetime, open, high, low, close, volume, sma_5, sma_20, sma_120, vwap_session";
-  return $cols;
-}
-
 function fetchTail($mysqli, $table, $prevDate, $date, $limit){
   if (!$prevDate) return [];
-  
-  $cols = selectColsByTable($table);
   $sql = "
-    SELECT {$cols}
+    SELECT datetime, open, high, low, close, volume, sma_5, sma_20, sma_120
     FROM {$table}
     WHERE date >= ?
     AND   date < ?
@@ -85,9 +81,8 @@ function fetchTail($mysqli, $table, $prevDate, $date, $limit){
 }
 
 function fetchRange($mysqli, $table, $date, $start_time, $end_time){
-  $cols = selectColsByTable($table);
   $sql = "
-    SELECT {$cols}
+    SELECT datetime, open, high, low, close, volume, sma_5, sma_20, sma_120
     FROM {$table}
     WHERE date = ?
       AND time >= ?
@@ -104,9 +99,8 @@ function fetchRange($mysqli, $table, $date, $start_time, $end_time){
 }
 
 function fetchRangeLT($mysqli, $table, $date, $start_time, $lt_time){
-  $cols = selectColsByTable($table);
   $sql = "
-    SELECT {$cols}
+    SELECT datetime, open, high, low, close, volume, sma_5, sma_20, sma_120
     FROM {$table}
     WHERE date = ?
       AND time >= ?
@@ -123,9 +117,8 @@ function fetchRangeLT($mysqli, $table, $date, $start_time, $lt_time){
 }
 
 function fetchRangeAfter($mysqli, $table, $date, $gt_time, $end_time){
-  $cols = selectColsByTable($table);
   $sql = "
-    SELECT {$cols}
+    SELECT datetime, open, high, low, close, volume, sma_5, sma_20, sma_120
     FROM {$table}
     WHERE date = ?
       AND time > ?
@@ -139,6 +132,394 @@ function fetchRangeAfter($mysqli, $table, $date, $gt_time, $end_time){
   $rows = [];
   while ($row = $r->fetch_assoc()) $rows[] = $row;
   return $rows;
+}
+
+// ===== [BOXES] candle-20선 교차 확정 이벤트 계산 =====
+function dtAddMinutesStr($dtStr, $min){
+  $dt = new DateTime($dtStr);
+  $dt->modify(($min >= 0 ? '+' : '') . (int)$min . ' minutes');
+  return $dt->format('Y-m-d H:i:s');
+}
+
+function fetch5mRowsForBoxes($mysqli, $date, $start_time, $end_time){
+  $sql = "
+    SELECT datetime, open, high, low, close, sma_20
+    FROM futures_5min
+    WHERE date = ?
+      AND time >= ?
+      AND time <= ?
+      AND sma_20 IS NOT NULL
+    ORDER BY datetime ASC
+  ";
+  $stmt = $mysqli->prepare($sql);
+  $stmt->bind_param('sss', $date, $start_time, $end_time);
+  $stmt->execute();
+  $r = $stmt->get_result();
+  $rows = [];
+  while ($row = $r->fetch_assoc()) $rows[] = $row;
+  return $rows;
+}
+
+// ✅ (조건1) 장시작봉 교차 포함: 당일 첫 봉(08:45)의 prev는 "당일 시작 직전 가장 최근 5분봉 1개"
+function fetchPrev5mRowForBoxes($mysqli, $date, $start_time){
+  $sql = "
+    SELECT datetime, high, low, close, sma_20
+    FROM futures_5min
+    WHERE (date < ? OR (date = ? AND time < ?))
+      AND sma_20 IS NOT NULL
+    ORDER BY datetime DESC
+    LIMIT 1
+  ";
+  $stmt = $mysqli->prepare($sql);
+  $stmt->bind_param('sss', $date, $date, $start_time);
+  $stmt->execute();
+  $r = $stmt->get_result();
+  $row = $r->fetch_assoc();
+  return $row ?: null;
+}
+
+function calcBoxes5mSma20Cross($mysqli, $date, $start_time, $end_time){
+  $rows = fetch5mRowsForBoxes($mysqli, $date, $start_time, $end_time);
+  if (!$rows || !count($rows)) return [];
+
+  $prev = fetchPrev5mRowForBoxes($mysqli, $date, $start_time);
+  $prev_rel = null;
+  if ($prev){
+    $prev_rel = (float)$prev['close'] - (float)$prev['sma_20'];
+  }
+
+  $boxes = [];
+  $n = count($rows);
+
+  for ($i=0; $i<$n; $i++){
+    $r = $rows[$i];
+
+    $sma  = (float)$r['sma_20'];
+    $open = (float)$r['open'];
+    $high = (float)$r['high'];
+    $low  = (float)$r['low'];
+    $close= (float)$r['close'];
+
+    $rel = $close - $sma;
+
+    if ($prev_rel === null){
+      $prev_rel = $rel;
+      continue;
+    }
+
+    // ----------------------------
+    // (A) CROSS 판정(기존)
+    // ----------------------------
+    $dir = null;
+    $kind = null; // 'CROSS' | 'REJECT'
+    $base_is_event = 0;
+
+    if ($prev_rel <= 0 && $rel > 0){
+      $dir = 'UP';
+      $kind = 'CROSS';
+      // 기존 조건2(윅 기준)
+      $up_wick   = $high - $sma;
+      $down_wick = $sma - $low;
+      $base_is_event = ($up_wick > $down_wick) ? 1 : 0;
+
+    } else if ($prev_rel >= 0 && $rel < 0){
+      $dir = 'DOWN';
+      $kind = 'CROSS';
+      // 기존 조건2(윅 기준)
+      $down_wick = $sma - $low;
+      $up_wick   = $high - $sma;
+      $base_is_event = ($down_wick > $up_wick) ? 1 : 0;
+    }
+
+    // ----------------------------
+    // (B) REJECT 판정(추가)
+    //   - 같은 봉에서 CROSS가 잡히면 REJECT는 만들지 않음(중복 방지)
+    // ----------------------------
+    if (!$dir){
+      $touch = ($low <= $sma && $high >= $sma);
+
+      $rejectSupport = ($touch && $open > $sma && $close > $sma);
+      $rejectResist  = ($touch && $open < $sma && $close < $sma);
+
+      if ($rejectSupport){
+        $dir = 'UP';
+        $kind = 'REJECT';
+
+        // ✅ 몸통 기준: 종가쪽이 더 큰 경우 해당 봉이 기준봉
+        $up_body   = $close - $sma; // >0
+        $down_body = $open  - $sma; // >0
+        $base_is_event = ($up_body > $down_body) ? 1 : 0;
+
+      } else if ($rejectResist){
+        $dir = 'DOWN';
+        $kind = 'REJECT';
+
+        // ✅ 몸통 기준: 종가쪽이 더 큰 경우 해당 봉이 기준봉
+        $down_body = $sma - $close; // >0
+        $up_body   = $sma - $open;  // >0
+        $base_is_event = ($down_body > $up_body) ? 1 : 0;
+      }
+    }
+
+    // 이벤트가 아니면 다음 봉으로 기준봉 이동(기존과 동일)
+    if ($dir){
+      $event_dt = $r['datetime']; // cross_dt 역할(프론트 호환 위해 이름 유지 가능)
+      $cross_dt = $event_dt;
+
+      $baseRow = null;
+      $base_dt = null;
+
+      if ($base_is_event === 1){
+        $baseRow = $r;
+        $base_dt = $event_dt;
+      } else {
+        if ($i + 1 < $n){
+          $baseRow = $rows[$i + 1];
+          $base_dt = $baseRow['datetime'];
+        }
+      }
+
+      if ($baseRow){
+        $base_sma   = (float)$baseRow['sma_20'];
+        $base_close = (float)$baseRow['close'];
+        $base_rel   = $base_close - $base_sma;
+
+        // 확정 조건(기존)
+        $confirmed = ($dir === 'UP') ? ($base_rel > 0) : ($base_rel < 0);
+        if ($confirmed){
+          $confirm_dt = dtAddMinutesStr($base_dt, 5);
+          $trigger_dt = dtAddMinutesStr($confirm_dt, -1);
+
+          $boxes[] = [
+            'seq' => 0,
+            'dir' => $dir,
+
+            // 기존 필드 유지
+            'cross_dt' => $cross_dt,
+            'base_dt' => $base_dt,
+            'confirm_dt' => $confirm_dt,
+            'trigger_dt' => $trigger_dt,
+            'base_is_event' => (int)$base_is_event,
+
+            'base_high' => (float)$baseRow['high'],
+            'base_low'  => (float)$baseRow['low'],
+
+            // (옵션/검증용)
+            'base_close' => (float)$base_close,
+            'base_sma20' => (float)$base_sma,
+            'base_rel'   => (float)$base_rel,
+
+            'cross_sma20' => (float)$sma,
+            'cross_high'  => (float)$high,
+            'cross_low'   => (float)$low,
+
+            // ✅ 추가(프론트는 무시해도 됨)
+            'kind' => $kind,
+          ];
+        }
+      }
+    }
+
+    $prev_rel = $rel;
+  }
+
+  // seq: cross_dt 오름차순
+  usort($boxes, function($a,$b){
+    return strcmp($a['cross_dt'], $b['cross_dt']);
+  });
+  $seq = 1;
+  foreach ($boxes as &$b){ $b['seq'] = $seq++; }
+  unset($b);
+
+  return $boxes;
+}
+
+//--- 1분
+function fetch1mRowsForBoxes($mysqli, $date, $start_time, $end_time){
+  $sql = "
+    SELECT datetime, open, high, low, close, sma_20
+    FROM futures_1min
+    WHERE date = ?
+      AND time >= ?
+      AND time <= ?
+      AND sma_20 IS NOT NULL
+    ORDER BY datetime ASC
+  ";
+  $stmt = $mysqli->prepare($sql);
+  $stmt->bind_param('sss', $date, $start_time, $end_time);
+  $stmt->execute();
+  $r = $stmt->get_result();
+  $rows = [];
+  while ($row = $r->fetch_assoc()) $rows[] = $row;
+  return $rows;
+}
+
+// ✅ (조건1) 장시작봉 교차 포함: 시작 직전 가장 최근 1분봉 1개를 prev로
+function fetchPrev1mRowForBoxes($mysqli, $date, $start_time){
+  $sql = "
+    SELECT datetime, high, low, open, close, sma_20
+    FROM futures_1min
+    WHERE (date < ? OR (date = ? AND time < ?))
+      AND sma_20 IS NOT NULL
+    ORDER BY datetime DESC
+    LIMIT 1
+  ";
+  $stmt = $mysqli->prepare($sql);
+  $stmt->bind_param('sss', $date, $date, $start_time);
+  $stmt->execute();
+  $r = $stmt->get_result();
+  $row = $r->fetch_assoc();
+  return $row ?: null;
+}
+
+
+function calcBoxes1mSma20CrossReject($mysqli, $date, $start_time, $end_time){
+  $rows = fetch1mRowsForBoxes($mysqli, $date, $start_time, $end_time);
+  if (!$rows || !count($rows)) return [];
+
+  $prev = fetchPrev1mRowForBoxes($mysqli, $date, $start_time);
+  $prev_rel = null;
+  if ($prev){
+    $prev_rel = (float)$prev['close'] - (float)$prev['sma_20'];
+  }
+
+  $boxes = [];
+  $n = count($rows);
+
+  for ($i=0; $i<$n; $i++){
+    $r = $rows[$i];
+
+    $sma   = (float)$r['sma_20'];
+    $open  = (float)$r['open'];
+    $high  = (float)$r['high'];
+    $low   = (float)$r['low'];
+    $close = (float)$r['close'];
+
+    $rel = $close - $sma;
+
+    if ($prev_rel === null){
+      $prev_rel = $rel;
+      continue;
+    }
+
+    $dir = null;
+    $kind = null; // 'CROSS' | 'REJECT'
+    $base_is_event = 0;
+
+    // ----------------------------
+    // (A) CROSS (1분봉 rel 부호변화)
+    // ----------------------------
+    if ($prev_rel <= 0 && $rel > 0){
+      $dir = 'UP';
+      $kind = 'CROSS';
+      // 기존 조건2(윅 기준)
+      $up_wick   = $high - $sma;
+      $down_wick = $sma - $low;
+      $base_is_event = ($up_wick > $down_wick) ? 1 : 0;
+
+    } else if ($prev_rel >= 0 && $rel < 0){
+      $dir = 'DOWN';
+      $kind = 'CROSS';
+      // 기존 조건2(윅 기준)
+      $down_wick = $sma - $low;
+      $up_wick   = $high - $sma;
+      $base_is_event = ($down_wick > $up_wick) ? 1 : 0;
+    }
+
+    // ----------------------------
+    // (B) REJECT (1분봉 touch+몸통)
+    //   - 같은 봉에서 CROSS가 잡히면 REJECT는 생략(중복 방지)
+    // ----------------------------
+    if (!$dir){
+      $touch = ($low <= $sma && $high >= $sma);
+
+      $rejectSupport = ($touch && $open > $sma && $close > $sma);
+      $rejectResist  = ($touch && $open < $sma && $close < $sma);
+
+      if ($rejectSupport){
+        $dir = 'UP';
+        $kind = 'REJECT';
+        // ✅ 몸통 기준: 종가쪽이 더 크면 해당 봉이 기준봉
+        $up_body   = $close - $sma;
+        $down_body = $open  - $sma;
+        $base_is_event = ($up_body > $down_body) ? 1 : 0;
+
+      } else if ($rejectResist){
+        $dir = 'DOWN';
+        $kind = 'REJECT';
+        // ✅ 몸통 기준: 종가쪽이 더 크면 해당 봉이 기준봉
+        $down_body = $sma - $close;
+        $up_body   = $sma - $open;
+        $base_is_event = ($down_body > $up_body) ? 1 : 0;
+      }
+    }
+
+    if ($dir){
+      $cross_dt = $r['datetime'];
+
+      $baseRow = null;
+      $base_dt = null;
+
+      if ($base_is_event === 1){
+        $baseRow = $r;
+        $base_dt = $cross_dt;
+      } else {
+        if ($i + 1 < $n){
+          $baseRow = $rows[$i + 1];      // 다음 1분봉
+          $base_dt = $baseRow['datetime'];
+        }
+      }
+
+      if ($baseRow){
+        // 확정 조건
+        $base_sma   = (float)$baseRow['sma_20'];
+        $base_close = (float)$baseRow['close'];
+        $base_rel   = $base_close - $base_sma;
+
+        $confirmed = ($dir === 'UP') ? ($base_rel > 0) : ($base_rel < 0);
+        if ($confirmed){
+          // ✅ 1분봉 기준: confirm = base + 1분
+          $confirm_dt = dtAddMinutesStr($base_dt, 1);
+          $trigger_dt = dtAddMinutesStr($confirm_dt, -1); // = base_dt와 같아짐
+
+          $boxes[] = [
+            'seq' => 0,
+            'dir' => $dir,
+            'cross_dt' => $cross_dt,
+            'base_dt' => $base_dt,
+            'confirm_dt' => $confirm_dt,
+            'trigger_dt' => $trigger_dt,
+            'base_is_event' => (int)$base_is_event,
+
+            'base_high' => (float)$baseRow['high'],
+            'base_low'  => (float)$baseRow['low'],
+
+            // (옵션/검증용)
+            'base_close' => (float)$base_close,
+            'base_sma20' => (float)$base_sma,
+            'base_rel'   => (float)$base_rel,
+
+            'cross_sma20' => (float)$sma,
+            'cross_high'  => (float)$high,
+            'cross_low'   => (float)$low,
+
+            'kind' => $kind,
+          ];
+        }
+      }
+    }
+
+    $prev_rel = $rel;
+  }
+
+  usort($boxes, function($a,$b){
+    return strcmp($a['cross_dt'], $b['cross_dt']);
+  });
+  $seq = 1;
+  foreach ($boxes as &$b){ $b['seq'] = $seq++; }
+  unset($b);
+
+  return $boxes;
 }
 
 // ✅ (중요) start_time(08:45)을 앵커로 버킷 바닥 잡기
@@ -268,7 +649,7 @@ if ($p5){
     'datetime' => $date.' '.$bucket5_time,
     'open' => $p5['open'], 'high'=>$p5['high'], 'low'=>$p5['low'], 'close'=>$p5['close'],
     'volume'=>$p5['volume'],
-    'sma_5'=>null,'sma_20'=>null,'sma_120'=>null, 'vwap_session'=>null
+    'sma_5'=>null,'sma_20'=>null,'sma_120'=>null
   ]];
   $partial5_state = [
     'bucketTs' => (new DateTime($date.' '.$bucket5_time))->getTimestamp()*1000,
@@ -281,7 +662,7 @@ if ($p15){
     'datetime' => $date.' '.$bucket15_time,
     'open' => $p15['open'], 'high'=>$p15['high'], 'low'=>$p15['low'], 'close'=>$p15['close'],
     'volume'=>$p15['volume'],
-    'sma_5'=>null,'sma_20'=>null,'sma_120'=>null, 'vwap_session'=>null
+    'sma_5'=>null,'sma_20'=>null,'sma_120'=>null
   ]];
   $partial15_state = [
     'bucketTs' => (new DateTime($date.' '.$bucket15_time))->getTimestamp()*1000,
@@ -294,7 +675,7 @@ if ($p60){
     'datetime' => $date.' '.$bucket60_time,
     'open' => $p60['open'], 'high'=>$p60['high'], 'low'=>$p60['low'], 'close'=>$p60['close'],
     'volume'=>$p60['volume'],
-    'sma_5'=>null,'sma_20'=>null,'sma_120'=>null, 'vwap_session'=>null
+    'sma_5'=>null,'sma_20'=>null,'sma_120'=>null
   ]];
   $partial60_state = [
     'bucketTs' => (new DateTime($date.' '.$bucket60_time))->getTimestamp()*1000,
@@ -369,6 +750,9 @@ if ($init1 && count($init1)){
   $nowTs = (new DateTime($date.' '.$init_time))->getTimestamp()*1000;
 }
 
+// $boxes = calcBoxes5mSma20Cross($mysqli, $date, $start_time, $end_time);
+$boxes = calcBoxes1mSma20CrossReject($mysqli, $date, $start_time, $end_time);
+
 $out = [
   'ok'=>true,
   'date'=>$date,
@@ -376,6 +760,7 @@ $out = [
   'nowTs'=>$nowTs,
   'hilo_main'=>$hilo,
   'hilo_aux'=>$hilo2,
+  'boxes' => $boxes,
   'm1'=>[
     'init'=>$init1,
     'future'=>$today1_future,

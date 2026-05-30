@@ -5,10 +5,11 @@ import os
 from tqdm import tqdm
 from datetime import datetime
 from futures_bb_rsi_features import generate_missing_features
+from vwap_utils import recalc_and_update_vwap_for_dates
 
 # 📌 DB 설정 로드
 config = configparser.ConfigParser()
-config.read('E:/Project/202410/www/boot/common/db/database_config.ini')  # ← 경로 맞게 수정
+config.read('E:/Project/202410/www/boot/common/db/database_config.ini')
 
 db = pymysql.connect(
     host=config.get('database', 'host'),
@@ -25,7 +26,7 @@ upload_list = [
     ("chart_60min.xls", "futures_60min")
 ]
 
-base_path = "C:/KiwoomHero4/temp"
+base_path = "E:/Project/202410/data/_futures/FuturesChart"
 
 # ✅ 엑셀 컬럼명 고정
 column_names = [
@@ -64,32 +65,53 @@ def get_latest_datetime(cursor, table):
 # ✅ INSERT 실행
 def insert_rows(df, table, cursor):
     latest_dt = get_latest_datetime(cursor, table)
-    df = df[df['datetime'] > latest_dt]
-    print(f"{table}: {len(df)} rows to insert")
+
+    df_new = df[df['datetime'] > latest_dt].copy()
+    print(f"{table}: {len(df_new)} rows to insert")
+
+    if df_new.empty:
+        return
+
+    affected_dates = sorted(df_new["date"].unique().tolist())
 
     if table == "futures_5min":
-        df_filtered = df[common_cols]
+        df_filtered = df_new[common_cols]
+
         sql = f"""
         INSERT IGNORE INTO {table}
-        (date, time, datetime, open, high, low, close, volume,
+        (date, time, datetime,
+         open, high, low, close, volume,
          sma_5, sma_20, sma_120, rsi_14)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        VALUES (%s, %s, %s,
+                %s, %s, %s, %s, %s,
+                %s, %s, %s, %s)
         """
-        for _, row in tqdm(df_filtered.iterrows(), total=len(df_filtered)):
-            cursor.execute(sql, tuple(row[col] if pd.notna(row[col]) else None for col in df_filtered.columns))
     else:
-        df_filtered = df[all_cols]
+        df_filtered = df_new[all_cols]
+
         sql = f"""
         INSERT IGNORE INTO {table}
-        (date, time, datetime, open, high, low, close, volume,
+        (date, time, datetime,
+         open, high, low, close, volume,
          sma_5, sma_20, sma_120, rsi_14,
          bb_center, bb_upper, bb_lower,
-         ema_20, ema_60, macd, macd_signal, macd_hist)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                %s, %s, %s, %s, %s, %s, %s, %s)
+         ema_20, ema_60,
+         macd, macd_signal, macd_hist)
+        VALUES (%s, %s, %s,
+                %s, %s, %s, %s, %s,
+                %s, %s, %s, %s,
+                %s, %s, %s,
+                %s, %s,
+                %s, %s, %s)
         """
-        for _, row in tqdm(df_filtered.iterrows(), total=len(df_filtered)):
-            cursor.execute(sql, tuple(row[col] if pd.notna(row[col]) else None for col in df_filtered.columns))
+
+    for _, row in tqdm(df_filtered.iterrows(), total=len(df_filtered)):
+        cursor.execute(
+            sql,
+            tuple(row[col] if pd.notna(row[col]) else None for col in df_filtered.columns)
+        )
+
+    recalc_and_update_vwap_for_dates(cursor, table, affected_dates)
 
 # ✅ 실행 메인
 with db.cursor() as cursor:
