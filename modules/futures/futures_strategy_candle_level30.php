@@ -111,7 +111,7 @@ if (!empty($only_dates_list)) {
 }
 
 $sql .= " AND date >= '2025-01-01'";
-$sql .= " ORDER BY date DESC";
+// $sql .= " ORDER BY date DESC";
 
 $stmt = $mysqli->prepare($sql);
 $stmt->bind_param($types, ...$params);
@@ -382,14 +382,15 @@ while ($row = $result->fetch_assoc()) {
       // ✅ SMA (조건부)
       ...(showSma ? (
           (interval === '1m' || interval === '5m')
-            // ✅ 1m/5m: 20선만
+            // ✅ 1m/5m: 5/20선만
             ? [
-                { id:`SMA20-${containerId}`, type:'line', name:'SMA 20', data:sma20, color:'#ffaa00', lineWidth:2, zIndex:1, enableMouseTracking:false }
+                { id:`SMA20-${containerId}`, type:'line', name:'SMA 20', data:sma20, color:'#ffaa00', lineWidth:1, zIndex:1, enableMouseTracking:false },
+                { id:`SMA5-${containerId}`,   type:'line', name:'SMA 5',   data:sma5,   color:'#db1bb4',   lineWidth:2, zIndex:1, enableMouseTracking:false }
               ]
             // ✅ 15m/60m: 5/20/120 전부
             : [
-                { id:`SMA120-${containerId}`, type:'line', name:'SMA 120', data:sma120, color:'#666666cc', lineWidth:2, zIndex:1, enableMouseTracking:false },
-                { id:`SMA20-${containerId}`,  type:'line', name:'SMA 20',  data:sma20,  color:'#ffaa00',   lineWidth:2, zIndex:1, enableMouseTracking:false },
+                { id:`SMA120-${containerId}`, type:'line', name:'SMA 120', data:sma120, color:'#666666cc', lineWidth:1, zIndex:1, enableMouseTracking:false },
+                { id:`SMA20-${containerId}`,  type:'line', name:'SMA 20',  data:sma20,  color:'#ffaa00',   lineWidth:1, zIndex:1, enableMouseTracking:false },
                 { id:`SMA5-${containerId}`,   type:'line', name:'SMA 5',   data:sma5,   color:'#db1bb4',   lineWidth:2, zIndex:1, enableMouseTracking:false }
               ]
         ) : []),

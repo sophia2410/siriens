@@ -1,7 +1,7 @@
 import os
 import re
 from decimal import Decimal, ROUND_HALF_UP
-from datetime import datetime, date, time, timedelta
+from datetime import datetime, date, time
 from typing import Optional, Tuple, List, Dict, Any
 
 import pandas as pd
@@ -85,12 +85,6 @@ def money_round(x: Decimal) -> int:
 
 
 def normalize_action(action) -> str:
-    # DB may return bytes for action column (e.g., b'OPEN_LONG').
-    if isinstance(action, (bytes, bytearray)):
-        try:
-            action = action.decode('utf-8', errors='ignore')
-        except Exception:
-            action = str(action)
     return str(action or "").strip().upper()
 
 
@@ -199,23 +193,6 @@ def normalize_signal(side_raw: str) -> Optional[str]:
     if "매도" in s0:
         return "SELL"
 
-    # 한글/혼합표현으로 된 전일 이월 청산 처리
-    # 예: '전일 이월 청산(매도)', '이월청산 매도', '전일청산 매수' 등
-    s_no_space = s0.replace(" ", "").lower()
-    if ("이월" in s_no_space or "전일" in s_no_space or "이월청산" in s_no_space or "전일청산" in s_no_space) and ("청산" in s_no_space or "청산" in s_no_space):
-        # 방향 추정: '매도'가 있으면 LONG 포지션을 청산하는(=CLOSE_CARRY_LONG)
-        if "매도" in s_no_space or "sell" in s:
-            return "CLOSE_CARRY_LONG"
-        if "매수" in s_no_space or "buy" in s:
-            return "CLOSE_CARRY_SHORT"
-        # 롱/숏 표기가 있을 경우
-        if "롱" in s_no_space or "long" in s:
-            return "CLOSE_CARRY_LONG"
-        if "숏" in s_no_space or "short" in s:
-            return "CLOSE_CARRY_SHORT"
-        # 방향 불명 시 None 반환(흔한 오해 방지)
-        return None
-
     # 영문/약어
     if s in ("BUY", "B", "LONG", "L"):
         return "BUY"
@@ -234,15 +211,10 @@ def normalize_signal(side_raw: str) -> Optional[str]:
 # =========================
 # 체결 -> trade(action) 생성 + PnL/수수료
 # =========================
-def build_trade_records(
-    df_std: pd.DataFrame,
-    point_value: int,
-    initial_pos: Optional[Dict[str, Any]] = None,
-    initial_is_carry: bool = True,
-):
+def build_trade_records(df_std: pd.DataFrame, point_value: int, initial_pos: Optional[Dict[str, Any]] = None):
     """
     안정화 기준:
-      1) initial_is_carry=True이면 날짜가 넘어와 시작한 포지션 전체를 carry_qty로 본다.
+      1) 날짜가 넘어와 시작한 포지션 전체를 carry_qty로 본다.
       2) 청산은 항상 실제 체결수량 기준 min(qty, pos_qty)만 처리한다.
       3) CLOSE_CARRY_*도 완전청산일 수 있으므로 position_qty_after로 청산 여부를 판단한다.
       4) 같은 방향 추가진입은 평균단가(avg_price)를 갱신하고, 청산 손익은 평균단가 기준으로 계산한다.
@@ -253,8 +225,8 @@ def build_trade_records(
     avg_price = Decimal(str(initial_pos.get("avg_price") or "0"))
 
     # 방식 A: 오늘 시작 시 들고 온 포지션 전체를 이월 수량으로 본다.
-    carry_side = pos_side if initial_is_carry else None
-    carry_qty = pos_qty if initial_is_carry and pos_side is not None and pos_qty > 0 else 0
+    carry_side = pos_side
+    carry_qty = pos_qty if pos_side is not None and pos_qty > 0 else 0
 
     realized_points = Decimal("0")
     trades: List[Dict] = []
@@ -653,82 +625,6 @@ def count_trades(cursor, day_id: int) -> int:
     return int(cursor.fetchone()[0])
 
 
-def append_trades(cursor, day_id: int, trades: List[Dict]):
-    """
-    야간장처럼 기존 day_id 뒤에 추가로 붙이는 용도.
-    build_trade_records()가 만든 seq(1,2,3...)를 기존 max(seq) 뒤로 재번호 부여한다.
-    """
-    if not trades:
-        return
-
-    ensure_trade_position_columns(cursor)
-
-    cursor.execute("SELECT COALESCE(MAX(seq), 0) FROM futures_sim_trade WHERE day_id=%s", (day_id,))
-    max_seq = int(cursor.fetchone()[0] or 0)
-
-    sql = """
-    INSERT INTO futures_sim_trade
-    (day_id, seq, action, bar_dt, price, qty, position_qty_after, position_side_after, fee_amount, note)
-    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-    """
-    for t in trades:
-        cursor.execute(sql, (
-            day_id,
-            max_seq + int(t["seq"]),
-            t["action"],
-            t["bar_dt"],
-            str(t["price"]),
-            int(t["qty"]),
-            int(t.get("position_qty_after", 0)),
-            t.get("position_side_after", "NONE"),
-            int(t["fee_amount"]),
-            t["note"]
-        ))
-
-
-def add_day_summary_delta(cursor, day_id: int, pnl_points_delta: Decimal, point_value: int, fee_total_delta: int):
-    """
-    전일에 야간장 trade를 append했을 때 기존 전일 요약값에 야간장 손익/수수료만 더한다.
-    """
-    cursor.execute(
-        "SELECT COALESCE(pnl_points,0), COALESCE(fee_total,0) "
-        "FROM futures_sim_run_day WHERE day_id=%s",
-        (day_id,)
-    )
-    row = cursor.fetchone()
-    old_pnl_points = Decimal(str(row[0] or "0")) if row else Decimal("0")
-    old_fee_total = int(row[1] or 0) if row else 0
-
-    new_pnl_points = old_pnl_points + Decimal(str(pnl_points_delta))
-    new_fee_total = old_fee_total + int(fee_total_delta)
-    new_pnl_amount = money_round(new_pnl_points * Decimal(point_value))
-    new_pnl_amount_net = new_pnl_amount - new_fee_total
-
-    cursor.execute(
-        "UPDATE futures_sim_run_day "
-        "SET pnl_points=%s, pnl_amount=%s, fee_total=%s, pnl_amount_net=%s "
-        "WHERE day_id=%s",
-        (str(new_pnl_points.quantize(Decimal("0.0001"))), new_pnl_amount, new_fee_total, new_pnl_amount_net, day_id)
-    )
-
-
-def split_night_and_regular(df_std: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
-    """
-    파일명 날짜(거래일) 기준 18:00 이후 체결만 야간장으로 분리한다.
-    증권사 파일의 야간장 시간은 거래일 날짜와 결합되어 있으므로,
-    전일 장부에 붙일 때 실제 달력 일시가 되도록 하루를 뺀다.
-    나머지는 기존 정규장 로직에 그대로 넘긴다.
-    """
-    if df_std.empty:
-        return df_std.copy(), df_std.copy()
-
-    night_mask = df_std["bar_dt"].dt.time >= time(18, 0)
-    night_df = df_std[night_mask].copy()
-    night_df["bar_dt"] = night_df["bar_dt"] - timedelta(days=1)
-    regular_df = df_std[~night_mask].copy()
-    return night_df, regular_df
-
-
 # =========================
 # 파일 스캔: 날짜별 최신 1개 선택
 # =========================
@@ -772,7 +668,6 @@ def main():
             ensure_trade_position_columns(cursor)
             db.commit()
 
-            # 원본 흐름 유지: 날짜별 처리 결과를 다음 날짜 initial_pos로 넘긴다.
             carry_pos = None
 
             for trade_date, filepath in files_by_date.items():
@@ -786,80 +681,7 @@ def main():
                     if DEBUG:
                         print(f" - parsed rows: {len(df_std)}")
 
-                    # ---------------------------------------------------------
-                    # 야간장 예외처리
-                    # - build_trade_records()는 건드리지 않는다.
-                    # - 야간장만 전일 day_id 뒤에 append한다.
-                    # - 이후 정규장은 regular_df 전체를 원본 흐름으로 딱 한 번만 처리한다.
-                    # ---------------------------------------------------------
-                    night_df, regular_df = split_night_and_regular(df_std)
-
-                    if not night_df.empty:
-                        # 야간장 initial_pos는 원본의 날짜 연결 상태를 우선 사용한다.
-                        # 전체 배치 중이면 carry_pos가 직전 처리일의 최종 포지션이다.
-                        # 단독 실행 등으로 carry_pos가 없으면 DB에서 조회한다.
-                        if carry_pos is not None:
-                            night_initial_pos = carry_pos
-                            night_pos_source = "batch_memory"
-                        else:
-                            night_initial_pos = fetch_previous_position(cursor, RUN_ID, trade_date)
-                            night_pos_source = "db"
-
-                        prev_trade_date = night_initial_pos.get("prev_trade_date")
-                        if prev_trade_date is None:
-                            raise RuntimeError("야간장 append 대상 전일(prev_trade_date)을 찾지 못했습니다.")
-
-                        if DEBUG:
-                            print(
-                                f" [NIGHT initial_pos:{night_pos_source}] append_date={prev_trade_date} "
-                                f"side={night_initial_pos['pos_side']} qty={night_initial_pos['pos_qty']} "
-                                f"avg={night_initial_pos['avg_price']} rows={len(night_df)}"
-                            )
-                            print(" [NIGHT rows]")
-                            print(night_df[["bar_dt", "side_raw", "qty", "price"]].to_string(index=False))
-
-                        prev_day_id = upsert_day_row(cursor, RUN_ID, prev_trade_date)
-
-                        night_trades, night_pnl_points, night_fee_total, night_pos_info = build_trade_records(
-                            night_df,
-                            point_value,
-                            night_initial_pos,
-                            # 야간 체결은 전일 장부에 합쳐지므로 전일 포지션의 정상 청산이다.
-                            # CLOSE_CARRY_*는 다음 거래일 정규장이 전일 포지션을 청산할 때만 쓴다.
-                            initial_is_carry=False,
-                        )
-
-                        # 추적용 note. build_trade_records() 내부 로직은 변경하지 않는다.
-                        for t in night_trades:
-                            marker = f"night_append:{trade_date}"
-                            t["note"] = f"{marker};{t['note']}" if t.get("note") else marker
-
-                        if DEBUG:
-                            print(f" [NIGHT built actions] {[t['action'] for t in night_trades]}")
-
-                        append_trades(cursor, prev_day_id, night_trades)
-                        add_day_summary_delta(cursor, prev_day_id, night_pnl_points, point_value, night_fee_total)
-                        db.commit()
-
-                        # 야간장 처리 결과만 다음 정규장 initial_pos로 반영한다.
-                        # 정규장 전체는 아래 원본 흐름에서 한 번만 build_trade_records()를 탄다.
-                        night_pos_side, night_pos_qty, night_avg_price = night_pos_info
-                        carry_pos = {
-                            "pos_side": night_pos_side,
-                            "pos_qty": night_pos_qty,
-                            "avg_price": night_avg_price,
-                            "prev_trade_date": prev_trade_date,
-                        }
-
-                        print(f" - 야간장 append 완료: append_date={prev_trade_date}, rows={len(night_df)}, trades={len(night_trades)}")
-
-                    # 여기부터는 원본 로직이 처리할 데이터만 남긴다.
-                    # 야간장이 없으면 df_std는 원본과 동일하다.
-                    # 야간장이 있으면 regular_df만 남겨 기존 정규장 흐름으로 처리한다.
-                    df_std = regular_df
-
                     # 2) 현재 일자 삭제 전에 직전 등록일 포지션 확보
-                    # 원본 흐름 유지: carry_pos가 있으면 batch_memory를 사용한다.
                     if carry_pos is not None:
                         initial_pos = carry_pos
                         pos_source = "batch_memory"
@@ -890,9 +712,6 @@ def main():
                         print(" - df_std empty: 기존 trade 삭제 + day 0 갱신")
                         continue
 
-                    # 정규장 전체를 여기서 딱 한 번만 처리한다.
-                    # 08:49 CLOSE_CARRY 후 08:53 OPEN_LONG, 09:35 SELL 같은 흐름이
-                    # 한 번의 build_trade_records() 안에서 순차 처리되어야 한다.
                     trades, pnl_points, fee_total, pos_info = build_trade_records(df_std, point_value, initial_pos)
                     pos_side, pos_qty, avg_price = pos_info
                     carry_pos = {
@@ -906,7 +725,6 @@ def main():
                         print(f" - trades built: {len(trades)}")
                         carry_count = sum(1 for t in trades if t["action"] in ("CLOSE_CARRY_LONG", "CLOSE_CARRY_SHORT"))
                         print(f" - carry close trades: {carry_count}")
-                        print(f" - actions: {[t['action'] for t in trades]}")
 
                     # 4) trade insert + day summary update
                     insert_trades(cursor, day_id, trades)

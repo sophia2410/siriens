@@ -1,5 +1,5 @@
 <?php
-// futures_replay_trade_api.php
+// futures_replay_plan_trade_api.php
 require $_SERVER['DOCUMENT_ROOT'] . "/modules/common/database.php";
 
 ini_set('display_errors', '0');
@@ -239,6 +239,22 @@ function day_payload($mysqli, $day_id, $state, $POINT_VALUE){
   return $day;
 }
 
+function fetch_plan($mysqli, $day_id){
+  $stmt = $mysqli->prepare("
+    SELECT plan_id, day_id, side, entry_price, stop_price, qty, status,
+           entry_bar_dt, stop_bar_dt, created_at, updated_at
+    FROM futures_sim_plan_order
+    WHERE day_id = ?
+    LIMIT 1
+  ");
+  $stmt->bind_param('i', $day_id);
+  $stmt->execute();
+  $res = $stmt->get_result();
+  $plan = $res->fetch_assoc();
+  $stmt->close();
+  return $plan ?: null;
+}
+
 /** -----------------------------
  *  mode handlers
  * ----------------------------- */
@@ -308,6 +324,197 @@ if ($mode === 'day_get'){
   $day = day_payload($mysqli, $day_id, $state, $POINT_VALUE);
 
   json_out(['ok'=>true, 'day'=>$day, 'trades'=>$trades]);
+}
+
+if ($mode === 'plan_get'){
+  $day_id = as_int(req('day_id', 0));
+  if ($day_id <= 0) json_out(['ok'=>false,'msg'=>'day_id is required'], 400);
+  json_out(['ok'=>true, 'plan'=>fetch_plan($mysqli, $day_id)]);
+}
+
+if ($mode === 'plan_sync'){
+  $day_id = as_int(req('day_id', 0));
+  if ($day_id <= 0) json_out(['ok'=>false,'msg'=>'day_id is required'], 400);
+
+  $plan = fetch_plan($mysqli, $day_id);
+  if (!$plan) json_out(['ok'=>true, 'plan'=>null]);
+
+  $trades = fetch_trades($mysqli, $day_id);
+  [$okState, $msgState, $state] = calc_state_from_trades($trades, false);
+  if (!$okState) json_out(['ok'=>false,'msg'=>$msgState], 400);
+  $pos_qty = intval($state['pos_qty'] ?? 0);
+  $status = strtoupper((string)$plan['status']);
+
+  // 계획 진입 후 수동 청산으로 포지션이 없어지면 계획 완료
+  if ($status === 'ENTERED' && $pos_qty === 0){
+    $stmt = $mysqli->prepare("
+      UPDATE futures_sim_plan_order
+      SET status='CLOSED'
+      WHERE day_id=? AND status='ENTERED'
+    ");
+    $stmt->bind_param('i', $day_id);
+    $stmt->execute();
+    $stmt->close();
+  }
+
+  // 직전취소로 청산이 되돌아가 포지션이 복구되면 다시 손절 감시
+  if (($status === 'CLOSED' || $status === 'STOPPED') && $pos_qty !== 0){
+    $sideMatches = ($plan['side'] === 'LONG' && $pos_qty > 0)
+      || ($plan['side'] === 'SHORT' && $pos_qty < 0);
+    if ($sideMatches){
+      $stmt = $mysqli->prepare("
+        UPDATE futures_sim_plan_order
+        SET status='ENTERED', stop_bar_dt=NULL
+        WHERE day_id=?
+      ");
+      $stmt->bind_param('i', $day_id);
+      $stmt->execute();
+      $stmt->close();
+    }
+  }
+
+  json_out(['ok'=>true, 'plan'=>fetch_plan($mysqli, $day_id)]);
+}
+
+if ($mode === 'plan_set'){
+  $day_id = as_int(req('day_id', 0));
+  $side = strtoupper(trim((string)req('side', '')));
+  $entry_price = as_float(req('entry_price', null), null);
+  $stop_price = as_float(req('stop_price', null), null);
+  $qty = max(1, as_int(req('qty', 1), 1));
+
+  if ($day_id <= 0) json_out(['ok'=>false,'msg'=>'day_id is required'], 400);
+  if (!in_array($side, ['LONG','SHORT'], true)) json_out(['ok'=>false,'msg'=>'진입 방향이 올바르지 않습니다'], 400);
+  if ($entry_price === null || $entry_price <= 0) json_out(['ok'=>false,'msg'=>'진입 목표가가 올바르지 않습니다'], 400);
+  if ($stop_price === null || $stop_price <= 0) json_out(['ok'=>false,'msg'=>'손절 목표가가 올바르지 않습니다'], 400);
+  if ($side === 'LONG' && $stop_price >= $entry_price) json_out(['ok'=>false,'msg'=>'롱 손절가는 진입가보다 낮아야 합니다'], 400);
+  if ($side === 'SHORT' && $stop_price <= $entry_price) json_out(['ok'=>false,'msg'=>'숏 손절가는 진입가보다 높아야 합니다'], 400);
+
+  $trades = fetch_trades($mysqli, $day_id);
+  [$okState, $msgState, $state] = calc_state_from_trades($trades, false);
+  if (!$okState) json_out(['ok'=>false,'msg'=>$msgState], 400);
+  if (intval($state['pos_qty'] ?? 0) !== 0) json_out(['ok'=>false,'msg'=>'포지션 보유 중에는 새 진입 계획을 등록할 수 없습니다'], 400);
+
+  $stmt = $mysqli->prepare("
+    INSERT INTO futures_sim_plan_order
+      (day_id, side, entry_price, stop_price, qty, status, entry_bar_dt, stop_bar_dt)
+    VALUES (?, ?, ?, ?, ?, 'WAITING', NULL, NULL)
+    ON DUPLICATE KEY UPDATE
+      side=VALUES(side), entry_price=VALUES(entry_price), stop_price=VALUES(stop_price),
+      qty=VALUES(qty), status='WAITING', entry_bar_dt=NULL, stop_bar_dt=NULL
+  ");
+  $stmt->bind_param('isddi', $day_id, $side, $entry_price, $stop_price, $qty);
+  $ok = $stmt->execute();
+  $stmt->close();
+  if (!$ok) json_out(['ok'=>false,'msg'=>'계획 등록 실패'], 500);
+  json_out(['ok'=>true, 'plan'=>fetch_plan($mysqli, $day_id)]);
+}
+
+if ($mode === 'plan_cancel'){
+  $day_id = as_int(req('day_id', 0));
+  if ($day_id <= 0) json_out(['ok'=>false,'msg'=>'day_id is required'], 400);
+  $stmt = $mysqli->prepare("
+    UPDATE futures_sim_plan_order
+    SET status='CANCELLED'
+    WHERE day_id=? AND status='WAITING'
+  ");
+  $stmt->bind_param('i', $day_id);
+  $stmt->execute();
+  $changed = $stmt->affected_rows;
+  $stmt->close();
+  if ($changed <= 0) json_out(['ok'=>false,'msg'=>'취소할 대기 계획이 없습니다'], 400);
+  json_out(['ok'=>true, 'plan'=>fetch_plan($mysqli, $day_id)]);
+}
+
+if ($mode === 'plan_execute'){
+  $day_id = as_int(req('day_id', 0));
+  $event = strtoupper(trim((string)req('event', '')));
+  $bar_dt = trim((string)req('bar_dt', ''));
+  if ($day_id <= 0) json_out(['ok'=>false,'msg'=>'day_id is required'], 400);
+  if (!in_array($event, ['ENTRY','STOP'], true)) json_out(['ok'=>false,'msg'=>'invalid plan event'], 400);
+  if ($bar_dt === '') json_out(['ok'=>false,'msg'=>'bar_dt is required'], 400);
+
+  $mysqli->begin_transaction();
+  try {
+    $stmt = $mysqli->prepare("
+      SELECT plan_id, side, entry_price, stop_price, qty, status
+      FROM futures_sim_plan_order
+      WHERE day_id=?
+      FOR UPDATE
+    ");
+    $stmt->bind_param('i', $day_id);
+    $stmt->execute();
+    $plan = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    if (!$plan) throw new Exception('등록된 계획이 없습니다');
+
+    $existing = fetch_trades($mysqli, $day_id);
+    [$okS, $msgS, $stateBefore] = calc_state_from_trades($existing);
+    if (!$okS) throw new Exception($msgS);
+    $pos_qty = intval($stateBefore['pos_qty'] ?? 0);
+
+    if ($event === 'ENTRY'){
+      if ($plan['status'] !== 'WAITING') throw new Exception('이미 진입했거나 종료된 계획입니다');
+      if ($pos_qty !== 0) throw new Exception('포지션 보유 중에는 계획 진입을 실행할 수 없습니다');
+      $action = ($plan['side'] === 'LONG') ? 'OPEN_LONG' : 'OPEN_SHORT';
+      $price = floatval($plan['entry_price']);
+      $qty = max(1, intval($plan['qty']));
+      $note = 'PLAN_ENTRY';
+      $next_status = 'ENTERED';
+    } else {
+      if ($plan['status'] !== 'ENTERED') throw new Exception('진입 상태인 계획만 손절할 수 있습니다');
+      if ($pos_qty === 0) throw new Exception('손절할 포지션이 없습니다');
+      $action = 'CLOSE_ALL';
+      $price = floatval($plan['stop_price']);
+      $qty = abs($pos_qty);
+      $note = 'PLAN_STOP';
+      $next_status = 'STOPPED';
+    }
+
+    $tmp = $existing;
+    $tmp[] = ['action'=>$action, 'price'=>$price, 'qty'=>$qty, 'note'=>$note];
+    [$okV, $msgV, $stateAfter] = calc_state_from_trades($tmp);
+    if (!$okV) throw new Exception($msgV);
+
+    $stmt = $mysqli->prepare("SELECT IFNULL(MAX(seq),0)+1 FROM futures_sim_trade WHERE day_id=?");
+    $stmt->bind_param('i', $day_id);
+    $stmt->execute();
+    $stmt->bind_result($seq);
+    $stmt->fetch();
+    $stmt->close();
+    $seq = max(1, intval($seq));
+
+    $fee_amount = calc_fee_amount($price, $qty, $POINT_VALUE, $FEE_RATE);
+    $stmt = $mysqli->prepare("
+      INSERT INTO futures_sim_trade (day_id, seq, action, bar_dt, price, qty, fee_amount, note)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ");
+    $stmt->bind_param('iissdiis', $day_id, $seq, $action, $bar_dt, $price, $qty, $fee_amount, $note);
+    if (!$stmt->execute()) throw new Exception('계획 체결 저장 실패');
+    $stmt->close();
+
+    if ($next_status === 'ENTERED'){
+      $stmt = $mysqli->prepare("UPDATE futures_sim_plan_order SET status='ENTERED', entry_bar_dt=? WHERE plan_id=?");
+    } else {
+      $stmt = $mysqli->prepare("UPDATE futures_sim_plan_order SET status='STOPPED', stop_bar_dt=? WHERE plan_id=?");
+    }
+    $plan_id = intval($plan['plan_id']);
+    $stmt->bind_param('si', $bar_dt, $plan_id);
+    if (!$stmt->execute()) throw new Exception('계획 상태 저장 실패');
+    $stmt->close();
+
+    $trades = fetch_trades($mysqli, $day_id);
+    $fee_total = 0;
+    foreach($trades as $t) $fee_total += intval($t['fee_amount'] ?? 0);
+    update_day_summary($mysqli, $day_id, $stateAfter['pnl_points'], $fee_total, $POINT_VALUE);
+    $day = day_payload($mysqli, $day_id, $stateAfter, $POINT_VALUE);
+    $updated_plan = fetch_plan($mysqli, $day_id);
+    $mysqli->commit();
+    json_out(['ok'=>true, 'day'=>$day, 'trades'=>$trades, 'plan'=>$updated_plan]);
+  } catch (Throwable $e) {
+    $mysqli->rollback();
+    json_out(['ok'=>false,'msg'=>$e->getMessage()], 409);
+  }
 }
 
 if ($mode === 'trade_add'){

@@ -50,10 +50,10 @@ if($_SERVER["HTTP_HOST"] == 'localhost') {
     <li><a href="<?=$PATH?>modules/futures/strategy_calendar.php">전략 성과 달력</a></li>
     <li><a href="<?=$PATH?>modules/futures/futures_chart.php">선물 차트</a></li>
 
-    <li><a href="<?=$PATH?>modules/futures/futures_snapshot_match.php">패턴 분석</a></li>
+    <!-- <li><a href="<?=$PATH?>modules/futures/futures_snapshot_match.php">패턴 분석</a></li>
     <li><a href="<?=$PATH?>modules/futures/futures_snapshot_filter.php">스냅샷 필터</a></li>
     <li><a href="<?=$PATH?>modules/futures/futures_snapshot_analysis.php">스냅샷분석</a></li>
-    <li><a href="<?=$PATH?>modules/futures/futures_snapshot_compare.php">스냅샷 검증</a></li>
+    <li><a href="<?=$PATH?>modules/futures/futures_snapshot_compare.php">스냅샷 검증</a></li> -->
 
     <li><a href="<?=$PATH?>modules/futures/futures_bt_ui.php">백테스트등록</a></li>
     <li><a href="<?=$PATH?>modules/growth/journal_trade_register.php">시장 리뷰</a></li>
@@ -63,7 +63,9 @@ if($_SERVER["HTTP_HOST"] == 'localhost') {
     <li><a href="<?=$PATH?>modules/futures/futures_strategy_candle_viewer.php">차트<br><font style='font-size:10pt'>조건별 검색</font></a></li>
     <li><a href="<?=$PATH?>modules/futures/futures_strategy_candle_level30.php">차트<br><font style='font-size:10pt'>장초 고저 전략</font></a></li>
     <li><a href="<?=$PATH?>modules/futures/futures_bs_view.php">B/S 복기</a></li>
+    <li><a href="<?=$PATH?>modules/futures/futures_bs_plan_view.php">B/S TradingView</a></li>
     <!-- <li><a href="<?=$PATH?>modules/futures/futures_replay_view.php">차트 Replay</a></li> -->
+    <li><a href="<?=$PATH?>modules/futures/futures_replay_plan_trade.php">차트 Replay TradingView</a></li>
     <li><a href="<?=$PATH?>modules/futures/futures_replay_trade.php">차트 Replay+Trade</a></li>
     
     <li><a href="<?=$PATH?>modules/futures/futures_gap_prob_summary.php">확률분석<br><font style='font-size:10pt'>BB-RSI-EMA</font></a></li>

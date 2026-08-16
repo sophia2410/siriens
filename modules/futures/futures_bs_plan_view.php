@@ -22,14 +22,14 @@ $stmt->fetch();
 $stmt->close();
 
 // 같은 폴더 기준 상대경로(필요시 수정)
-$chart_api = dirname($_SERVER['PHP_SELF']) . '/replay_api_multi.php';
+$chart_api = dirname($_SERVER['PHP_SELF']) . '/replay_api_plan_multi.php';
 $trade_api = dirname($_SERVER['PHP_SELF']) . '/futures_replay_trade_api.php';
 ?>
 <!doctype html>
 <html lang="ko">
 <head>
   <meta charset="utf-8" />
-  <title>B/S 데이뷰</title>
+  <title>B/S 계획매매 기준 데이뷰</title>
   <?php require $_SERVER['DOCUMENT_ROOT'] . "/modules/common/highcharts.php"; ?>
   <style>
     body{margin:0;padding:10px;font-family:sans-serif;background:#f6f7fb;color:#111;}
@@ -42,13 +42,13 @@ $trade_api = dirname($_SERVER['PHP_SELF']) . '/futures_replay_trade_api.php';
 
     .gridTop{
       display:grid;
-      grid-template-columns: 0.3fr 0.8fr 2fr 2fr;
+      grid-template-columns: minmax(0,1fr) minmax(0,2fr) minmax(430px,2fr);
       gap:10px;
       align-items:stretch;
       margin-bottom:10px;
     }
     .boxTitle{font-weight:900;margin:0 0 6px;color:#111;}
-    #chart60,#chart15,#chart5{height:400px;min-width:0;}
+    #chart15,#chart5{height:400px;min-width:0;}
     .logWrap{display:flex;flex-direction:column;min-width:0;}
     .logContent{display:grid;grid-template-columns:minmax(220px,.55fr) minmax(300px,1fr);gap:8px;flex:1;min-height:0;}
     .logPane,.commentPane{display:flex;flex-direction:column;min-width:0;min-height:0;}
@@ -69,15 +69,15 @@ $trade_api = dirname($_SERVER['PHP_SELF']) . '/futures_replay_trade_api.php';
     #chart1{height:500px;min-width:0;}
 
     @media (max-width:1400px){
-      .gridTop{grid-template-columns: 1fr 1fr; }
-      #chart60,#chart15,#chart5{height:340px;}
-      .logWrap{min-height:340px;}
+      .gridTop{grid-template-columns: minmax(0,1fr) minmax(0,2fr); }
+      #chart15,#chart5{height:340px;}
+      .logWrap{grid-column:1 / -1;min-height:340px;}
     }
     @media (max-width:900px){
       .gridTop{grid-template-columns: 1fr; }
-      #chart60,#chart15,#chart5{height:320px;}
+      #chart15,#chart5{height:320px;}
       .logContent{grid-template-columns:1fr;}
-      .logWrap{min-height:520px;}
+      .logWrap{grid-column:auto;min-height:520px;}
       #chart1{height:520px;}
     }
   </style>
@@ -105,17 +105,12 @@ $trade_api = dirname($_SERVER['PHP_SELF']) . '/futures_replay_trade_api.php';
 
 <div class="gridTop">
   <div class="panel">
-    <div class="boxTitle">60분봉</div>
-    <div id="chart60"></div>
-  </div>
-
-  <div class="panel">
-    <div class="boxTitle">15분봉 (B/S 표시)</div>
+    <div class="boxTitle">15분봉 (08:45 시가 + SMA 10 + B/S)</div>
     <div id="chart15"></div>
   </div>
 
   <div class="panel">
-    <div class="boxTitle">5분봉 (VWAP)</div>
+    <div class="boxTitle">5분봉 (VWAP + SMA 5/20 + 09:00~09:14 꼬리 포함 고저)</div>
     <div id="chart5"></div>
   </div>
 
@@ -155,7 +150,7 @@ $trade_api = dirname($_SERVER['PHP_SELF']) . '/futures_replay_trade_api.php';
 
 <div class="gridBottom">
   <div class="panel">
-    <div class="boxTitle">1분봉 (전체폭) + B/S 표시 (VWAP)</div>
+    <div class="boxTitle">1분봉 (VWAP + 09:00~09:14 꼬리 포함 고저 + B/S)</div>
     <div id="chart1"></div>
   </div>
 </div>
@@ -167,21 +162,22 @@ const CHART_API = <?= json_encode($chart_api) ?>;
 const TRADE_API = <?= json_encode($trade_api) ?>;
 
 // ✅ 이평선 색상
-const SMA5_COLOR   = '#d32f2f';
-const SMA20_COLOR  = '#f9a825';
-const SMA120_COLOR = '#757575';
+const SMA5_COLOR   = 'rgba(211,47,47,0.50)';
+const SMA20_COLOR  = 'rgba(249,168,37,0.50)';
+const SMA120_COLOR = 'rgba(117,117,117,0.50)';
+const SMA10_COLOR  = 'rgba(37,99,235,0.50)';
 
 // ✅ VWAP 색상
-const VWAP_COLOR = 'hsla(281, 97%, 34%, 0.65)';
+const VWAP_COLOR = 'rgba(126,34,206,0.80)';
 
 // ✅ 30분 고저/시가 색상
 const HI_COLOR   = 'rgba(255,79,179,0.95)';
 const LO_COLOR   = 'rgba(79,195,255,0.95)';
-const OPEN_COLOR = 'rgba(102,102,102,0.95)';
+const OPEN_COLOR = '#666666';
 
 // ✅ 회차(run) 선택 상태
 let simRunId = 0; // 0이면 저장값/첫 회차 자동 선택
-const LS_RUN_ID_KEY = 'futures_bs_view_run_id';
+const LS_RUN_ID_KEY = 'futures_bs_plan_view_run_id';
 
 // 장 시간
 const START = '08:45:00';
@@ -269,6 +265,24 @@ function rowsToLine(rows, field){
   });
   return out;
 }
+function rowsToSma(rows, period){
+  const closes = [];
+  return (rows || []).map(r => {
+    closes.push(Number(r.close));
+    if (closes.length > period) closes.shift();
+    const value = closes.length === period
+      ? closes.reduce((sum, v) => sum + v, 0) / period
+      : null;
+    return [toMs(r.datetime), value];
+  });
+}
+function mergeRowsByDatetime(...groups){
+  const byDatetime = new Map();
+  groups.flat().forEach(r => {
+    if (r?.datetime) byDatetime.set(r.datetime, r);
+  });
+  return [...byDatetime.values()].sort((a,b) => toMs(a.datetime) - toMs(b.datetime));
+}
 
 // 버킷(08:45 앵커)
 function toTSLocal(ymd, hhmmss){ return toMs(`${ymd} ${hhmmss}`); }
@@ -319,9 +333,9 @@ function fitYAxisToCandles(chart, candleSeriesId, extraPaddingPct = 0.06) {
   let dataMax = -Infinity;
 
   for (const row of data) {
-    const x = row[0];
-    const high = row[2];
-    const low  = row[3];
+    const x = Array.isArray(row) ? row[0] : row.x;
+    const high = Array.isArray(row) ? row[2] : row.high;
+    const low  = Array.isArray(row) ? row[3] : row.low;
 
     if (!isFinite(x) || !isFinite(high) || !isFinite(low)) continue;
     if (isFinite(minX) && x < minX) continue;
@@ -339,61 +353,72 @@ function fitYAxisToCandles(chart, candleSeriesId, extraPaddingPct = 0.06) {
   chart.yAxis[0].setExtremes(dataMin - pad, dataMax + pad, false, false);
 }
 
-/** ================== 30분 고저/시가 라인 ================== */
-let lvl30 = null; // {open, high, low, mid, start_hhmm, end_hhmm}
+/** ================== 계획매매 기준선 ================== */
+let sessionOpen = null;
 
-function apply30mLines(chart){
-  if (!chart || !lvl30) return;
-  const y = chart.yAxis?.[0];
-  if (!y) return;
-
-  ['lvl30_hi','lvl30_lo','lvl30_op'].forEach(id=>{ try{ y.removePlotLine(id); }catch(e){} });
-
-  const tag = '30m';
-
-  if (lvl30.open != null){
-    y.addPlotLine({
-      id:'lvl30_op',
-      value:+lvl30.open,
-      color:OPEN_COLOR,
-      width:1,
-      dashStyle:'Dash',
-      zIndex:6,
-      label:{ text:`시가 ${(+lvl30.open).toFixed(2)}`, align:'left', x:5, style:{ fontSize:'10px', color:'#444' } }
-    });
-  }
-  if (lvl30.high != null){
-    y.addPlotLine({
-      id:'lvl30_hi',
-      value:+lvl30.high,
-      color:HI_COLOR,
-      width:2,
-      zIndex:7,
-      label:{ text:`${tag} 고 ${(+lvl30.high).toFixed(2)}`, align:'left', x:5, style:{ fontSize:'10px', color:HI_COLOR, fontWeight:'bold' } }
-    });
-  }
-  if (lvl30.low != null){
-    y.addPlotLine({
-      id:'lvl30_lo',
-      value:+lvl30.low,
-      color:LO_COLOR,
-      width:2,
-      zIndex:7,
-      label:{ text:`${tag} 저 ${(+lvl30.low).toFixed(2)}`, align:'left', x:5, style:{ fontSize:'10px', color:LO_COLOR, fontWeight:'bold' } }
-    });
-  }
+function clearReferenceLines(chart){
+  if (!chart?.yAxis?.[0]) return;
+  ['session_open','body0900_hi','body0900_lo'].forEach(id => {
+    try{ chart.yAxis[0].removePlotLine(id); }catch(e){}
+  });
 }
 
-function apply30mLinesAll(){
-  apply30mLines(c60);
-  apply30mLines(c15);
-  apply30mLines(c5);
-  apply30mLines(c1);
+function addSessionOpenLine(chart){
+  if (!chart?.yAxis?.[0] || sessionOpen == null) return;
+  chart.yAxis[0].addPlotLine({
+    id:'session_open', value:+sessionOpen, color:OPEN_COLOR, width:3,
+    dashStyle:'Dash', zIndex:6,
+    label:{ text:'시가 ' + (+sessionOpen).toFixed(2), align:'left', x:5,
+      style:{ fontSize:'9px', color:'#111' } }
+  });
+}
+
+function getOpeningBodyRange(rows5){
+  const startTs = toTSLocal(DATE, '09:00:00');
+  const endTs = toTSLocal(DATE, '09:15:00');
+  const rows = mergeRowsByDatetime(rows5)
+    .filter(r => {
+      const x = toMs(r.datetime);
+      return x >= startTs && x < endTs;
+    });
+  if (rows.length < 3) return null;
+  return {
+    // 꼬리 포함: 각 캔들의 전체 High/Low 반영
+    high: Math.max(...rows.map(r => Number(r.high))),
+    low: Math.min(...rows.map(r => Number(r.low)))
+  };
+}
+
+function addOpeningBodyLines(chart, bodyRange){
+  if (!chart?.yAxis?.[0] || !bodyRange) return;
+  chart.yAxis[0].addPlotLine({
+    id:'body0900_hi', value:bodyRange.high, color:HI_COLOR, width:2, zIndex:7,
+    label:{ text:'꼬리 포함 고 ' + bodyRange.high.toFixed(2), align:'left', x:5,
+      style:{fontSize:'10px', color:HI_COLOR, fontWeight:'bold'} }
+  });
+  chart.yAxis[0].addPlotLine({
+    id:'body0900_lo', value:bodyRange.low, color:LO_COLOR, width:2, zIndex:7,
+    label:{ text:'꼬리 포함 저 ' + bodyRange.low.toFixed(2), align:'left', x:5,
+      style:{fontSize:'10px', color:LO_COLOR, fontWeight:'bold'} }
+  });
+}
+
+function applyReferenceLines(rows5){
+  [c15,c5,c1].forEach(chart => {
+    clearReferenceLines(chart);
+    addSessionOpenLine(chart);
+  });
+  const bodyRange = getOpeningBodyRange(rows5);
+  addOpeningBodyLines(c5, bodyRange);
+  addOpeningBodyLines(c1, bodyRange);
 }
 
 /** ================== 차트 생성 ================== */
 function makeChart(el, opts = {}){
-  const showVwap = !!opts.showVwap;
+  const mode = opts.mode || 'oneMinute';
+  const is15m = mode === 'fifteenMinute';
+  const is5m = mode === 'fiveMinute';
+  const showVwap = !is15m;
   const fitCandleYAxis = !!opts.fitCandleYAxis;
 
   const ch = Highcharts.stockChart(el, {
@@ -439,11 +464,16 @@ function makeChart(el, opts = {}){
     series:[
       { type:'candlestick', id:`cndl_${el}`, name:el, data:[], zIndex:3, dataGrouping:{enabled:false} },
 
-      { type:'line', name:'SMA 5',   data:[], lineWidth:2, color:SMA5_COLOR,   zIndex:2, dataGrouping:{enabled:false} },
-      { type:'line', name:'SMA 20',  data:[], lineWidth:0.5, color:SMA20_COLOR,  zIndex:2, dataGrouping:{enabled:false} },
-      { type:'line', name:'SMA 120', data:[], lineWidth:0.5, color:SMA120_COLOR, zIndex:2, dataGrouping:{enabled:false} },
+      { type:'line', name:is15m ? 'SMA 10' : 'SMA 5', data:[], lineWidth:1,
+        dashStyle:is15m ? 'ShortDot' : 'Solid', color:is15m ? SMA10_COLOR : SMA5_COLOR,
+        zIndex:2, dataGrouping:{enabled:false} },
+      { type:'line', name:'SMA 20', data:[], lineWidth:1, color:SMA20_COLOR, zIndex:2,
+        visible:!is15m, showInLegend:!is15m, dataGrouping:{enabled:false} },
+      { type:'line', name:'SMA 120', data:[], lineWidth:1, color:SMA120_COLOR, zIndex:2,
+        visible:!is15m && !is5m, showInLegend:!is15m && !is5m, dataGrouping:{enabled:false} },
 
-      { type:'line', name:'VWAP', data:[], lineWidth:2, color:VWAP_COLOR, zIndex:10, dataGrouping:{enabled:false},
+      { type:'line', name:'VWAP', data:[], lineWidth:3, dashStyle:'ShortDash',
+        color:VWAP_COLOR, zIndex:10, dataGrouping:{enabled:false},
         visible: showVwap, showInLegend: showVwap },
 
       { type:'column', name:'Vol', data:[], yAxis:1, dataGrouping:{enabled:false} },
@@ -459,7 +489,7 @@ function makeChart(el, opts = {}){
   return ch;
 }
 
-let c60, c15, c5, c1;
+let c15, c5, c1;
 
 /** ================== B/S flags ================== */
 const BS_FLAG_W = 14;
@@ -653,7 +683,8 @@ function applyBS(trades){
       let x = toMs(dt);
       if (!Number.isFinite(x)) continue;
 
-      // 1분봉도 분 시작으로 내려 30초 이후 체결이 다음 봉으로 가지 않게 한다.
+      // 체결 시각은 초 단위이므로 해당 시간봉의 시작 시각으로 먼저 맞춘다.
+      // 1분봉도 버킷 처리하지 않으면 30초 이후 체결이 다음 분봉으로 스냅된다.
       x = bucketStart(x, tg.bucketMin);
       x = snapToCandleX(chart, x);
 
@@ -675,10 +706,6 @@ function applyBS(trades){
     bs.sell.setData(sellPts,false);
     bs.carryBuy.setData(carryBuyPts, false);
     bs.carrySell.setData(carrySellPts,false);
-    
-console.log('buyMap', [...buyMap.keys()].map(x => Highcharts.dateFormat('%H:%M', x)));
-console.log('sellMap', [...sellMap.keys()].map(x => Highcharts.dateFormat('%H:%M', x)));
-console.log('candle x sample', chart.series[0].xData.slice(0, 10).map(x => Highcharts.dateFormat('%H:%M', x)));
     colorBSCandles(chart, buyMap, sellMap, carryMap);
 
     if (chart === c1) {
@@ -761,7 +788,7 @@ async function loadCharts(){
     + `&start=${encodeURIComponent(START)}&end=${encodeURIComponent(END)}`
     + `&init_time=${encodeURIComponent(END)}`
     + `&max_prev_1m=0&max_prev_5m=0&max_prev_15m=0&max_prev_60m=0`
-    + `&init_max_1m=2000&init_max_5m=500&init_max_15m=200&init_max_60m=120`
+    + `&init_max_1m=2000&init_max_5m=500&init_max_15m=300&init_max_60m=0`
     + `&hi_lo_n=30&hi_lo_n2=60`;
 
   const r = await fetch(url, { cache:'no-store' });
@@ -773,25 +800,9 @@ async function loadCharts(){
 
   const m1 = [...(res.m1?.init||[]), ...(res.m1?.future||[])];
   const m5 = res.m5?.today || [];
-  const m15= res.m15?.today || [];
-  const m60= res.m60?.today || [];
-
-  if (res.hilo_main){
-    const op = (res.hilo_main.open != null) ? +res.hilo_main.open : null;
-    const hi = (res.hilo_main.high != null) ? +res.hilo_main.high : null;
-    const lo = (res.hilo_main.low  != null) ? +res.hilo_main.low  : null;
-
-    lvl30 = {
-      open: op,
-      high: hi,
-      low:  lo,
-      mid: (hi!=null && lo!=null) ? (hi+lo)/2 : null,
-      start_hhmm: res.hilo_main.start_hhmm || '08:45',
-      end_hhmm:   res.hilo_main.end_hhmm   || '09:14'
-    };
-  } else {
-    lvl30 = null;
-  }
+  const m15 = mergeRowsByDatetime(res.m15?.init || [], res.m15?.today || [])
+    .filter(r => String(r?.datetime || '').slice(0, 10) === DATE);
+  sessionOpen = res.hilo_main?.open != null ? +res.hilo_main.open : null;
 
   // 1분
   c1.series[0].setData(rowsToCandles(m1), false);
@@ -805,29 +816,20 @@ async function loadCharts(){
   c5.series[0].setData(rowsToCandles(m5), false);
   c5.series[1].setData(rowsToLine(m5, 'sma_5'), false);
   c5.series[2].setData(rowsToLine(m5, 'sma_20'), false);
-  c5.series[3].setData(rowsToLine(m5, 'sma_120'), false);
+  c5.series[3].setData([], false);
   c5.series[4].setData(rowsToLine(m5, 'vwap_session'), false);
   c5.series[5].setData(rowsToVol(m5), false);
 
   // 15분
   c15.series[0].setData(rowsToCandles(m15), false);
-  c15.series[1].setData(rowsToLine(m15, 'sma_5'), false);
-  c15.series[2].setData(rowsToLine(m15, 'sma_20'), false);
-  c15.series[3].setData(rowsToLine(m15, 'sma_120'), false);
+  c15.series[1].setData(rowsToSma(m15, 10), false);
+  c15.series[2].setData([], false);
+  c15.series[3].setData([], false);
   c15.series[4].setData([], false);
   c15.series[5].setData(rowsToVol(m15), false);
 
-  // 60분
-  c60.series[0].setData(rowsToCandles(m60), false);
-  c60.series[1].setData(rowsToLine(m60, 'sma_5'), false);
-  c60.series[2].setData(rowsToLine(m60, 'sma_20'), false);
-  c60.series[3].setData(rowsToLine(m60, 'sma_120'), false);
-  c60.series[4].setData([], false);
-  c60.series[5].setData(rowsToVol(m60), false);
+  applyReferenceLines(m5);
 
-  apply30mLinesAll();
-
-  c60.redraw(false);
   c15.redraw(false);
   c5.redraw(false);
   c1.redraw(false);
@@ -895,10 +897,9 @@ document.getElementById('btnNext')?.addEventListener('click', ()=>{
 
 /** ================== 시작 ================== */
 (function init(){
-  c60 = makeChart('chart60', { showVwap:false, fitCandleYAxis:false });
-  c15 = makeChart('chart15', { showVwap:true,  fitCandleYAxis:false });
-  c5  = makeChart('chart5',  { showVwap:true,  fitCandleYAxis:false });
-  c1  = makeChart('chart1',  { showVwap:true,  fitCandleYAxis:true  });
+  c15 = makeChart('chart15', { mode:'fifteenMinute', fitCandleYAxis:false });
+  c5  = makeChart('chart5',  { mode:'fiveMinute',    fitCandleYAxis:false });
+  c1  = makeChart('chart1',  { mode:'oneMinute',     fitCandleYAxis:true  });
 
   (async ()=>{
     try{

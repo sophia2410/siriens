@@ -1,7 +1,7 @@
 import os
 import re
 from decimal import Decimal, ROUND_HALF_UP
-from datetime import datetime, date, time, timedelta
+from datetime import datetime, date, time
 from typing import Optional, Tuple, List, Dict, Any
 
 import pandas as pd
@@ -85,12 +85,6 @@ def money_round(x: Decimal) -> int:
 
 
 def normalize_action(action) -> str:
-    # DB may return bytes for action column (e.g., b'OPEN_LONG').
-    if isinstance(action, (bytes, bytearray)):
-        try:
-            action = action.decode('utf-8', errors='ignore')
-        except Exception:
-            action = str(action)
     return str(action or "").strip().upper()
 
 
@@ -199,23 +193,6 @@ def normalize_signal(side_raw: str) -> Optional[str]:
     if "매도" in s0:
         return "SELL"
 
-    # 한글/혼합표현으로 된 전일 이월 청산 처리
-    # 예: '전일 이월 청산(매도)', '이월청산 매도', '전일청산 매수' 등
-    s_no_space = s0.replace(" ", "").lower()
-    if ("이월" in s_no_space or "전일" in s_no_space or "이월청산" in s_no_space or "전일청산" in s_no_space) and ("청산" in s_no_space or "청산" in s_no_space):
-        # 방향 추정: '매도'가 있으면 LONG 포지션을 청산하는(=CLOSE_CARRY_LONG)
-        if "매도" in s_no_space or "sell" in s:
-            return "CLOSE_CARRY_LONG"
-        if "매수" in s_no_space or "buy" in s:
-            return "CLOSE_CARRY_SHORT"
-        # 롱/숏 표기가 있을 경우
-        if "롱" in s_no_space or "long" in s:
-            return "CLOSE_CARRY_LONG"
-        if "숏" in s_no_space or "short" in s:
-            return "CLOSE_CARRY_SHORT"
-        # 방향 불명 시 None 반환(흔한 오해 방지)
-        return None
-
     # 영문/약어
     if s in ("BUY", "B", "LONG", "L"):
         return "BUY"
@@ -234,15 +211,10 @@ def normalize_signal(side_raw: str) -> Optional[str]:
 # =========================
 # 체결 -> trade(action) 생성 + PnL/수수료
 # =========================
-def build_trade_records(
-    df_std: pd.DataFrame,
-    point_value: int,
-    initial_pos: Optional[Dict[str, Any]] = None,
-    initial_is_carry: bool = True,
-):
+def build_trade_records(df_std: pd.DataFrame, point_value: int, initial_pos: Optional[Dict[str, Any]] = None):
     """
     안정화 기준:
-      1) initial_is_carry=True이면 날짜가 넘어와 시작한 포지션 전체를 carry_qty로 본다.
+      1) 날짜가 넘어와 시작한 포지션 전체를 carry_qty로 본다.
       2) 청산은 항상 실제 체결수량 기준 min(qty, pos_qty)만 처리한다.
       3) CLOSE_CARRY_*도 완전청산일 수 있으므로 position_qty_after로 청산 여부를 판단한다.
       4) 같은 방향 추가진입은 평균단가(avg_price)를 갱신하고, 청산 손익은 평균단가 기준으로 계산한다.
@@ -253,8 +225,8 @@ def build_trade_records(
     avg_price = Decimal(str(initial_pos.get("avg_price") or "0"))
 
     # 방식 A: 오늘 시작 시 들고 온 포지션 전체를 이월 수량으로 본다.
-    carry_side = pos_side if initial_is_carry else None
-    carry_qty = pos_qty if initial_is_carry and pos_side is not None and pos_qty > 0 else 0
+    carry_side = pos_side
+    carry_qty = pos_qty if pos_side is not None and pos_qty > 0 else 0
 
     realized_points = Decimal("0")
     trades: List[Dict] = []
@@ -714,9 +686,7 @@ def add_day_summary_delta(cursor, day_id: int, pnl_points_delta: Decimal, point_
 
 def split_night_and_regular(df_std: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
-    파일명 날짜(거래일) 기준 18:00 이후 체결만 야간장으로 분리한다.
-    증권사 파일의 야간장 시간은 거래일 날짜와 결합되어 있으므로,
-    전일 장부에 붙일 때 실제 달력 일시가 되도록 하루를 뺀다.
+    파일명 날짜 기준 18:00 이후 체결만 야간장으로 분리한다.
     나머지는 기존 정규장 로직에 그대로 넘긴다.
     """
     if df_std.empty:
@@ -724,7 +694,6 @@ def split_night_and_regular(df_std: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Data
 
     night_mask = df_std["bar_dt"].dt.time >= time(18, 0)
     night_df = df_std[night_mask].copy()
-    night_df["bar_dt"] = night_df["bar_dt"] - timedelta(days=1)
     regular_df = df_std[~night_mask].copy()
     return night_df, regular_df
 
@@ -823,10 +792,7 @@ def main():
                         night_trades, night_pnl_points, night_fee_total, night_pos_info = build_trade_records(
                             night_df,
                             point_value,
-                            night_initial_pos,
-                            # 야간 체결은 전일 장부에 합쳐지므로 전일 포지션의 정상 청산이다.
-                            # CLOSE_CARRY_*는 다음 거래일 정규장이 전일 포지션을 청산할 때만 쓴다.
-                            initial_is_carry=False,
+                            night_initial_pos
                         )
 
                         # 추적용 note. build_trade_records() 내부 로직은 변경하지 않는다.
