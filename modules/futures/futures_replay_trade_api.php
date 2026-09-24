@@ -273,6 +273,119 @@ if ($mode === 'run_create'){
   json_out(['ok'=>true, 'run_id'=>$run_id]);
 }
 
+/**
+ * ---------------------------------------------------------
+ * 조회 전용
+ * - INSERT 없음
+ * - UPDATE 없음
+ * - 손익 재계산 없음
+ * - Python 업로드 결과를 그대로 반환
+ * ---------------------------------------------------------
+ */
+if ($mode === 'day_read'){
+  $run_id = as_int(req('run_id', 0));
+  $trade_date = trim((string)req('trade_date',''));
+
+  if ($run_id <= 0) {
+    json_out(['ok'=>false,'msg'=>'run_id is required'], 400);
+  }
+
+  if ($trade_date === '') {
+    json_out(['ok'=>false,'msg'=>'trade_date is required'], 400);
+  }
+
+  // day 조회만 한다. 없다고 생성하지 않는다.
+  $stmt = $mysqli->prepare("
+    SELECT
+      day_id,
+      run_id,
+      trade_date,
+      pnl_points,
+      pnl_amount,
+      fee_total,
+      pnl_amount_net,
+      day_comment
+    FROM futures_sim_run_day
+    WHERE run_id = ?
+      AND trade_date = ?
+    LIMIT 1
+  ");
+  $stmt->bind_param('is', $run_id, $trade_date);
+  $stmt->execute();
+
+  $res = $stmt->get_result();
+  $day = $res->fetch_assoc();
+  $stmt->close();
+
+  // 해당 날짜 자체가 없으면 빈 결과
+  if (!$day){
+    json_out([
+      'ok' => true,
+      'day' => null,
+      'trades' => []
+    ]);
+  }
+
+  $day_id = intval($day['day_id']);
+
+  // trade도 SELECT만
+  $stmt = $mysqli->prepare("
+    SELECT
+      trade_id,
+      seq,
+      action,
+      bar_dt,
+      price,
+      qty,
+      position_qty_after,
+      position_side_after,
+      avg_price_after,
+      fee_amount,
+      note,
+      created_at
+    FROM futures_sim_trade
+    WHERE day_id = ?
+    ORDER BY seq ASC
+  ");
+
+  $stmt->bind_param('i', $day_id);
+  $stmt->execute();
+
+  $res = $stmt->get_result();
+  $trades = [];
+
+  while ($r = $res->fetch_assoc()){
+    $trades[] = $r;
+  }
+
+  $stmt->close();
+
+  // 마지막 체결의 실제 종료 포지션도 반환
+  $last = !empty($trades) ? $trades[count($trades) - 1] : null;
+
+  if ($last){
+    $day['pos_qty'] = intval($last['position_qty_after'] ?? 0);
+    $day['pos_text'] =
+      ($day['pos_qty'] > 0)
+        ? 'LONG '.$day['pos_qty']
+        : (($day['pos_qty'] < 0)
+            ? 'SHORT '.abs($day['pos_qty'])
+            : 'FLAT');
+
+    $day['avg_price'] = $last['avg_price_after'];
+  } else {
+    $day['pos_qty'] = 0;
+    $day['pos_text'] = 'FLAT';
+    $day['avg_price'] = null;
+  }
+
+  json_out([
+    'ok' => true,
+    'day' => $day,
+    'trades' => $trades
+  ]);
+}
+
 if ($mode === 'day_get'){
   $run_id = as_int(req('run_id', 0));
   $trade_date = trim((string)req('trade_date',''));

@@ -2,10 +2,17 @@ import pandas as pd
 import pymysql
 import configparser
 import os
+import sys
 from tqdm import tqdm
 from datetime import datetime
 from futures_bb_rsi_features import generate_missing_features
 from vwap_utils import recalc_and_update_vwap_for_dates
+
+# Windows CP949 콘솔에서 이모지·특수문자 출력으로 작업이 중단되는 것 방지
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(errors="replace")
 
 # 📌 DB 설정 로드
 config = configparser.ConfigParser()

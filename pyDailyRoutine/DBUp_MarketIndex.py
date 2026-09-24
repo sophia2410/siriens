@@ -47,13 +47,32 @@ def get_amount(index_name_eng, date_str):
         return 0  # 미국 지수 등은 거래대금 없음
 
     try:
-        df = stock.get_index_price_change(date_str, date_str, index_name_eng)
+        pykrx_date = date_str.replace('-', '')
+        df = stock.get_index_price_change(pykrx_date, pykrx_date, index_name_eng)
         if df.empty:
-            return 0
+            return None
         return int(df.loc[korean_name, '거래대금'])
     except Exception as e:
         print(f"❌ 거래대금 오류 ({index_name_eng} {date_str}): {e}")
-        return 0
+        return None
+
+# DB의 직전 거래일 종가 기준 등락률 계산
+def get_close_rate(index_name, date_str, close_price):
+    cursor.execute("""
+        SELECT close
+        FROM market_index
+        WHERE market_fg = %s
+          AND date < %s
+          AND close IS NOT NULL
+        ORDER BY date DESC
+        LIMIT 1
+    """, (index_name, date_str))
+    prev = cursor.fetchone()
+
+    if not prev or prev[0] is None or float(prev[0]) == 0:
+        return None
+
+    return round(((float(close_price) / float(prev[0])) - 1) * 100, 4)
 
 # 지수별 데이터 처리
 for index_name, ticker in index_dict.items():
@@ -91,8 +110,6 @@ for index_name, ticker in index_dict.items():
         'close': quotes['close'],
         'volume': quotes['volume']
     })
-    data['close_rate'] = data['close'].pct_change() * 100
-    data['close_rate'] = data['close_rate'].fillna(0)
 
     # 기존 날짜 확인
     cursor.execute("SELECT date FROM market_index WHERE market_fg = %s", (index_name,))
@@ -102,11 +119,8 @@ for index_name, ticker in index_dict.items():
     for row in data.itertuples():
         date_str = row.date
 
-        if date_str in existing_dates and date_str != today_str:
-            print(f"⏩ 이미 존재: {index_name} {date_str}")
-            continue
-
-        amount = get_amount(index_name, date_str) if index_name in ['KOSPI', 'KOSDAQ'] else 0
+        close_rate = get_close_rate(index_name, date_str, row.close)
+        amount = get_amount(index_name, date_str) if index_name in ['KOSPI', 'KOSDAQ'] else None
 
         sql = f"""
             INSERT INTO market_index 
@@ -120,7 +134,7 @@ for index_name, ticker in index_dict.items():
                 close = VALUES(close),
                 volume = VALUES(volume),
                 close_rate = VALUES(close_rate),
-                amount = VALUES(amount)
+                amount = COALESCE(VALUES(amount), amount)
         """
 
         cursor.execute(sql, (
@@ -131,7 +145,7 @@ for index_name, ticker in index_dict.items():
             float(row.low) if row.low else None,
             float(row.close) if row.close else None,
             int(row.volume) if row.volume else 0,
-            float(row.close_rate),
+            float(close_rate) if close_rate is not None else None,
             int(amount)
         ))
 

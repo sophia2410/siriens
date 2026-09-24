@@ -28,8 +28,8 @@ print(f"처리 시작 시간: {start_time}")
 # 커서 생성
 cursor = db.cursor()
 
-start_date = '20230219'
-end_date = '20231218'
+start_date = '20260101'
+end_date = '20260904'
 
 
 start_date = date(int (start_date[:4]), int (start_date[4:6]), int (start_date[6:]))
@@ -38,39 +38,87 @@ end_date = date(int (end_date[:4]), int (end_date[4:6]), int (end_date[6:]))
 # timedelta 객체 생성
 delta = timedelta (days=1)
 
-# start_date부터 end_date까지 루프를 돌면서, 각 날짜에 대해 stock.get_index_price_change 함수를 호출
+# start_date부터 end_date까지 날짜별 거래대금 복구
+# DB에 실제 존재하는 거래일만 UPDATE하며,
+# 주말/휴일 또는 PyKRX 빈 데이터는 안전하게 건너뜁니다.
 while start_date <= end_date:
-    # start_date를 'yyyymmdd' 형식의 문자열로 변환
-    date_str = start_date.strftime ('%Y%m%d')
+    date_str = start_date.strftime('%Y%m%d')
+    db_date_str = start_date.strftime('%Y-%m-%d')
 
-    # stock.get_index_price_change 함수를 호출
-    trading_value = stock.get_index_price_change (date_str, date_str, "KOSPI")
+    for market_fg, korean_name in [
+        ('KOSPI', '코스피'),
+        ('KOSDAQ', '코스닥')
+    ]:
+        try:
+            # DB에 해당 거래일 데이터가 있는 경우에만 조회/수정
+            cursor.execute(
+                """
+                SELECT 1
+                FROM market_index
+                WHERE market_fg = %s
+                  AND date = %s
+                LIMIT 1
+                """,
+                (market_fg, db_date_str)
+            )
 
-    # 거래대금 컬럼만 선택
-    trading_value = trading_value["거래대금"]
-    trading_value = trading_value.to_frame()
-    row = trading_value.loc["코스피"]
+            if cursor.fetchone() is None:
+                continue
 
-    sql = f"UPDATE market_index SET amount = {row.거래대금} WHERE market_fg = 'KOSPI' AND date = '{date_str}'"
-    print(sql)
-    # SQL 쿼리 실행
-    cursor.execute(sql)
-    # DB에 반영
-    db.commit()
+            trading_value = stock.get_index_price_change(
+                date_str,
+                date_str,
+                market_fg
+            )
 
-    # stock.get_index_price_change 함수를 호출
-    trading_value = stock.get_index_price_change (date_str, date_str, "KOSDAQ")
+            if trading_value is None or trading_value.empty:
+                print(f"[SKIP] 데이터 없음: {market_fg} {db_date_str}")
+                continue
 
-    # 거래대금 컬럼만 선택
-    trading_value = trading_value["거래대금"]
-    trading_value = trading_value.to_frame()
-    row = trading_value.loc["코스닥"]
+            if korean_name not in trading_value.index:
+                print(
+                    f"[SKIP] 지수명 없음: {market_fg} {db_date_str} "
+                    f"/ index={list(trading_value.index)}"
+                )
+                continue
 
-    sql = f"UPDATE market_index SET amount = {row.거래대금} WHERE market_fg = 'KOSDAQ' AND date = '{date_str}'"
-    print(sql)
-    # SQL 쿼리 실행
-    cursor.execute(sql)
-    # DB에 반영
+            amount = trading_value.loc[korean_name, '거래대금']
+
+            if amount is None:
+                print(f"[SKIP] 거래대금 NULL: {market_fg} {db_date_str}")
+                continue
+
+            amount = int(amount)
+
+            # 0은 정상 거래대금으로 보기 어려우므로 기존 값을 덮어쓰지 않음
+            if amount <= 0:
+                print(
+                    f"[SKIP] 거래대금 0 이하: "
+                    f"{market_fg} {db_date_str} amount={amount}"
+                )
+                continue
+
+            cursor.execute(
+                """
+                UPDATE market_index
+                SET amount = %s
+                WHERE market_fg = %s
+                  AND date = %s
+                """,
+                (amount, market_fg, db_date_str)
+            )
+
+            print(
+                f"[UPDATE] {market_fg} {db_date_str} "
+                f"amount={amount:,}"
+            )
+
+        except Exception as e:
+            print(
+                f"[ERROR] {market_fg} {db_date_str}: {e}"
+            )
+
+    # 날짜 하나 처리 후 반영
     db.commit()
 
     start_date += delta

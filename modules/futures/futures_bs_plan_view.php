@@ -3,27 +3,56 @@ require $_SERVER['DOCUMENT_ROOT'] . "/modules/common/database.php";
 
 $date = $_GET['date'] ?? date('Y-m-d');
 
-// 이전/다음 거래일(calendar 테이블)
+// 선택 회차에서 손익이 등록된 이전/다음 거래일 조회
+if (($_GET['action'] ?? '') === 'nav_dates') {
+    header('Content-Type: application/json; charset=utf-8');
+
+    $run_id = (int)($_GET['run_id'] ?? 0);
+    if ($run_id <= 0) {
+        echo json_encode(['ok' => false, 'msg' => '회차를 선택해주세요.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    $prev_date = '';
+    $next_date = '';
+
+    $stmt = $mysqli->prepare("SELECT MAX(trade_date)
+                              FROM futures_sim_run_day
+                              WHERE run_id = ?
+                                AND pnl_points <> 0
+                                AND trade_date < ?");
+    $stmt->bind_param('is', $run_id, $date);
+    $stmt->execute();
+    $stmt->bind_result($prev_date);
+    $stmt->fetch();
+    $stmt->close();
+
+    $stmt = $mysqli->prepare("SELECT MIN(trade_date)
+                              FROM futures_sim_run_day
+                              WHERE run_id = ?
+                                AND pnl_points <> 0
+                                AND trade_date > ?");
+    $stmt->bind_param('is', $run_id, $date);
+    $stmt->execute();
+    $stmt->bind_result($next_date);
+    $stmt->fetch();
+    $stmt->close();
+
+    echo json_encode([
+        'ok' => true,
+        'prev_date' => $prev_date ?: '',
+        'next_date' => $next_date ?: ''
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 $prev_date = '';
 $next_date = '';
 
-$stmt = $mysqli->prepare("SELECT MAX(date) FROM calendar WHERE date < ?");
-$stmt->bind_param('s', $date);
-$stmt->execute();
-$stmt->bind_result($prev_date);
-$stmt->fetch();
-$stmt->close();
-
-$stmt = $mysqli->prepare("SELECT MIN(date) FROM calendar WHERE date > ?");
-$stmt->bind_param('s', $date);
-$stmt->execute();
-$stmt->bind_result($next_date);
-$stmt->fetch();
-$stmt->close();
-
 // 같은 폴더 기준 상대경로(필요시 수정)
 $chart_api = dirname($_SERVER['PHP_SELF']) . '/replay_api_plan_multi.php';
-$trade_api = dirname($_SERVER['PHP_SELF']) . '/futures_replay_trade_api.php';
+$trade_api = dirname($_SERVER['PHP_SELF']) . '/futures_replay_plan_trade_api.php';
+$line_api = dirname($_SERVER['PHP_SELF']) . '/replay_user_line_api.php';
 ?>
 <!doctype html>
 <html lang="ko">
@@ -42,15 +71,15 @@ $trade_api = dirname($_SERVER['PHP_SELF']) . '/futures_replay_trade_api.php';
 
     .gridTop{
       display:grid;
-      grid-template-columns: minmax(0,1fr) minmax(0,2fr) minmax(430px,2fr);
+      grid-template-columns: minmax(0,1.2fr) minmax(0,1.8fr) minmax(430px,2fr);
       gap:10px;
       align-items:stretch;
       margin-bottom:10px;
     }
     .boxTitle{font-weight:900;margin:0 0 6px;color:#111;}
     #chart15,#chart5{height:400px;min-width:0;}
-    .logWrap{display:flex;flex-direction:column;min-width:0;}
-    .logContent{display:grid;grid-template-columns:minmax(220px,.55fr) minmax(300px,1fr);gap:8px;flex:1;min-height:0;}
+    .logWrap{display:flex;flex-direction:column;min-width:0;height:445px;box-sizing:border-box;overflow:hidden;}
+    .logContent{display:grid;grid-template-columns:minmax(220px,.7fr) minmax(300px,1fr);gap:6px;flex:1;min-height:0;}
     .logPane,.commentPane{display:flex;flex-direction:column;min-width:0;min-height:0;}
     .logBox{flex:1;min-height:0;overflow:auto;}
     #dayComment{flex:1;min-height:0;width:auto;padding:8px;border:1px solid #e5e7eb;border-radius:8px;resize:none;line-height:1.45;}
@@ -69,15 +98,15 @@ $trade_api = dirname($_SERVER['PHP_SELF']) . '/futures_replay_trade_api.php';
     #chart1{height:500px;min-width:0;}
 
     @media (max-width:1400px){
-      .gridTop{grid-template-columns: minmax(0,1fr) minmax(0,2fr); }
+      .gridTop{grid-template-columns: minmax(0,1.2fr) minmax(0,1.8fr); }
       #chart15,#chart5{height:340px;}
-      .logWrap{grid-column:1 / -1;min-height:340px;}
+      .logWrap{grid-column:1 / -1;height:340px;min-height:0;}
     }
     @media (max-width:900px){
       .gridTop{grid-template-columns: 1fr; }
       #chart15,#chart5{height:320px;}
       .logContent{grid-template-columns:1fr;}
-      .logWrap{grid-column:auto;min-height:520px;}
+      .logWrap{grid-column:auto;height:520px;min-height:0;}
       #chart1{height:520px;}
     }
   </style>
@@ -94,8 +123,8 @@ $trade_api = dirname($_SERVER['PHP_SELF']) . '/futures_replay_trade_api.php';
     <b>일자</b>
     <input type="date" name="date" value="<?= htmlspecialchars($date) ?>">
     <button type="submit">조회</button>
-    <button type="button" id="btnPrev" <?= empty($prev_date)?'disabled':'' ?>>◀ 이전일</button>
-    <button type="button" id="btnNext" <?= empty($next_date)?'disabled':'' ?>>다음일 ▶</button>
+    <button type="button" id="btnPrev" disabled>◀ 이전일</button>
+    <button type="button" id="btnNext" disabled>다음일 ▶</button>
 
     <input type="hidden" id="prevDate" value="<?= htmlspecialchars($prev_date ?? '') ?>">
     <input type="hidden" id="nextDate" value="<?= htmlspecialchars($next_date ?? '') ?>">
@@ -105,12 +134,12 @@ $trade_api = dirname($_SERVER['PHP_SELF']) . '/futures_replay_trade_api.php';
 
 <div class="gridTop">
   <div class="panel">
-    <div class="boxTitle">15분봉 (08:45 시가 + SMA 10 + B/S)</div>
+    <div class="boxTitle">15분봉 (전일~당일 + VWAP + SMA 5/20 + API 고저 + 사용자 기준선 + B/S)</div>
     <div id="chart15"></div>
   </div>
 
   <div class="panel">
-    <div class="boxTitle">5분봉 (VWAP + SMA 5/20 + 09:00~09:14 꼬리 포함 고저)</div>
+    <div class="boxTitle">5분봉 (VWAP + SMA 5/20 + API 고저)</div>
     <div id="chart5"></div>
   </div>
 
@@ -150,7 +179,7 @@ $trade_api = dirname($_SERVER['PHP_SELF']) . '/futures_replay_trade_api.php';
 
 <div class="gridBottom">
   <div class="panel">
-    <div class="boxTitle">1분봉 (VWAP + 09:00~09:14 꼬리 포함 고저 + B/S)</div>
+    <div class="boxTitle">1분봉 (VWAP + API 고저 + B/S)</div>
     <div id="chart1"></div>
   </div>
 </div>
@@ -160,15 +189,15 @@ $trade_api = dirname($_SERVER['PHP_SELF']) . '/futures_replay_trade_api.php';
 const DATE = <?= json_encode($date) ?>;
 const CHART_API = <?= json_encode($chart_api) ?>;
 const TRADE_API = <?= json_encode($trade_api) ?>;
+const USER_LINE_API = <?= json_encode($line_api) ?>;
 
 // ✅ 이평선 색상
 const SMA5_COLOR   = 'rgba(211,47,47,0.50)';
 const SMA20_COLOR  = 'rgba(249,168,37,0.50)';
 const SMA120_COLOR = 'rgba(117,117,117,0.50)';
-const SMA10_COLOR  = 'rgba(37,99,235,0.50)';
 
 // ✅ VWAP 색상
-const VWAP_COLOR = 'rgba(126,34,206,0.80)';
+const VWAP_COLOR = 'rgba(126,34,206,0.50)';
 
 // ✅ 30분 고저/시가 색상
 const HI_COLOR   = 'rgba(255,79,179,0.95)';
@@ -178,6 +207,8 @@ const OPEN_COLOR = '#666666';
 // ✅ 회차(run) 선택 상태
 let simRunId = 0; // 0이면 저장값/첫 회차 자동 선택
 const LS_RUN_ID_KEY = 'futures_bs_plan_view_run_id';
+let userLines = [];
+const renderedUserLineIds = new Set();
 
 // 장 시간
 const START = '08:45:00';
@@ -226,6 +257,50 @@ async function loadRunsAndRestore(){
   }
 }
 
+async function refreshNavDates(){
+  const prevBtn = document.getElementById('btnPrev');
+  const nextBtn = document.getElementById('btnNext');
+  const prevInp = document.getElementById('prevDate');
+  const nextInp = document.getElementById('nextDate');
+
+  prevInp.value = '';
+  nextInp.value = '';
+  prevBtn.disabled = true;
+  nextBtn.disabled = true;
+
+  if (!simRunId) return;
+
+  const url = `${location.pathname}?action=nav_dates`
+    + `&run_id=${encodeURIComponent(simRunId)}`
+    + `&date=${encodeURIComponent(DATE)}`;
+  const r = await fetch(url, { cache:'no-store' });
+  const j = await r.json();
+  if (!j?.ok) throw new Error(j?.msg || '이전/다음 일자 조회 실패');
+
+  prevInp.value = j.prev_date || '';
+  nextInp.value = j.next_date || '';
+  prevBtn.disabled = !j.prev_date;
+  nextBtn.disabled = !j.next_date;
+}
+
+async function moveRunDate(direction){
+  if (!simRunId) return;
+
+  const url = `${location.pathname}?action=nav_dates`
+    + `&run_id=${encodeURIComponent(simRunId)}`
+    + `&date=${encodeURIComponent(DATE)}`;
+  const r = await fetch(url, { cache:'no-store' });
+  const j = await r.json();
+  if (!j?.ok) throw new Error(j?.msg || '이전/다음 일자 조회 실패');
+
+  const targetDate = direction === 'prev' ? j.prev_date : j.next_date;
+  if (!targetDate) return;
+
+  const inp = document.querySelector('input[name="date"]');
+  inp.value = targetDate;
+  document.getElementById('frm').submit();
+}
+
 document.getElementById('simRunSelect')?.addEventListener('change', async (e)=>{
   const v = e.target.value;
   simRunId = v ? Number(v) : 0;
@@ -234,7 +309,9 @@ document.getElementById('simRunSelect')?.addEventListener('change', async (e)=>{
   else localStorage.removeItem(LS_RUN_ID_KEY);
 
   try{
+    await refreshNavDates();
     await loadTrades();
+    await loadUserLines();
   }catch(err){
     console.error(err);
     setStat('오류: ' + (err.message || err));
@@ -256,7 +333,13 @@ function toMs(dtStr){
 }
 
 function rowsToCandles(rows){ return (rows||[]).map(r=>[toMs(r.datetime), +r.open, +r.high, +r.low, +r.close]); }
-function rowsToVol(rows){ return (rows||[]).map(r=>[toMs(r.datetime), +(r.volume||0)]); }
+function rowsToVol(rows){
+  return (rows||[]).map(r=>({
+    x:toMs(r.datetime),
+    y:+(r.volume||0),
+    color:(+r.close >= +r.open) ? '#f45b5b' : '#2f7ed8'
+  }));
+}
 function rowsToLine(rows, field){
   const out=[];
   (rows||[]).forEach(r=>{
@@ -358,7 +441,7 @@ let sessionOpen = null;
 
 function clearReferenceLines(chart){
   if (!chart?.yAxis?.[0]) return;
-  ['session_open','body0900_hi','body0900_lo'].forEach(id => {
+  ['session_open','api_hilo_hi','api_hilo_lo','body0900_hi','body0900_lo'].forEach(id => {
     try{ chart.yAxis[0].removePlotLine(id); }catch(e){}
   });
 }
@@ -366,51 +449,112 @@ function clearReferenceLines(chart){
 function addSessionOpenLine(chart){
   if (!chart?.yAxis?.[0] || sessionOpen == null) return;
   chart.yAxis[0].addPlotLine({
-    id:'session_open', value:+sessionOpen, color:OPEN_COLOR, width:3,
-    dashStyle:'Dash', zIndex:6,
+    id:'session_open', value:+sessionOpen, color:OPEN_COLOR, width:2,
+    zIndex:6,
     label:{ text:'시가 ' + (+sessionOpen).toFixed(2), align:'left', x:5,
       style:{ fontSize:'9px', color:'#111' } }
   });
 }
 
-function getOpeningBodyRange(rows5){
-  const startTs = toTSLocal(DATE, '09:00:00');
-  const endTs = toTSLocal(DATE, '09:15:00');
-  const rows = mergeRowsByDatetime(rows5)
-    .filter(r => {
-      const x = toMs(r.datetime);
-      return x >= startTs && x < endTs;
-    });
-  if (rows.length < 3) return null;
-  return {
-    // 꼬리 포함: 각 캔들의 전체 High/Low 반영
-    high: Math.max(...rows.map(r => Number(r.high))),
-    low: Math.min(...rows.map(r => Number(r.low)))
-  };
-}
+function addApiHiloLines(chart, apiHilo){
+  if (!chart?.yAxis?.[0] || !apiHilo) return;
 
-function addOpeningBodyLines(chart, bodyRange){
-  if (!chart?.yAxis?.[0] || !bodyRange) return;
+  const high = Number(apiHilo.high);
+  const low = Number(apiHilo.low);
+  if (!Number.isFinite(high) || !Number.isFinite(low)) return;
+
+  const start = String(apiHilo.start_hhmm || '').trim();
+  const end = String(apiHilo.end_hhmm || '').trim();
+  const rangeText = start && end
+    ? (start === end ? start : `${start}~${end}`)
+    : '기준';
+
   chart.yAxis[0].addPlotLine({
-    id:'body0900_hi', value:bodyRange.high, color:HI_COLOR, width:2, zIndex:7,
-    label:{ text:'꼬리 포함 고 ' + bodyRange.high.toFixed(2), align:'left', x:5,
+    id:'api_hilo_hi', value:high, color:HI_COLOR, width:2, zIndex:7,
+    label:{ text:`${rangeText} 고 ${high.toFixed(2)}`, align:'left', x:5,
       style:{fontSize:'10px', color:HI_COLOR, fontWeight:'bold'} }
   });
   chart.yAxis[0].addPlotLine({
-    id:'body0900_lo', value:bodyRange.low, color:LO_COLOR, width:2, zIndex:7,
-    label:{ text:'꼬리 포함 저 ' + bodyRange.low.toFixed(2), align:'left', x:5,
+    id:'api_hilo_lo', value:low, color:LO_COLOR, width:2, zIndex:7,
+    label:{ text:`${rangeText} 저 ${low.toFixed(2)}`, align:'left', x:5,
       style:{fontSize:'10px', color:LO_COLOR, fontWeight:'bold'} }
   });
 }
 
-function applyReferenceLines(rows5){
+function applyReferenceLines(apiHilo){
   [c15,c5,c1].forEach(chart => {
     clearReferenceLines(chart);
     addSessionOpenLine(chart);
+    addApiHiloLines(chart, apiHilo);
   });
-  const bodyRange = getOpeningBodyRange(rows5);
-  addOpeningBodyLines(c5, bodyRange);
-  addOpeningBodyLines(c1, bodyRange);
+}
+
+/** ================== 저장된 사용자 기준선(조회 전용) ================== */
+function userLinePlotId(id){
+  return 'usr_line_' + String(id);
+}
+
+function renderUserLines(chart){
+  if (!chart?.yAxis?.[0]) return;
+  const yAxis = chart.yAxis[0];
+
+  renderedUserLineIds.forEach(id => {
+    try{ yAxis.removePlotLine(id); }catch(e){}
+  });
+
+  userLines.forEach(line => {
+    if (!line.enabled) return;
+    const price = Number(line.price);
+    if (!Number.isFinite(price)) return;
+
+    const id = userLinePlotId(line.id);
+    const comment = String(line.comment || '').trim();
+    const shortComment = comment.length > 32 ? comment.slice(0, 32) + '…' : comment;
+    const color = line.color || '#7c3aed';
+    yAxis.addPlotLine({
+      id,
+      value: price,
+      color,
+      width: 2,
+      dashStyle: line.dash_style || 'Dash',
+      zIndex: 8,
+      label: {
+        text: price.toFixed(2) + (shortComment ? ' ' + shortComment : ''),
+        align: 'left',
+        x: 6,
+        style: { fontSize:'10px', color, fontWeight:'700' }
+      }
+    });
+    renderedUserLineIds.add(id);
+  });
+}
+
+function renderUserLinesAll(){
+  [c15,c5,c1].forEach(renderUserLines);
+  [c15,c5,c1].forEach(chart => chart?.redraw(false));
+}
+
+async function loadUserLines(){
+  if (!simRunId){
+    userLines = [];
+    renderUserLinesAll();
+    return;
+  }
+
+  const fd = new FormData();
+  fd.append('action', 'list');
+  fd.append('run_id', String(simRunId));
+  fd.append('trade_date', DATE);
+
+  const r = await fetch(USER_LINE_API, { method:'POST', body:fd, cache:'no-store' });
+  const text = await r.text();
+  let j;
+  try{ j = JSON.parse(text); }
+  catch(e){ throw new Error('사용자 기준선 API 응답을 읽을 수 없습니다.'); }
+  if (!r.ok || !j?.ok) throw new Error(j?.msg || '사용자 기준선 조회 실패');
+
+  userLines = Array.isArray(j.lines) ? j.lines : [];
+  renderUserLinesAll();
 }
 
 /** ================== 차트 생성 ================== */
@@ -418,7 +562,7 @@ function makeChart(el, opts = {}){
   const mode = opts.mode || 'oneMinute';
   const is15m = mode === 'fifteenMinute';
   const is5m = mode === 'fiveMinute';
-  const showVwap = !is15m;
+  const showVwap = true;
   const fitCandleYAxis = !!opts.fitCandleYAxis;
 
   const ch = Highcharts.stockChart(el, {
@@ -433,7 +577,7 @@ function makeChart(el, opts = {}){
     title:{ text:'' },
     xAxis:{
       type:'datetime',
-      labels:{ format:'{value:%H:%M}', style:{ fontSize:'10px' } },
+      labels:{ format:is15m ? '{value:%m/%d %H:%M}' : '{value:%H:%M}', style:{ fontSize:'10px' } },
       events:{
         afterSetExtremes:function(){
           if (fitCandleYAxis && this.chart?.renderTo?.id === 'chart1') {
@@ -464,15 +608,14 @@ function makeChart(el, opts = {}){
     series:[
       { type:'candlestick', id:`cndl_${el}`, name:el, data:[], zIndex:3, dataGrouping:{enabled:false} },
 
-      { type:'line', name:is15m ? 'SMA 10' : 'SMA 5', data:[], lineWidth:1,
-        dashStyle:is15m ? 'ShortDot' : 'Solid', color:is15m ? SMA10_COLOR : SMA5_COLOR,
+      { type:'line', name:'SMA 5', data:[], lineWidth:1, color:SMA5_COLOR,
         zIndex:2, dataGrouping:{enabled:false} },
       { type:'line', name:'SMA 20', data:[], lineWidth:1, color:SMA20_COLOR, zIndex:2,
-        visible:!is15m, showInLegend:!is15m, dataGrouping:{enabled:false} },
+        dataGrouping:{enabled:false} },
       { type:'line', name:'SMA 120', data:[], lineWidth:1, color:SMA120_COLOR, zIndex:2,
         visible:!is15m && !is5m, showInLegend:!is15m && !is5m, dataGrouping:{enabled:false} },
 
-      { type:'line', name:'VWAP', data:[], lineWidth:3, dashStyle:'ShortDash',
+      { type:'line', name:'VWAP', data:[], lineWidth:2, dashStyle:'ShortDash',
         color:VWAP_COLOR, zIndex:10, dataGrouping:{enabled:false},
         visible: showVwap, showInLegend: showVwap },
 
@@ -787,7 +930,7 @@ async function loadCharts(){
   const url = `${CHART_API}?date=${encodeURIComponent(DATE)}`
     + `&start=${encodeURIComponent(START)}&end=${encodeURIComponent(END)}`
     + `&init_time=${encodeURIComponent(END)}`
-    + `&max_prev_1m=0&max_prev_5m=0&max_prev_15m=0&max_prev_60m=0`
+    + `&max_prev_1m=0&max_prev_5m=0&max_prev_15m=100&max_prev_60m=0`
     + `&init_max_1m=2000&init_max_5m=500&init_max_15m=300&init_max_60m=0`
     + `&hi_lo_n=30&hi_lo_n2=60`;
 
@@ -800,8 +943,16 @@ async function loadCharts(){
 
   const m1 = [...(res.m1?.init||[]), ...(res.m1?.future||[])];
   const m5 = res.m5?.today || [];
-  const m15 = mergeRowsByDatetime(res.m15?.init || [], res.m15?.today || [])
-    .filter(r => String(r?.datetime || '').slice(0, 10) === DATE);
+  const m15All = mergeRowsByDatetime(res.m15?.init || [], res.m15?.today || []);
+  const prev15Date = [...new Set(
+    m15All
+      .map(r => String(r?.datetime || '').slice(0, 10))
+      .filter(d => d && d < DATE)
+  )].sort().pop() || '';
+  const m15 = m15All.filter(r => {
+    const d = String(r?.datetime || '').slice(0, 10);
+    return d === DATE || d === prev15Date;
+  });
   sessionOpen = res.hilo_main?.open != null ? +res.hilo_main.open : null;
 
   // 1분
@@ -822,13 +973,14 @@ async function loadCharts(){
 
   // 15분
   c15.series[0].setData(rowsToCandles(m15), false);
-  c15.series[1].setData(rowsToSma(m15, 10), false);
-  c15.series[2].setData([], false);
+  c15.series[1].setData(rowsToLine(m15, 'sma_5'), false);
+  c15.series[2].setData(rowsToLine(m15, 'sma_20'), false);
   c15.series[3].setData([], false);
-  c15.series[4].setData([], false);
+  c15.series[4].setData(rowsToLine(m15, 'vwap_session'), false);
   c15.series[5].setData(rowsToVol(m15), false);
 
-  applyReferenceLines(m5);
+  // 고저는 차트 데이터에서 재계산하지 않고 API 응답만 사용한다.
+  applyReferenceLines(res.hilo_main);
 
   c15.redraw(false);
   c5.redraw(false);
@@ -879,20 +1031,22 @@ async function loadTrades(){
 }
 
 /** ================== 네비게이션 ================== */
-document.getElementById('btnPrev')?.addEventListener('click', ()=>{
-  const d = document.getElementById('prevDate')?.value;
-  if (!d) return;
-  const inp = document.querySelector('input[name="date"]');
-  inp.value = d;
-  document.getElementById('frm').submit();
+document.getElementById('btnPrev')?.addEventListener('click', async ()=>{
+  try{
+    await moveRunDate('prev');
+  }catch(err){
+    console.error(err);
+    alert(err.message || err);
+  }
 });
 
-document.getElementById('btnNext')?.addEventListener('click', ()=>{
-  const d = document.getElementById('nextDate')?.value;
-  if (!d) return;
-  const inp = document.querySelector('input[name="date"]');
-  inp.value = d;
-  document.getElementById('frm').submit();
+document.getElementById('btnNext')?.addEventListener('click', async ()=>{
+  try{
+    await moveRunDate('next');
+  }catch(err){
+    console.error(err);
+    alert(err.message || err);
+  }
 });
 
 /** ================== 시작 ================== */
@@ -905,7 +1059,9 @@ document.getElementById('btnNext')?.addEventListener('click', ()=>{
     try{
       await loadCharts();
       await loadRunsAndRestore();
+      await refreshNavDates();
       await loadTrades();
+      await loadUserLines();
     }catch(e){
       console.error(e);
       setStat('오류: ' + (e.message || e));

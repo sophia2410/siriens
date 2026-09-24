@@ -16,7 +16,7 @@ $gap_from = p('gap_from', 100);
 $gap_to   = p('gap_to', 100);
 
 $filter_interval = p('filter_interval', '1m');
-$chart_interval  = p('chart_interval', '5m15m');
+$chart_interval  = p('chart_interval', '1m5m');
 $run_id          = max(0, (int)p('run_id', 0));
 
 $bar_index = max(1, (int) p('bar_index', 1));
@@ -37,15 +37,9 @@ $m15_patterns = [
   '양양음' => [1, 1, 0],
   '음음양' => [0, 0, 1],
   '음음음' => [0, 0, 0],
-
-  '양음양' => [1, 0, 1],
-  '양음음' => [1, 0, 0],
-  '음양양' => [0, 1, 1],
-  '음양음' => [0, 1, 0],
-
 ];
 if (!is_string($m15_combo) || !isset($m15_patterns[$m15_combo])) $m15_combo = '';
-$bar_preset  = p('bar_preset', '5m75_15m56');
+$bar_preset  = p('bar_preset', '1m200_5m83');
 
 $show_sma_1m = (int)p('show_sma_1m', 1); // 기본 ON
 $show_sma_5m = (int)p('show_sma_5m', 1); // 기본 ON
@@ -196,8 +190,8 @@ if ($run_id > 0) {
 }
 
 $sql .= " AND date >= '2025-01-01'";
-$sql .= " ORDER BY date DESC";
-// $sql .= " ORDER BY date";
+// $sql .= " ORDER BY date DESC";
+$sql .= " ORDER BY date";
 
 $stmt = $mysqli->prepare($sql);
 $stmt->bind_param($types, ...$params);
@@ -218,7 +212,7 @@ while ($row = $result->fetch_assoc()) {
 <html>
 <head>
   <meta charset="utf-8">
-  <title>차트 모아보기</title>
+  <title>차트 모아보기(가림막)</title>
   <?php require $_SERVER['DOCUMENT_ROOT'] . "/modules/common/highcharts.php"; ?>
   <script src="https://code.highcharts.com/modules/exporting.js"></script>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -240,13 +234,49 @@ while ($row = $result->fetch_assoc()) {
     .chart-pair { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
     .chart-pair.single { grid-template-columns:1fr; }
     .chart-pair.duo-5m1m { grid-template-columns: 1fr 2fr; } /* 5분 : 1분 = 1 : 2 */
-    .chart-pair.triple { grid-template-columns: 1fr 1.2fr 2fr; }
+    .chart-pair.triple { grid-template-columns: 1fr 1.5fr 2.5fr; }
     .chart-one { display:flex; flex-direction:column; min-width:0; } /* ← 줄바꿈 허용 */
     /* 5분봉 / 15분봉 배경색 */
     .chart-one.bg-5m  { background: rgba(255, 250, 205, 0.8); font-weight:bold;}  /* 연한 노랑 */
     .chart-one.bg-15m { background: rgba(213, 252, 216, 0.94); font-weight:bold;}  /* 연한 녹색 */
     .chart-subtitle { font-size:12px; color:#666; margin:0 0 4px 2px; }
     .chart-canvas { height:var(--chart-h, 350px); min-width:0; }      /* ← 컨테이너 축소 허용 */
+
+    /* 09:15 이후를 가리는 날짜별 연습용 가림막 */
+    .prediction-controls {
+      display:inline-flex;
+      align-items:center;
+      gap:3px;
+      margin-left:10px;
+      vertical-align:middle;
+    }
+    .prediction-btn {
+      padding:2px 8px;
+      border:1px solid #aaa;
+      border-radius:4px;
+      background:#f7f7f7;
+      color:#333;
+      font-size:11px;
+      cursor:pointer;
+    }
+    .prediction-btn:hover { background:#e9ecef; }
+    .prediction-current {
+      min-width:42px;
+      color:#17795e;
+      font-size:11px;
+      font-weight:bold;
+      text-align:center;
+    }
+    .prediction-mask {
+      position:absolute;
+      display:none;
+      background:#fff;
+      border-left:2px solid rgba(75, 192, 160, .85);
+      box-sizing:border-box;
+      z-index:50;
+      pointer-events:auto;
+    }
+    .prediction-mask.active { display:block; }
 
     /* 인쇄 전용 – "화면과 별개"로 더 넓게 보이게 */
     @media print {
@@ -311,10 +341,9 @@ while ($row = $result->fetch_assoc()) {
 
     캔들 수:
     <select name="bar_preset" id="bar_preset">
-      <option value="1m200_5m75" <?= $bar_preset==='1m200_5m75' ? 'selected' : '' ?>>1분 200 / 5분 75</option>
-      <option value="5m75_15m56" <?= $bar_preset==='5m75_15m56' ? 'selected' : '' ?>>5분 75 / 15분 56</option>
+      <option value="1m200_5m83" <?= $bar_preset==='1m200_5m83' ? 'selected' : '' ?>>1분 200 / 5분 83</option>
       <option value="40"       <?= $bar_preset==='40'       ? 'selected' : '' ?>>전체 40</option>
-      <option value="75"       <?= $bar_preset==='75'       ? 'selected' : '' ?>>전체 75</option>
+      <option value="83"       <?= $bar_preset==='83'       ? 'selected' : '' ?>>전체 83</option>
       <option value="100"      <?= $bar_preset==='100'      ? 'selected' : '' ?>>전체 100</option>
       <option value="160"      <?= $bar_preset==='160'      ? 'selected' : '' ?>>전체 160</option>
       <option value="240"      <?= $bar_preset==='240'      ? 'selected' : '' ?>>전체 240</option>
@@ -335,7 +364,7 @@ while ($row = $result->fetch_assoc()) {
 
     특정일자:
     <textarea name="only_dates" rows="3" style="width:200px"
-      placeholder="2026-07 or 2026-07-15&#10;쉼표/줄바꿈으로 구분"><?= htmlspecialchars(implode(', ', $only_dates_list) ?: $only_dates_raw, ENT_QUOTES) ?></textarea>
+      placeholder="2026-07 or 2026-07-15&#10;쉼표/줄바꿈으로 구분"><?= htmlspecialchars($only_dates_raw, ENT_QUOTES) ?></textarea>
 
     <!-- 1m SMA -->
     <input type="hidden" name="show_sma_1m" value="0">
@@ -394,30 +423,6 @@ while ($row = $result->fetch_assoc()) {
     <button type="button" id="btnExportMd">MD 내보내기</button>
   </form>
 
-
-  <?php
-    $matched_dates = array_values(array_unique(array_column($dates, 'date')));
-  ?>
-
-  <div style="margin:12px 0;">
-    <div style="margin-bottom:5px;">
-      <strong>조회 일자: <?= count($matched_dates) ?>개</strong>
-      <span style="font-size:12px; color:#666;">
-        클릭하면 전체 선택됩니다. Ctrl+C로 복사하세요.
-      </span>
-    </div>
-
-    <textarea
-      readonly
-      onclick="this.select();"
-      style="width:100%; height:75px; box-sizing:border-box; padding:8px;"
-    ><?= htmlspecialchars(
-      implode(', ', $matched_dates),
-      ENT_QUOTES,
-      'UTF-8'
-    ) ?></textarea>
-  </div>
-
   <div class="chart-grid">
     <?php foreach ($dates as $i => $d): ?>
       <div class="chart-item">
@@ -428,6 +433,19 @@ while ($row = $result->fetch_assoc()) {
           RSI <?= htmlspecialchars($d['rsi']) ?> |
           Gap <?= ($d['gap']>0?'+':'') . htmlspecialchars($d['gap']) ?> pt |
           Ret <?= ($d['ret']>0?'+':'') . htmlspecialchars($d['ret']) ?> pt
+          <span class="prediction-controls"
+                data-date="<?= htmlspecialchars($d['date'], ENT_QUOTES) ?>">
+            <button type="button" class="prediction-btn" onclick="stepPredictionView(this, -5)">◀ 5분</button>
+            <button type="button" class="prediction-btn" onclick="stepPredictionView(this, 5)">5분 ▶</button>
+            <button type="button" class="prediction-btn" onclick="setPredictionView(this, '09:15')">09:15</button>
+            <button type="button" class="prediction-btn" onclick="setPredictionView(this, '09:30')">09:30</button>
+            <button type="button" class="prediction-btn" onclick="setPredictionView(this, '10:00')">10:00</button>
+            <button type="button" class="prediction-btn" onclick="setPredictionView(this, '10:30')">10:30</button>
+            <button type="button" class="prediction-btn" onclick="setPredictionView(this, '11:00')">11:00</button>
+            <button type="button" class="prediction-btn" onclick="setPredictionView(this, '13:00')">13:00</button>
+            <button type="button" class="prediction-btn" onclick="showPredictionFull(this)">전체</button>
+            <span class="prediction-current">09:15</span>
+          </span>
         </div>
 
         <!-- ✅ DOM(칸) 이름을 L/M/R로 고정 -->
@@ -470,6 +488,10 @@ while ($row = $result->fetch_assoc()) {
     let showBS = <?= json_encode((bool)$show_bs) ?>;
     const chartsByDate = new Map();
     const tradesByDate = new Map();
+    const predictionCutoffs = new Map(
+      dateList.map(d => [d.date, predictionTimeTs(d.date, '09:15')])
+    );
+    const predictionFullDates = new Set();
     
     window._cache1m = window._cache1m || new Map();              // 1분 캐시
 
@@ -529,23 +551,18 @@ while ($row = $result->fetch_assoc()) {
 
     // ── 프리셋 → interval별 캔들 수
     function barsFor(interval) {
-      if (barPreset === '1m200_5m75') {
+      if (barPreset === '1m200_5m83') {
         if (interval === '1m') return 200;
-        if (interval === '5m') return 75;
-        return 75; // 15m, 60m은 필요 시 기본값
-      }
-      if (barPreset === '5m75_15m56') {
-        if (interval === '5m') return 75;
-        if (interval === '15m') return 56;
-        return 56; // 60m은 필요 시 기본값
+        if (interval === '5m') return 83;
+        return 83; // 15m, 60m은 필요 시 기본값
       }
       if (barPreset === '40') return 40;
-      if (barPreset === '75') return 75;
+      if (barPreset === '83') return 83;
       if (barPreset === '100') return 100;
       if (barPreset === '160') return 160;
       if (barPreset === '240') return 240;
       if (barPreset === '420') return 420;
-      return 75;
+      return 83;
     }
 
     // === triple(L)에서만 표시 봉 수를 폭에 맞춰 줄이기(과거가 잘리도록 tail 유지) ===
@@ -597,13 +614,7 @@ while ($row = $result->fetch_assoc()) {
         if (s && Array.isArray(arr)) s.setData(arr.slice(-n), false);
       }
       chart.redraw(false);
-      if (interval === '5m') {
-        fitYAxisToTodayCandles(chart, chart._priceSeriesId, chart._tradeDate, 0.15);
-      } else if (interval === '1m') {
-        fitYAxisToCandles(chart, chart._priceSeriesId, 0.18);
-      } else {
-        chart.redraw(false);
-      }
+      fitYAxisToCandles(chart, chart._priceSeriesId, 0.12);
     }
 
     // 캔들 수 → 카드 높이(px)
@@ -611,26 +622,21 @@ while ($row = $result->fetch_assoc()) {
 
     // 화면용(span) 매핑은 기존 spanForPreset(sel) 유지
     function spanForPreset(sel) {
-      if (barPreset === '1m200_5m75') return 12; // 하루당 한 줄 전체폭
+      if (barPreset === '1m200_5m83') return 12; // 하루당 한 줄 전체폭
 
-      const isBoth = (sel === '1m5m');
-      const isBoth_1 = (sel === '5m15m');
+      const isBoth = (sel === '1m5m' || sel === '5m15m');
       const isTriple = (sel === '1m5m15m' || sel === '5m15m60m');
 
       if (isBoth) {
         if (barPreset === '40')  return 4;
-        if (barPreset === '75')  return 6;
+        if (barPreset === '83')  return 6;
         return 12;
-      } else if (isBoth_1) {
-        if (barPreset === '40')  return 4;
-        if (barPreset === '75')  return 6;
-        return 6;
       } else if (isTriple) {
         if (barPreset === '40')  return 4;
         return 12;
       } else {
         if (barPreset === '40')  return 2;
-        if (barPreset === '75')  return 4;
+        if (barPreset === '83')  return 4;
         if (barPreset === '240')  return 12;
         if (barPreset === '420')  return 12;
         return 6;
@@ -639,7 +645,7 @@ while ($row = $result->fetch_assoc()) {
 
     // 인쇄용(pspan) 매핑 – "더 넓게" 보이게 설계
     function printSpanForPreset(sel) {
-      if (barPreset === '1m200_5m75') return 8; // 인쇄도 하루당 한 줄
+      if (barPreset === '1m200_5m83') return 8; // 인쇄도 하루당 한 줄
 
       const isBoth = (sel === '1m5m' || sel === '5m15m' || sel === '1m5m15m' || sel === '5m15m60m');
       if (isBoth) return 4;
@@ -647,7 +653,7 @@ while ($row = $result->fetch_assoc()) {
       if (barPreset === '240') return 8;
       if (barPreset === '160') return 8;
       if (barPreset === '100') return 8;
-      if (barPreset === '75')  return 8;
+      if (barPreset === '83')  return 8;
       if (barPreset === '40')  return 4;
       return 2;
     }
@@ -666,7 +672,13 @@ while ($row = $result->fetch_assoc()) {
     // ── 리플로우 유틸
     function reflowAll() {
       if (!Highcharts || !Highcharts.charts) return;
-      Highcharts.charts.forEach(ch => { if (ch) { try { ch.reflow(); } catch(e){} } });
+      Highcharts.charts.forEach(ch => {
+        if (!ch) return;
+        try { ch.reflow(); } catch(e){}
+        if (ch._predictionMasked) {
+          try { updatePredictionMask(ch); } catch(e){}
+        }
+      });
     }
     function scheduleReflows() {
       reflowAll();
@@ -681,6 +693,9 @@ while ($row = $result->fetch_assoc()) {
         const el = entry.target, chart = el && el._chart;
         if (chart) {
           try { chart.reflow(); } catch(e){}
+          if (chart._predictionMasked) {
+            setTimeout(() => { try { updatePredictionMask(chart); } catch(e){} }, 0);
+          }
           if (chart._adaptiveSlice) {
             setTimeout(() => { try { applyAdaptiveSlice(chart); } catch(e){} }, 0);
           }
@@ -782,41 +797,23 @@ while ($row = $result->fetch_assoc()) {
     }
 
 
-    function tradeDateRange(dateText) {
-      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateText || ''));
-      if (!m) return null;
-      const start = new Date(+m[1], +m[2] - 1, +m[3], 0, 0, 0, 0).getTime();
-      return { start, end:start + 24 * 60 * 60 * 1000 };
-    }
-
     function fitYAxisToCandles(chart, candleSeriesId, extraPaddingPct = 0.18) {
       const s = chart.get(candleSeriesId);
       if (!s) return;
 
-      const ext = s.getExtremes();
-      if (!isFinite(ext.dataMin) || !isFinite(ext.dataMax)) return;
+      const source = (s.points?.length ? s.points : (s.options?.data || []));
+      let low = Infinity;
+      let high = -Infinity;
 
-      const range = Math.max(0.01, ext.dataMax - ext.dataMin);
-      const pad = range * extraPaddingPct;
+      source.forEach(p => {
+        const pointLow = Number(p?.low ?? p?.[3]);
+        const pointHigh = Number(p?.high ?? p?.[2]);
+        if (Number.isFinite(pointLow)) low = Math.min(low, pointLow);
+        if (Number.isFinite(pointHigh)) high = Math.max(high, pointHigh);
+      });
 
-      chart.yAxis[0].setExtremes(ext.dataMin - pad, ext.dataMax + pad, true, false);
-    }
+      if (!Number.isFinite(low) || !Number.isFinite(high)) return;
 
-    function fitYAxisToTodayCandles(chart, candleSeriesId, tradeDate, extraPaddingPct = 0.15) {
-      const s = chart.get(candleSeriesId);
-      if (!s) return;
-
-      const rangeTs = tradeDateRange(tradeDate);
-      const points = (s.points || []).filter(p =>
-        p &&
-        rangeTs && p.x >= rangeTs.start && p.x < rangeTs.end &&
-        Number.isFinite(p.low) &&
-        Number.isFinite(p.high)
-      );
-      if (!points.length) return;
-
-      const low = Math.min(...points.map(p => p.low));
-      const high = Math.max(...points.map(p => p.high));
       const range = Math.max(0.01, high - low);
       const pad = range * extraPaddingPct;
 
@@ -1008,9 +1005,271 @@ while ($row = $result->fetch_assoc()) {
       if (!chartsByDate.has(date)) chartsByDate.set(date, []);
       chartsByDate.get(date).push(chart);
 
+      if (!predictionFullDates.has(date)) {
+        const cutoff = predictionCutoffs.get(date);
+        setTimeout(() => applyPredictionMask(chart, date, cutoff), 0);
+      }
+
       if (showBS && simRunId) {
         loadTradesForDate(date).then(trades => applyBSToChart(chart, trades)).catch(console.error);
       }
+    }
+
+    // ── 날짜별 09:15 이후 HTML 가림막
+    function predictionTimeTs(date, hhmm) {
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(date));
+      const t = /^(\d{2}):(\d{2})$/.exec(String(hhmm));
+      if (!m || !t) return NaN;
+      return new Date(+m[1], +m[2] - 1, +m[3], +t[1], +t[2], 0).getTime();
+    }
+
+    function predictionTimeText(ts) {
+      if (!Number.isFinite(ts)) return '-';
+      const d = new Date(ts);
+      return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    }
+
+    function ensurePredictionMask(chart) {
+      if (!chart || !chart.renderTo) return null;
+
+      const host = chart.renderTo;
+      if (getComputedStyle(host).position === 'static') {
+        host.style.position = 'relative';
+      }
+
+      let mask = host.querySelector(':scope > .prediction-mask');
+      if (!mask) {
+        mask = document.createElement('div');
+        mask.className = 'prediction-mask';
+        mask.setAttribute('aria-hidden', 'true');
+        host.appendChild(mask);
+      }
+      return mask;
+    }
+
+    function predictionMaskLeft(chart, cutoff) {
+      const interval = chart._interval || '';
+      const priceSeries = chart.get(`price-${interval}`);
+
+      // 09:15에 시작하는 봉은 미래 봉이므로 그 봉의 왼쪽 경계부터 가린다.
+      const futurePoint = priceSeries?.points?.find(p => p && p.x >= cutoff);
+      if (futurePoint?.shapeArgs && Number.isFinite(futurePoint.shapeArgs.x)) {
+        return chart.plotLeft + futurePoint.shapeArgs.x;
+      }
+
+      return chart.xAxis[0].toPixels(cutoff, false);
+    }
+
+    function updatePredictionMask(chart) {
+      if (!chart?._predictionMasked || !chart._tradeDate) return;
+
+      const mask = ensurePredictionMask(chart);
+      const cutoff = chart._predictionCutoff;
+      if (!mask || !Number.isFinite(cutoff)) return;
+
+      const plotRight = chart.plotLeft + chart.plotWidth;
+      const rawLeft = predictionMaskLeft(chart, cutoff);
+      // 다음 봉의 테두리·꼬리가 경계 밖으로 살짝 보이지 않도록 4px 겹쳐 가린다.
+      const maskOverlap = 4;
+      const left = Math.max(chart.plotLeft, Math.min(plotRight, rawLeft - maskOverlap));
+
+      mask.style.left = `${Math.round(left)}px`;
+      mask.style.top = `${Math.round(chart.plotTop)}px`;
+      mask.style.width = `${Math.max(0, Math.round(plotRight - left))}px`;
+      mask.style.height = `${Math.round(chart.plotHeight)}px`;
+      mask.classList.add('active');
+    }
+
+    function fitPredictionYAxis(chart, cutoff) {
+      if (!chart?.yAxis?.[0] || !Number.isFinite(cutoff)) return;
+
+      const interval = chart._interval || '';
+      const priceSeries = chart.get(`price-${interval}`);
+      const visiblePoints = (priceSeries?.points || []).filter(p =>
+        p && p.x < cutoff && Number.isFinite(p.low) && Number.isFinite(p.high)
+      );
+      if (!visiblePoints.length) return;
+
+      // 전체 차트의 원래 Y축은 최초 한 번만 보관한다.
+      if (!chart._predictionFullYExtremes) {
+        const ext = chart.yAxis[0].getExtremes();
+        chart._predictionFullYExtremes = { min: ext.min, max: ext.max };
+      }
+
+      const low = Math.min(...visiblePoints.map(p => p.low));
+      const high = Math.max(...visiblePoints.map(p => p.high));
+      const range = Math.max(0.01, high - low);
+      const pad = Math.max(0.05, range * 0.15);
+
+      chart.yAxis[0].setExtremes(low - pad, high + pad, false, false);
+
+      // 거래량도 미래 최대 거래량의 영향을 받지 않도록 공개 구간만으로 맞춘다.
+      const volumeSeries = chart.get(`volume-${interval}`);
+      const volumeAxis = chart.yAxis[1];
+      if (volumeAxis && !chart._predictionFullVolumeExtremes) {
+        const volExt = volumeAxis.getExtremes();
+        chart._predictionFullVolumeExtremes = { min: volExt.min, max: volExt.max };
+      }
+      const visibleVolumes = (volumeSeries?.points || [])
+        .filter(p => p && p.x < cutoff && Number.isFinite(p.y))
+        .map(p => p.y);
+      if (volumeAxis && visibleVolumes.length) {
+        const volumeMax = Math.max(1, ...visibleVolumes);
+        volumeAxis.setExtremes(0, volumeMax * 1.08, false, false);
+      }
+
+      chart.redraw(false);
+    }
+
+    function updateOneMinuteWindow(chart, cutoff, showFull = false) {
+      if (chart?._interval !== '1m' || !chart._fullSeries) return;
+
+      const fullCandles = chart._fullSeries.candles || [];
+      const windowSize = chart._oneMinuteWindowSize || 200;
+      if (!fullCandles.length) return;
+
+      let endExclusive;
+      if (showFull) {
+        endExclusive = fullCandles.length;
+      } else {
+        const firstFuture = fullCandles.findIndex(row => row[0] >= cutoff);
+        const visibleEnd = firstFuture < 0 ? fullCandles.length : firstFuture;
+
+        // 오전에는 기존 200봉 구성을 유지하고, 범위를 넘을 때부터 5분씩 이동한다.
+        endExclusive = Math.min(
+          fullCandles.length,
+          Math.max(windowSize, visibleEnd)
+        );
+      }
+
+      const start = Math.max(0, endExclusive - windowSize);
+      const targets = chart._sliceTargets || [];
+      targets.forEach(target => {
+        const series = chart.get(target.id);
+        const source = chart._fullSeries[target.key];
+        if (series && Array.isArray(source)) {
+          series.setData(source.slice(start, endExclusive), false);
+        }
+      });
+
+      chart._oneMinuteWindowStart = start;
+      chart.redraw(false);
+    }
+
+    function fitCurrentOneMinuteYAxis(chart) {
+      if (chart?._interval !== '1m' || !chart.yAxis?.[0]) return;
+
+      const priceSeries = chart.get('price-1m');
+      const points = (priceSeries?.points || []).filter(p =>
+        p && Number.isFinite(p.low) && Number.isFinite(p.high)
+      );
+      if (points.length) {
+        const low = Math.min(...points.map(p => p.low));
+        const high = Math.max(...points.map(p => p.high));
+        const range = Math.max(0.01, high - low);
+        const pad = Math.max(0.05, range * 0.15);
+        chart.yAxis[0].setExtremes(low - pad, high + pad, false, false);
+      }
+
+      const volumeSeries = chart.get('volume-1m');
+      const volumes = (volumeSeries?.points || [])
+        .filter(p => p && Number.isFinite(p.y))
+        .map(p => p.y);
+      if (chart.yAxis[1] && volumes.length) {
+        chart.yAxis[1].setExtremes(0, Math.max(1, ...volumes) * 1.08, false, false);
+      }
+      chart.redraw(false);
+    }
+
+    function restorePredictionYAxis(chart) {
+      if (!chart?.yAxis?.[0]) return;
+
+      const ext = chart._predictionFullYExtremes;
+      if (ext && Number.isFinite(ext.min) && Number.isFinite(ext.max)) {
+        chart.yAxis[0].setExtremes(ext.min, ext.max, false, false);
+      } else {
+        chart.yAxis[0].setExtremes(null, null, false, false);
+      }
+
+      const volExt = chart._predictionFullVolumeExtremes;
+      if (chart.yAxis[1]) {
+        if (volExt && Number.isFinite(volExt.min) && Number.isFinite(volExt.max)) {
+          chart.yAxis[1].setExtremes(volExt.min, volExt.max, false, false);
+        } else {
+          chart.yAxis[1].setExtremes(null, null, false, false);
+        }
+      }
+      chart.redraw(false);
+    }
+
+    function applyPredictionMask(chart, date, cutoff) {
+      if (!chart) return;
+      chart._tradeDate = date;
+      chart._predictionCutoff = cutoff;
+      chart._predictionMasked = true;
+      updateOneMinuteWindow(chart, cutoff, false);
+      fitPredictionYAxis(chart, cutoff);
+      updatePredictionMask(chart);
+    }
+
+    function removePredictionMask(chart) {
+      if (!chart?.renderTo) return;
+      chart._predictionMasked = false;
+      chart.renderTo
+        .querySelector(':scope > .prediction-mask')
+        ?.classList.remove('active');
+      restorePredictionYAxis(chart);
+    }
+
+    function predictionControls(source) {
+      return source?.closest('.prediction-controls') || null;
+    }
+
+    function updatePredictionCurrent(controls, text) {
+      const label = controls?.querySelector('.prediction-current');
+      if (label) label.textContent = text;
+    }
+
+    function applyPredictionCutoff(controls, cutoff) {
+      if (!controls || !Number.isFinite(cutoff)) return;
+      const date = controls.dataset.date;
+      const charts = chartsByDate.get(date) || [];
+      predictionCutoffs.set(date, cutoff);
+      predictionFullDates.delete(date);
+      charts.forEach(chart => applyPredictionMask(chart, date, cutoff));
+      updatePredictionCurrent(controls, predictionTimeText(cutoff));
+    }
+
+    function setPredictionView(button, hhmm) {
+      const controls = predictionControls(button);
+      if (!controls) return;
+      applyPredictionCutoff(controls, predictionTimeTs(controls.dataset.date, hhmm));
+    }
+
+    function stepPredictionView(button, minutes) {
+      const controls = predictionControls(button);
+      if (!controls) return;
+      const date = controls.dataset.date;
+      const current = predictionCutoffs.get(date) ?? predictionTimeTs(date, '09:15');
+      applyPredictionCutoff(controls, current + Number(minutes) * 60 * 1000);
+    }
+
+    function showPredictionFull(button) {
+      const controls = predictionControls(button);
+      if (!controls) return;
+      const date = controls.dataset.date;
+      predictionFullDates.add(date);
+      (chartsByDate.get(date) || []).forEach(chart => {
+        if (chart._interval === '1m') {
+          updateOneMinuteWindow(chart, NaN, true);
+          removePredictionMask(chart);
+          fitCurrentOneMinuteYAxis(chart);
+        } else {
+          removePredictionMask(chart);
+          fitYAxisToCandles(chart, chart._priceSeriesId, 0.12);
+        }
+      });
+      updatePredictionCurrent(controls, '전체');
     }
 
     async function refreshAllBS() {
@@ -1088,7 +1347,13 @@ while ($row = $result->fetch_assoc()) {
       const fetchBars = barsFor(interval);
       const priceSeriesId = `price-${interval}`;
 
-      $.getJSON(`./get_1min_data.php?date=${encodeURIComponent(date)}&interval=${encodeURIComponent(interval)}&limit=${fetchBars}`, function(data) {
+      const requestLimit =
+        interval === '1m' ? 500 :
+        interval === '5m' ? 100 :
+        fetchBars;
+      const allDayParam = interval === '1m' ? '&all_day=1' : '';
+
+      $.getJSON(`./get_1min_data.php?date=${encodeURIComponent(date)}&interval=${encodeURIComponent(interval)}&limit=${requestLimit}${allDayParam}`, function(data) {
         if (!data || !data.length) return;
 
         // ✅ triple + L 일 때만 표시 봉 수를 줄임(과거 잘리도록 tail slice)
@@ -1103,7 +1368,9 @@ while ($row = $result->fetch_assoc()) {
         }
 
         // ✅ 과거(왼쪽)부터 잘리게: 마지막 displayBars만 사용
-        const viewData = (displayBars < data.length) ? data.slice(-displayBars) : data;
+        const viewData = (displayBars < data.length)
+          ? (interval === '1m' ? data.slice(0, displayBars) : data.slice(-displayBars))
+          : data;
 
         // 높이 세팅
         const h = computeHeight(fetchBars);
@@ -1238,14 +1505,14 @@ while ($row = $result->fetch_assoc()) {
             // ✅ 1m/5m: 5/20선만
             series.push(
               { id:`sma20-${interval}`, type:'line', name:'SMA 20', data:sma20, color:SMA20_COLOR, lineWidth:2, zIndex:1, enableMouseTracking:false, dataGrouping:{enabled:false} },
-              { id:`sma5-${interval}`,   type:'line', name:'SMA 5',   data:sma5,   color:SMA5_COLOR,   lineWidth:1, zIndex:1, enableMouseTracking:false, dataGrouping:{enabled:false} }
+              { id:`sma5-${interval}`,   type:'line', name:'SMA 5',   data:sma5,   color:SMA5_COLOR,   lineWidth:2, zIndex:1, enableMouseTracking:false, dataGrouping:{enabled:false} }
             );
           } else {
             // ✅ 15m/60m: 5/20/120
             series.push(
               { id:`sma120-${interval}`, type:'line', name:'SMA 120', data:sma120, color:SMA120_COLOR, lineWidth:0, zIndex:1, enableMouseTracking:false, dataGrouping:{enabled:false} },
               { id:`sma20-${interval}`,  type:'line', name:'SMA 20',  data:sma20,  color:SMA20_COLOR,  lineWidth:2, zIndex:1, enableMouseTracking:false, dataGrouping:{enabled:false} },
-              { id:`sma5-${interval}`,   type:'line', name:'SMA 5',   data:sma5,   color:SMA5_COLOR,   lineWidth:2, zIndex:1, enableMouseTracking:false, dataGrouping:{enabled:false} }
+              { id:`sma5-${interval}`,   type:'line', name:'SMA 5',   data:sma5,   color:SMA5_COLOR,   lineWidth:1, zIndex:1, enableMouseTracking:false, dataGrouping:{enabled:false} }
             );
           }
         }
@@ -1304,12 +1571,8 @@ while ($row = $result->fetch_assoc()) {
               load(){
                 this.customShowTooltip = false;
 
-                // ✅ 5분봉만 당일 캔들 기준, 나머지는 기존 표시 범위 유지
-                if (interval === '5m') {
-                  fitYAxisToTodayCandles(this, priceSeriesId, date, 0.15);
-                } else if (interval === '1m') {
-                  fitYAxisToCandles(this, priceSeriesId, 0.18);
-                }
+                // ✅ 이평선은 유지하고 캔들 고가/저가 기준으로 Y축 확대
+                fitYAxisToCandles(this, priceSeriesId, 0.12);
               }
             }
           },
@@ -1433,13 +1696,15 @@ while ($row = $result->fetch_assoc()) {
 
         if (isVwap) {
           full.vwap = toLine(fullRows, vwapKey);
-        } else {
+        }
+        if (showSma) {
           full.sma5   = toLine(fullRows, 'sma_5');
           full.sma20  = toLine(fullRows, 'sma_20');
           full.sma120 = toLine(fullRows, 'sma_120');
         }
 
         chart._fullSeries = full;
+        chart._oneMinuteWindowSize = interval === '1m' ? fetchBars : null;
 
         // 현재 표시 봉수 기록(내보내기/리사이즈 대응)
         chart._displayBars = displayBars;
@@ -1497,13 +1762,15 @@ while ($row = $result->fetch_assoc()) {
             zIndex: 2
           });
 
-          xa.addPlotLine({
-            id: `_line-1000-${dayStr}-${interval}`,
-            value: ts1000,
-            color: 'rgba(253, 250, 38, 1)',
-            width: 5,
-            zIndex: 0
-          });
+          if (interval === '1m' || interval === '5m' ) {
+            xa.addPlotLine({
+              id: `_line-1000-${dayStr}-${interval}`,
+              value: ts1000,
+              color: 'rgba(253, 250, 38, 1)',
+              width: 5,
+              zIndex: 0
+            });
+          }
 
           if (interval === '1m' || interval === '5m' ) {
             xa.addPlotLine({

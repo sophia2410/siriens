@@ -14,7 +14,7 @@ $lvl = $_GET['lvl'] ?? '30'; // '30' or '60'
 
 // start_at이 명시되지 않았으면 lvl에 맞춰 기본값 자동 지정
 if (!isset($_GET['start_at']) || $_GET['start_at'] === '') {
-  $start_at = ($lvl === '30') ? '09:29' : '09:44';
+  $start_at = ($lvl === '30') ? '09:14:00' : '09:44:00';
 } else {
   $start_at = $_GET['start_at'];
 }
@@ -36,6 +36,7 @@ $stmt_next->close();
 
 // ✅ 같은 폴더에 API가 있는 경우 가장 안전한 상대경로
 $api_url = dirname($_SERVER['PHP_SELF']) . '/replay_api_plan_multi.php';
+$line_api_url = dirname($_SERVER['PHP_SELF']) . '/replay_user_line_api.php';
 ?>
 <!DOCTYPE html>
 <html>
@@ -47,14 +48,18 @@ $api_url = dirname($_SERVER['PHP_SELF']) . '/replay_api_plan_multi.php';
     body{margin:0;padding:10px;font-family:sans-serif;background:#fafafa;}
     .panel{border:1px solid #ddd;background:#fff;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.05);padding:10px;}
     .topbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;}
-    .grid{display:grid;grid-template-columns:minmax(0, 1fr) minmax(0, 2fr);gap:8px;margin-bottom:8px;}
+    .grid{display:grid;grid-template-columns:minmax(0, 1.3fr) minmax(0, 1.8fr);gap:6px;margin-bottom:6px;}
     .bottom{display:grid;grid-template-columns:1fr;gap:8px;}
     .charttitle{font-weight:700;margin:0 0 6px;color:#333;}
     .stat{margin-left:auto;font-weight:400;margin-bottom:5px;}
     input,select,button{padding:6px 8px;}
     button{cursor:pointer;}
     @media (max-width:1200px){ .grid{grid-template-columns:1fr;} }
-    
+    /*.quickTimeBtn{
+      padding:4px 7px;
+      font-size:11px;
+      border-radius:6px;
+    }*/
     .ui-hide { display:none !important; }
     .dbg{
       margin-top:8px; padding:8px; background:#0f172a; color:#e2e8f0;
@@ -79,7 +84,7 @@ $api_url = dirname($_SERVER['PHP_SELF']) . '/replay_api_plan_multi.php';
       display:flex; flex-direction:column; gap:12px; min-width:0;
       position:sticky; top:10px;
       height: calc(100vh - 20px);
-      overflow:auto;
+      overflow:hidden;
     }
 
     .simTitle{ font-weight:800; margin:0 0 8px; color:#111; }
@@ -130,6 +135,11 @@ $api_url = dirname($_SERVER['PHP_SELF']) . '/replay_api_plan_multi.php';
     .btnLong{ background:#fff0f0; }
     .btnShort{ background:#f0f6ff; }
     .btnClose{background:#f3f4f6;}
+    .runReadOnlyNotice{
+      display:none;margin:0 0 8px;padding:8px 10px;border:1px solid #fbbf24;
+      border-radius:8px;background:#fffbeb;color:#92400e;font-size:12px;font-weight:800;
+    }
+    .runReadOnlyNotice.show{display:block;}
 
     .planForm{display:flex;gap:6px;align-items:flex-end;flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px;}
     .planField{display:flex;flex-direction:column;gap:4px;min-width:92px;}
@@ -146,16 +156,43 @@ $api_url = dirname($_SERVER['PHP_SELF']) . '/replay_api_plan_multi.php';
     .planStatus.entered{background:#eff6ff;color:#1d4ed8;}
     .planStatus.stopped{background:#fef2f2;color:#b91c1c;}
     .planStatus.closed{background:#ecfdf5;color:#047857;}
+    .userLineForm{display:grid;grid-template-columns:110px minmax(0,1fr) auto auto;gap:6px;align-items:end;}
+    .userLineField{display:flex;flex-direction:column;gap:4px;}
+    .userLineField label{font-size:11px;color:#64748b;font-weight:700;}
+    .userLineList{margin-top:8px;border-top:1px solid #e5e7eb;}
+    .userLineItem{display:grid;grid-template-columns:auto 76px minmax(0,1fr) auto auto;gap:6px;align-items:center;padding:7px 0;border-bottom:1px solid #f1f5f9;font-size:12px;}
+    .userLinePrice{font-weight:900;color:#6d28d9;}
+    .userLineComment{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#334155;}
+    .userLineItem button{padding:4px 6px;font-size:11px;}
+    @media (max-width:600px){
+      .userLineForm{grid-template-columns:1fr 1fr;}
+      .userLineItem{grid-template-columns:auto 70px minmax(0,1fr);}
+      .userLineItem button{grid-row:2;}
+    }
 
     table.simTbl{ width:100%; border-collapse:collapse; font-size:12px; }
     table.simTbl th, table.simTbl td{ border-bottom:1px solid #e5e7eb; padding:6px 4px; text-align:left; }
     table.simTbl th{ position:sticky; top:0; background:#fff; z-index:2; }
     .actionCarry{display:inline-block;padding:2px 6px;border-radius:6px;background:#111827;color:#fff;font-weight:900;}
+    .rightTabsPanel{display:flex;flex-direction:column;flex:1;min-height:100px;padding:0;overflow:hidden;}
+    .rightTabButtons{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border-bottom:1px solid #e5e7eb;background:#f8fafc;}
+    .rightTabBtn{padding:10px 8px;border:0;border-right:1px solid #e5e7eb;background:transparent;color:#64748b;font-weight:800;}
+    .rightTabBtn:last-child{border-right:0;}
+    .rightTabBtn.active{background:#fff;color:#111827;box-shadow:inset 0 -3px 0 #6366f1;}
+    .rightTabContent{flex:1;min-height:0;overflow:hidden;}
+    .rightTabPane{display:none;height:100%;box-sizing:border-box;padding:10px;overflow:auto;}
+    .rightTabPane.active{display:block;}
+    .rightTabPane > .panel{padding:0;border:0;border-radius:0;box-shadow:none;margin:0 0 12px;background:transparent;}
+    .rightTabPane > .panel:last-child{margin-bottom:0;}
+    #tabPanePlan .planSection{margin:0;padding:0;border-bottom:0;}
+    #panelDayComment{flex:0 0 auto;}
+    #panelDayComment #dayComment{box-sizing:border-box;width:100% !important;min-height:300px;max-height:500px;}
     .compactOption{display:none;}
 
     @media (max-width:1200px){
       .layout{ grid-template-columns: 1fr; }
       .rightCol{ position:static; height:auto; overflow:visible; }
+      .rightTabsPanel{min-height:280px;}
       .grid{ grid-template-columns:1fr; }
     }
 
@@ -169,7 +206,7 @@ $api_url = dirname($_SERVER['PHP_SELF']) . '/replay_api_plan_multi.php';
       body.compactCharts .topbar select,
       body.compactCharts .topbar button{padding:4px 6px;}
       body.compactCharts .grid{
-        grid-template-columns:minmax(0,1fr) minmax(0,2fr);
+        grid-template-columns:minmax(0,1.15fr) minmax(0,1.85fr);
         gap:6px;
         margin-bottom:6px;
       }
@@ -201,7 +238,18 @@ $api_url = dirname($_SERVER['PHP_SELF']) . '/replay_api_plan_multi.php';
         <div><b>일자</b> <input type="date" name="date" value="<?= htmlspecialchars($date) ?>"></div>
         <div><b>시작시간</b> <input type="time" name="start_at" value="<?= htmlspecialchars($start_at) ?>" step="60"></div>
 
-        <button type="submit">불러오기</button>
+        <button type="submit">조회</button>
+
+        <!-- 시간 바로가기 -->
+        <div style="display:flex;gap:4px;align-items:center;">
+          <button type="button" class="quickTimeBtn" data-time="09:09">09:09</button>
+          <button type="button" class="quickTimeBtn" data-time="09:14">09:14</button>
+          <button type="button" class="quickTimeBtn" data-time="09:29">09:29</button>
+          <button type="button" class="quickTimeBtn" data-time="09:59">09:59</button>
+          <button type="button" class="quickTimeBtn" data-time="10:59">10:59</button>
+          <button type="button" class="quickTimeBtn" data-time="12:59">12:59</button>
+          <button type="button" class="quickTimeBtn" data-time="13:59">13:59</button>
+        </div>
 
         <button type="button" id="btnPrev" <?= empty($prev_date)?'disabled':'' ?>>◀ 이전일</button>
         <button type="button" id="btnNext" <?= empty($next_date)?'disabled':'' ?>>다음일 ▶</button>
@@ -261,11 +309,11 @@ $api_url = dirname($_SERVER['PHP_SELF']) . '/replay_api_plan_multi.php';
 
     <div class="grid">
       <div class="panel">
-        <div class="charttitle">15분봉 (08:45 시가 + SMA 10)</div>
+        <div class="charttitle">15분봉 (VWAP + 08:45 시가 + SMA 10 + 08:45~09:14 꼬리 포함 고/저)</div>
         <div id="chart15" style="height:400px;"></div>
       </div>
       <div class="panel">
-        <div class="charttitle">5분봉 (VWAP + 09:00~09:14 꼬리 포함 고/저)</div>
+        <div class="charttitle">5분봉 (VWAP + 08:45~09:14 꼬리 포함 고/저)</div>
         <div id="chart5" style="height:400px;"></div>
       </div>
     </div>
@@ -273,7 +321,7 @@ $api_url = dirname($_SERVER['PHP_SELF']) . '/replay_api_plan_multi.php';
 
     <div class="bottom">
       <div class="panel">
-        <div class="charttitle">1분봉 (전일 tail + 당일 진행) + SMA 5/20/120 + 08:45~N개 고/저/시가</div>
+        <div class="charttitle">1분봉 (전일 tail + 당일 진행) + SMA 5/20/120 + 08:45~09:14 꼬리 포함 고/저/시가</div>
         <div id="chart1" style="height:600px;"></div>
       </div>
     </div>
@@ -336,9 +384,12 @@ $api_url = dirname($_SERVER['PHP_SELF']) . '/replay_api_plan_multi.php';
     </div>
 
     <div class="panel">
-      <div class="simTitle">주문 입력 (진입·손절 계획)</div>
+      <div class="simTitle">매매 실행</div>
+      <div id="runReadOnlyNotice" class="runReadOnlyNotice">
+        1번 회차는 실제 매매내역이므로 계획 등록·진입·청산·직전취소를 할 수 없습니다.
+      </div>
 
-      <div class="planSection">
+      <div class="planSection" id="planSection">
         <div class="planForm">
           <div class="planField">
             <label for="planSide">진입 방향</label>
@@ -426,8 +477,45 @@ $api_url = dirname($_SERVER['PHP_SELF']) . '/replay_api_plan_multi.php';
       </div>
     </div>
 
-    <div class="panel">
-      <div class="simTitle">체결 로그</div>
+    <div class="panel rightTabsPanel" id="rightTabsPanel">
+      <div class="rightTabButtons" role="tablist" aria-label="오른쪽 도구">
+        <button type="button" class="rightTabBtn" data-tab="plan" role="tab">계획</button>
+        <button type="button" class="rightTabBtn" data-tab="lines" role="tab">기준선</button>
+        <button type="button" class="rightTabBtn active" data-tab="record" role="tab">기록</button>
+      </div>
+      <div class="rightTabContent">
+        <div class="rightTabPane" id="tabPanePlan" data-pane="plan"></div>
+        <div class="rightTabPane" id="tabPaneLines" data-pane="lines"></div>
+        <div class="rightTabPane active" id="tabPaneRecord" data-pane="record"></div>
+      </div>
+    </div>
+
+    <div class="panel" id="panelUserLines">
+      <div class="simRow" style="margin-bottom:8px;">
+        <label class="chk">
+          <input type="checkbox" id="chkUserLinesAll" checked>
+          사용자 라인 전체 표시
+        </label>
+        <span id="userLineStat" style="font-size:12px;color:#64748b;"></span>
+      </div>
+
+      <input type="hidden" id="userLineId" value="">
+      <div class="userLineForm">
+        <div class="userLineField">
+          <label for="userLinePrice">가격</label>
+          <input type="number" id="userLinePrice" step="0.01" placeholder="예: 842.50">
+        </div>
+        <div class="userLineField">
+          <label for="userLineComment">코멘트</label>
+          <input type="text" id="userLineComment" maxlength="200" placeholder="예: 오전 고점 돌파 확인">
+        </div>
+        <button type="button" id="btnUserLineSave">라인 추가</button>
+        <button type="button" id="btnUserLineCancel" style="display:none;">취소</button>
+      </div>
+      <div id="userLineList" class="userLineList"></div>
+    </div>
+
+    <div class="panel" id="panelTradeLog">
       <table class="simTbl">
         <thead>
           <tr>
@@ -445,10 +533,10 @@ $api_url = dirname($_SERVER['PHP_SELF']) . '/replay_api_plan_multi.php';
       </table>
     </div>
 
-    <div class="panel">
-      <!-- <div class="simTitle">일자 코멘트</div> -->
+    <div class="panel" id="panelDayComment">
+      <div class="simTitle">일자 코멘트</div>
 
-      <textarea id="dayComment" rows="15" spellcheck="false" autocorrect="off" autocapitalize="off" autocomplete="off"
+      <textarea id="dayComment" rows="4" spellcheck="false" autocorrect="off" autocapitalize="off" autocomplete="off"
         style="width:98%; padding:8px; border:1px solid #e5e7eb; border-radius:8px; resize:vertical;"
         placeholder="오늘 매매 코멘트(복기/실수/규칙 위반/잘한 점 등)"></textarea>
 
@@ -468,17 +556,52 @@ const START_AT = <?= json_encode($start_at) ?>; // "HH:MM"
 const INIT_TIME = (START_AT && START_AT.length===5) ? (START_AT + ':00') : START_AT;
 
 const API_URL  = <?= json_encode($api_url) ?>;
+const USER_LINE_API = <?= json_encode($line_api_url) ?>;
+const LS_RIGHT_TAB = 'futures_sim_right_panel_tab';
+
+function activateRightTab(name){
+  const valid = ['plan','lines','record'];
+  const tabName = valid.includes(name) ? name : 'plan';
+
+  document.querySelectorAll('.rightTabBtn').forEach(btn => {
+    const active = btn.dataset.tab === tabName;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
+  document.querySelectorAll('.rightTabPane').forEach(pane => {
+    pane.classList.toggle('active', pane.dataset.pane === tabName);
+  });
+  localStorage.setItem(LS_RIGHT_TAB, tabName);
+}
+
+function setupRightTabs(){
+  const planPane = document.getElementById('tabPanePlan');
+  const linesPane = document.getElementById('tabPaneLines');
+  const recordPane = document.getElementById('tabPaneRecord');
+  const planSection = document.getElementById('planSection');
+  const linesPanel = document.getElementById('panelUserLines');
+  const tradePanel = document.getElementById('panelTradeLog');
+
+  if (planPane && planSection) planPane.appendChild(planSection);
+  if (linesPane && linesPanel) linesPane.appendChild(linesPanel);
+  if (recordPane && tradePanel) recordPane.appendChild(tradePanel);
+
+  document.querySelectorAll('.rightTabBtn').forEach(btn => {
+    btn.addEventListener('click', () => activateRightTab(btn.dataset.tab));
+  });
+  // 페이지를 열 때는 항상 기록 탭부터 표시한다.
+  activateRightTab('record');
+}
 
 const FIX_MAX_1  = 200;
 const FIX_MAX_5  = 83;
 const FIX_MAX_15 = 90;
 const FIX_MAX_60 = 50;
 
-const SMA5_COLOR   = 'rgba(211,47,47,0.20)';
-const SMA20_COLOR  = 'rgba(249,168,37,0.50)';
+const SMA5_COLOR   = 'rgba(211,47,47,0.50)';
+const SMA20_COLOR  = 'rgba(249,168,37,0.80)';
 const SMA120_COLOR = 'rgba(117,117,117,0.50)';
-const SMA10_COLOR  = 'rgba(37,99,235,0.50)';
-const VWAP_COLOR   = 'rgba(126,34,206,0.80)';
+const VWAP_COLOR   = 'rgba(126,34,206,0.40)';
 
 const HI_COLOR   = '#ff4fb3';
 const LO_COLOR   = '#4fc3ff';
@@ -495,6 +618,18 @@ function lsGetBool(k, def=false){
 }
 function lsSetBool(k, on){
   try{ localStorage.setItem(k, on ? '1' : '0'); }catch(e){}
+}
+
+function fitYAxisToCandles(chart, extraPaddingPct = 0.18){
+  const candleSeries = chart?.series?.[0];
+  if (!candleSeries || !chart?.yAxis?.[0]) return;
+
+  const ext = candleSeries.getExtremes();
+  if (!Number.isFinite(ext.dataMin) || !Number.isFinite(ext.dataMax)) return;
+
+  const range = Math.max(0.01, ext.dataMax - ext.dataMin);
+  const pad = range * extraPaddingPct;
+  chart.yAxis[0].setExtremes(ext.dataMin - pad, ext.dataMax + pad, false, false);
 }
 
 const LS_COMPACT_CHARTS_KEY = 'replay_plan_compact_charts';
@@ -548,9 +683,9 @@ function setSmaVisibleOnVwapChart(chart, on){
   if (!chart || chart._indMode !== 'vwap') return; // ✅ 1m/5m만 대상
   const s5 = ensureSma5Extra(chart);
 
-  // 1분봉은 5/20/120, 5분봉은 5/20만 표시
+  // 1분봉은 5/20/120, 5분봉은 5/20 표시
   try{ chart.series[2].update({ visible:on, showInLegend:on }, false); }catch(e){}
-  const show120 = on && chart !== c5;
+  const show120 = on && chart === c1;
   try{ chart.series[3].update({ visible:show120, showInLegend:show120 }, false); }catch(e){}
 
   // SMA5(추가 시리즈) 켜고/끄기
@@ -640,14 +775,15 @@ function bucketStart(ms, minutes){
 /** ================== 데이터 상태 ================== */
 let init1=[], init5=[], init15=[], init60=[];
 let today1=[], today5=[], today15=[], today60=[];
+let map1Index = new Map();
 let map5 = new Map(), map15 = new Map(), map60 = new Map();
-let sma10CloseByTs = new Map();
 
 let initPartial5=null, initPartial15=null, initPartial60=null;
 let partial5=null, partial15=null, partial60=null;
 
 let idx=0;
 let initNowTs=null;
+let BATCH_REPLAY=false;
 
 // hilo
 let open_0845=null, hi_0845=null, lo_0845=null;
@@ -665,7 +801,11 @@ function rowsToCandles(rows){
   return (rows||[]).map(r => [toMs(r.datetime), +r.open, +r.high, +r.low, +r.close]);
 }
 function rowsToVol(rows){
-  return (rows||[]).map(r => [toMs(r.datetime), +(r.volume||0)]);
+  return (rows||[]).map(r => ({
+    x:toMs(r.datetime),
+    y:+(r.volume||0),
+    color:(+r.close >= +r.open) ? '#f45b5b' : '#2f7ed8'
+  }));
 }
 function rowsToLine(rows, field){
   const out=[];
@@ -675,25 +815,14 @@ function rowsToLine(rows, field){
   });
   return out;
 }
-function rowsToSma(rows, period){
-  const closes = [];
-  return (rows || []).map(r => {
-    closes.push(Number(r.close));
-    if (closes.length > period) closes.shift();
-    const value = closes.length === period
-      ? closes.reduce((sum, v) => sum + v, 0) / period
-      : null;
-    return [toMs(r.datetime), value];
-  });
-}
 
 /** ================== 차트 생성 ================== */
 function makeBaseChart(el, name, indMode='sma'){
   const isVwap = (indMode === 'vwap');
-  const isSma10 = (indMode === 'sma10');
 
   const ch = Highcharts.stockChart(el, {
     chart:{ animation:false, zooming:{mouseWheel:{enabled:false}, type:null}, panning:false },
+    tooltip:{ enabled: (name !== '5m' && name !== '15m')  },
     navigator:{enabled:false}, scrollbar:{enabled:false}, rangeSelector:{enabled:false},exporting:{enabled: false},
     title:{text:''}, time:{useUTC:false},
     xAxis:{ type:'datetime', labels:{ format:'{value:%H:%M}', y:10, style:{ fontSize:'10px' } }, startOnTick:false, endOnTick:false },
@@ -707,17 +836,37 @@ function makeBaseChart(el, name, indMode='sma'){
       { type:'candlestick', id:`cndl_${name}`, name, data:[], zIndex:4, dataGrouping:{enabled:false} }, // 0
 
       // 1) SMA5 자리 → VWAP로 대체(1m/5m에서만)
-      { type:'line', name: isVwap ? 'VWAP' : (isSma10 ? 'SMA 10' : 'SMA 5'), data:[], lineWidth: isVwap ? 3 : 1, dashStyle: isVwap ? 'ShortDash' : (isSma10 ? 'ShortDot' : 'Solid'), color: isVwap ? VWAP_COLOR : (isSma10 ? SMA10_COLOR : SMA5_COLOR), dataGrouping:{enabled:false}, zIndex:1 }, // 1
+      { type:'line', name: isVwap ? 'VWAP' : 'SMA 5', data:[], lineWidth: (isVwap || name === '15m') ? 3 : 1, dashStyle: isVwap ? 'ShortDash' : 'Solid', color: isVwap ? VWAP_COLOR : SMA5_COLOR, dataGrouping:{enabled:false}, zIndex:1 }, // 1
 
       // 2,3) SMA20/120은 vwap 모드에서는 숨김
-      { type:'line', name:'SMA 20',  data:[], lineWidth:1, color:SMA20_COLOR,  dataGrouping:{enabled:false}, visible: !isVwap && !isSma10, showInLegend: !isVwap && !isSma10, zIndex:1 }, // 2
-      { type:'line', name:'SMA 120', data:[], lineWidth:1, color:SMA120_COLOR, dataGrouping:{enabled:false}, visible: !isVwap && !isSma10, showInLegend: !isVwap && !isSma10, zIndex:1 }, // 3
+      { type:'line', name:'SMA 20',  data:[], lineWidth:2, color:SMA20_COLOR,  dataGrouping:{enabled:false}, visible: !isVwap, showInLegend: !isVwap, zIndex:1 }, // 2
+      { type:'line', name:'SMA 120', data:[], lineWidth:1, color:SMA120_COLOR, dataGrouping:{enabled:false}, visible: !isVwap, showInLegend: !isVwap, zIndex:1 }, // 3
 
       { type:'column', name:'Vol', data:[], yAxis:1, dataGrouping:{enabled:false} } // 4
     ],
     plotOptions:{
-      series:{ animation:false, enableMouseTracking:true, states:{ hover:{ enabled:false } } },
-      candlestick:{ color:'#2f7ed8', upColor:'#f45b5b', lineColor:'#2f7ed8', upLineColor:'#f45b5b' }
+      series:{
+        animation:false,
+        enableMouseTracking:true,
+        states:{
+          hover:{enabled:false},
+          inactive:{opacity:1}
+        }
+      },
+      candlestick:{
+        color:'#2f7ed8', upColor:'#f45b5b', lineColor:'#2f7ed8', upLineColor:'#f45b5b',
+        point:{
+          events:{
+            click:function(e){
+              const clickCount = Number(e?.originalEvent?.detail ?? e?.detail ?? 0);
+              if ((name === '5m' || name === '15m') && clickCount >= 2){
+                const timeframeMinutes = (name === '15m') ? 15 : 5;
+                replaceReferenceBarFromPoint(this, timeframeMinutes);
+              }
+            }
+          }
+        }
+      }
     }
   });
 
@@ -740,8 +889,8 @@ function make1mChart(indMode='vwap'){
     ],
     series:[
       { type:'candlestick', id:'cndl_1m', name:'1m', data:[], zIndex:4, dataGrouping:{enabled:false} }, // 0
-      { type:'line', name: isVwap ? 'VWAP' : 'SMA 5', data:[], lineWidth: isVwap ? 3 : 1, dashStyle: isVwap ? 'ShortDash' : 'Solid', color: isVwap ? VWAP_COLOR : SMA5_COLOR, dataGrouping:{enabled:false}, zIndex:1 }, // 1
-      { type:'line', name:'SMA 20',  data:[], lineWidth:1, color:SMA20_COLOR,  dataGrouping:{enabled:false}, visible: !isVwap, showInLegend: !isVwap, zIndex:1 }, // 2
+      { type:'line', name: isVwap ? 'VWAP' : 'SMA 5', data:[], lineWidth: (isVwap || name === '15m') ? 3 : 1,  dashStyle: isVwap ? 'ShortDash' : 'Solid', color: isVwap ? VWAP_COLOR : SMA5_COLOR, dataGrouping:{enabled:false}, zIndex:1 }, // 1
+      { type:'line', name:'SMA 20',  data:[], lineWidth:2, color:SMA20_COLOR,  dataGrouping:{enabled:false}, visible: !isVwap, showInLegend: !isVwap, zIndex:1 }, // 2
       { type:'line', name:'SMA 120', data:[], lineWidth:1, color:SMA120_COLOR, dataGrouping:{enabled:false}, visible: !isVwap, showInLegend: !isVwap, zIndex:1 }, // 3
       { type:'column', name:'Vol', data:[], yAxis:1, dataGrouping:{enabled:false} } // 4
     ],
@@ -766,7 +915,8 @@ function resetCharts(){
   document.getElementById('chart60').innerHTML = '';
 
   c60 = makeBaseChart('chart60', '60m', 'sma');
-  c15 = makeBaseChart('chart15', '15m', 'sma10');
+  c15 = makeBaseChart('chart15', '15m', 'sma');
+  c15.addSeries({ type:'line', name:'VWAP', data:[], lineWidth:3, dashStyle:'ShortDash', color:VWAP_COLOR, dataGrouping:{enabled:false}, zIndex:1 }, false);
   c5  = makeBaseChart('chart5',  '5m',  'vwap');   // ✅ 5m = vwap
   c1  = make1mChart('vwap');                       // ✅ 1m = vwap
 
@@ -787,34 +937,291 @@ function resetCharts(){
   initTimeMarks(c5, TIME_MARKS_BY_CHART.c5);
   initTimeMarks(c15, TIME_MARKS_BY_CHART.c15);
   initTimeMarks(c60, TIME_MARKS_BY_CHART.c60);
+  renderUserLinesAll();
 }
 
-/** ================== 고/저/시가 라인 ================== */
-function applyHiLoLines(chart){
-  if (!chart) return;
+/** ================== 날짜별 사용자 기준선 ================== */
+let userLines = [];
+let userLineBusy = false;
+const renderedUserLineIds = new Set();
+const LS_USER_LINES_ALL = 'futures_sim_user_lines_show_all';
+
+function userLinesAllVisible(){
+  return document.getElementById('chkUserLinesAll')?.checked !== false;
+}
+
+function userLinePlotId(id){
+  return 'usr_line_' + String(id);
+}
+
+function renderUserLines(chart){
+  if (!chart?.yAxis?.[0]) return;
   const yAxis = chart.yAxis[0];
 
-  ['hi0845','lo0845','op0845']
-    .forEach(id => { try{ yAxis.removePlotLine(id); }catch(e){} });
+  renderedUserLineIds.forEach(id => {
+    try{ yAxis.removePlotLine(id); }catch(e){}
+  });
 
-  if (hi_0845!=null && lo_0845!=null){
+  if (!userLinesAllVisible()) return;
+
+  userLines.forEach(line => {
+    if (!line.enabled) return;
+    const price = Number(line.price);
+    if (!Number.isFinite(price)) return;
+
+    const id = userLinePlotId(line.id);
+    const comment = String(line.comment || '').trim();
+    const shortComment = comment.length > 32 ? comment.slice(0, 32) + '…' : comment;
     yAxis.addPlotLine({
-      id:'hi0845', value:hi_0845, color:HI_COLOR, width:1, dashStyle:'ShortDot',
-      // label:{ text:`고 ${hi_0845.toFixed(2)}`, align:'left', x:5, style:{fontSize:'11px', color:HI_COLOR} }
+      id,
+      value: price,
+      color: line.color || '#7c3aed',
+      width: 2,
+      dashStyle: line.dash_style || 'Dash',
+      zIndex: 6,
+      label: {
+        text: price.toFixed(2) + (shortComment ? ' ' + shortComment : ''),
+        align: 'left',
+        x: 6,
+        style: { fontSize:'10px', color:line.color || '#6d28d9', fontWeight:'700' }
+      }
     });
-    yAxis.addPlotLine({
-      id:'lo0845', value:lo_0845, color:LO_COLOR, width:1, dashStyle:'ShortDot',
-      // label:{ text:`저 ${lo_0845.toFixed(2)}`, align:'left', x:5, style:{fontSize:'11px', color:LO_COLOR} }
-    });
-    if (open_0845 != null){
-      yAxis.addPlotLine({
-        id:'op0845', value:open_0845, color:OPEN_COLOR, width:1, dashStyle:'Dash',
-        // label:{ text:`시가 ${open_0845.toFixed(2)}`, align:'left', x:5, style:{fontSize:'11px', color:OPEN_COLOR} }
-      });
-    }
+    renderedUserLineIds.add(id);
+  });
+}
+
+function renderUserLinesAll(){
+  [c1,c5,c15,c60].forEach(renderUserLines);
+}
+
+function setUserLineStatus(text, isError=false){
+  const el = document.getElementById('userLineStat');
+  if (!el) return;
+  el.textContent = text || '';
+  el.style.color = isError ? '#b91c1c' : '#64748b';
+}
+
+function resetUserLineForm(){
+  document.getElementById('userLineId').value = '';
+  document.getElementById('userLinePrice').value = '';
+  document.getElementById('userLineComment').value = '';
+  document.getElementById('btnUserLineSave').textContent = '라인 추가';
+  document.getElementById('btnUserLineCancel').style.display = 'none';
+}
+
+function editUserLine(id){
+  const line = userLines.find(v => Number(v.id) === Number(id));
+  if (!line) return;
+  document.getElementById('userLineId').value = String(line.id);
+  document.getElementById('userLinePrice').value = Number(line.price).toFixed(2);
+  document.getElementById('userLineComment').value = line.comment || '';
+  document.getElementById('btnUserLineSave').textContent = '수정 저장';
+  document.getElementById('btnUserLineCancel').style.display = '';
+  document.getElementById('userLinePrice').focus();
+}
+
+function renderUserLineList(){
+  const box = document.getElementById('userLineList');
+  if (!box) return;
+  box.replaceChildren();
+
+  if (!userLines.length){
+    const empty = document.createElement('div');
+    empty.style.cssText = 'padding:10px 0;color:#94a3b8;font-size:12px;';
+    empty.textContent = '저장된 사용자 라인이 없습니다.';
+    box.appendChild(empty);
+    return;
+  }
+
+  userLines.forEach(line => {
+    const row = document.createElement('div');
+    row.className = 'userLineItem';
+
+    const chk = document.createElement('input');
+    chk.type = 'checkbox';
+    chk.checked = !!line.enabled;
+    chk.title = '이 라인 표시/숨김';
+    chk.addEventListener('change', () => toggleUserLine(line.id, chk.checked));
+
+    const price = document.createElement('span');
+    price.className = 'userLinePrice';
+    price.textContent = Number(line.price).toFixed(2);
+
+    const comment = document.createElement('span');
+    comment.className = 'userLineComment';
+    comment.textContent = line.comment || '';
+    comment.title = line.comment || '';
+
+    const editBtn = document.createElement('button');
+    editBtn.type = 'button';
+    editBtn.textContent = '수정';
+    editBtn.addEventListener('click', () => editUserLine(line.id));
+
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.textContent = '삭제';
+    delBtn.addEventListener('click', () => deleteUserLine(line.id));
+
+    row.append(chk, price, comment, editBtn, delBtn);
+    box.appendChild(row);
+  });
+}
+
+async function userLinePost(action, payload={}){
+  if (!simRunId) throw new Error('먼저 회차를 선택하거나 생성하세요.');
+  const fd = new FormData();
+  fd.append('action', action);
+  fd.append('run_id', String(simRunId));
+  fd.append('trade_date', DATE);
+  Object.entries(payload).forEach(([k,v]) => fd.append(k, String(v ?? '')));
+
+  const resp = await fetch(USER_LINE_API, { method:'POST', body:fd, cache:'no-store' });
+  const text = await resp.text();
+  let data;
+  try{ data = JSON.parse(text); }
+  catch(e){ throw new Error('사용자 라인 API 응답을 읽을 수 없습니다.'); }
+  if (!resp.ok || !data?.ok) throw new Error(data?.msg || '사용자 라인 처리 실패');
+  return data;
+}
+
+async function loadUserLines(){
+  if (!simRunId){
+    userLines = [];
+    resetUserLineForm();
+    renderUserLineList();
+    renderUserLinesAll();
+    setUserLineStatus('회차를 선택하면 해당 회차의 라인을 불러옵니다.');
+    return;
+  }
+  try{
+    setUserLineStatus('불러오는 중...');
+    const data = await userLinePost('list');
+    userLines = Array.isArray(data.lines) ? data.lines : [];
+    renderUserLineList();
+    renderUserLinesAll();
+    setUserLineStatus(userLines.length ? userLines.length + '개 저장됨' : '');
+  }catch(e){
+    setUserLineStatus(e.message || String(e), true);
   }
 }
-function applyHiLoLinesAll(){ applyHiLoLines(c1); applyHiLoLines(c5); applyHiLoLines(c15); applyHiLoLines(c60); }
+
+async function saveUserLine(){
+  if (userLineBusy) return;
+  if (!simRunId){
+    setUserLineStatus('먼저 회차를 선택하거나 생성하세요.', true);
+    return;
+  }
+  const id = Number(document.getElementById('userLineId').value || 0);
+  const price = Number(document.getElementById('userLinePrice').value);
+  const comment = document.getElementById('userLineComment').value.trim();
+
+  if (!Number.isFinite(price) || price <= 0){
+    setUserLineStatus('올바른 가격을 입력하세요.', true);
+    document.getElementById('userLinePrice').focus();
+    return;
+  }
+
+  userLineBusy = true;
+  try{
+    setUserLineStatus('저장 중...');
+    const data = await userLinePost('save', { id, price, comment });
+    userLines = data.lines || [];
+    resetUserLineForm();
+    renderUserLineList();
+    renderUserLinesAll();
+    setUserLineStatus('저장됨');
+  }catch(e){
+    setUserLineStatus(e.message || String(e), true);
+  }finally{
+    userLineBusy = false;
+  }
+}
+
+async function replaceReferenceBarFromPoint(point, timeframeMinutes){
+  if (userLineBusy) return;
+  if (!simRunId){
+    setUserLineStatus('먼저 회차를 선택하거나 생성하세요.', true);
+    return;
+  }
+
+  const tfMinutes = Number(timeframeMinutes) === 15 ? 15 : 5;
+  const tfLabel = `${tfMinutes}분봉`;
+
+  const barTs = Number(point?.x);
+  const high = Number(point?.high);
+  const low = Number(point?.low);
+  const nowTs = getReplayNowTs();
+
+  if (!Number.isFinite(barTs) || !Number.isFinite(high) || !Number.isFinite(low)){
+    setUserLineStatus(`선택한 ${tfLabel} 정보를 읽을 수 없습니다.`, true);
+    return;
+  }
+
+  // 기준봉 시작 시각부터 마지막 1분봉까지 진행된 경우에만 완성봉으로 처리한다.
+  if (!Number.isFinite(nowTs) || nowTs < barTs + ((tfMinutes - 1) * 60 * 1000)){
+    setUserLineStatus(`진행 중인 ${tfLabel}은 기준봉으로 등록할 수 없습니다.`, true);
+    return;
+  }
+
+  const d = new Date(barTs);
+  const barTime = String(d.getHours()).padStart(2, '0') + ':'
+    + String(d.getMinutes()).padStart(2, '0');
+
+  stop();
+  userLineBusy = true;
+  try{
+    setUserLineStatus('기준봉 저장 중...');
+    const data = await userLinePost('replace_reference_bar', {
+      bar_time: barTime,
+      high,
+      low
+    });
+    userLines = data.lines || [];
+    resetUserLineForm();
+    renderUserLineList();
+    renderUserLinesAll();
+    setUserLineStatus(`${barTime} ${tfLabel} 기준봉 등록됨`);
+  }catch(e){
+    setUserLineStatus(e.message || String(e), true);
+  }finally{
+    userLineBusy = false;
+  }
+}
+
+async function toggleUserLine(id, enabled){
+  if (userLineBusy) return;
+  userLineBusy = true;
+  try{
+    const data = await userLinePost('toggle', { id, enabled: enabled ? 1 : 0 });
+    userLines = data.lines || [];
+    renderUserLineList();
+    renderUserLinesAll();
+    setUserLineStatus('표시 설정 저장됨');
+  }catch(e){
+    setUserLineStatus(e.message || String(e), true);
+    await loadUserLines();
+  }finally{
+    userLineBusy = false;
+  }
+}
+
+async function deleteUserLine(id){
+  if (userLineBusy) return;
+  if (!confirm('이 사용자 라인을 삭제할까요?')) return;
+  userLineBusy = true;
+  try{
+    const data = await userLinePost('delete', { id });
+    userLines = data.lines || [];
+    resetUserLineForm();
+    renderUserLineList();
+    renderUserLinesAll();
+    setUserLineStatus('삭제됨');
+  }catch(e){
+    setUserLineStatus(e.message || String(e), true);
+  }finally{
+    userLineBusy = false;
+  }
+}
 
 /** ================== R/S/Flip 기준(20/60 선택) ================== */
 
@@ -842,54 +1249,36 @@ function clearLevelLines(chart){
     try{ yAxis.removePlotLine(id); }catch(e){}
   });
 }
-function clearOpeningBodyLines(chart){
+function clearOpeningRangeLines(chart){
   if (!chart) return;
-  ['body0900_hi','body0900_lo'].forEach(id => {
+  ['opening0845_hi','opening0845_lo'].forEach(id => {
     try{ chart.yAxis[0].removePlotLine(id); }catch(e){}
   });
 }
 function clearLevelLinesAll(){
   clearLevelLines(c1); clearLevelLines(c5); clearLevelLines(c15); clearLevelLines(c60);
-  clearOpeningBodyLines(c1);
-  clearOpeningBodyLines(c5);
+  clearOpeningRangeLines(c1);
+  clearOpeningRangeLines(c5);
+  clearOpeningRangeLines(c15);
 }
 
-function getOpeningBodyRange(){
-  const rowsByTs = new Map();
-  [...(init5 || []), ...(today5 || [])].forEach(r => {
-    const x = toMs(r.datetime);
-    if (Number.isFinite(x)) rowsByTs.set(x, r);
-  });
-  const startTs = toTSLocal(DATE, '09:00:00');
-  const endTs = toTSLocal(DATE, '09:15:00');
-  const rows = [...rowsByTs.entries()]
-    .filter(([x]) => x >= startTs && x < endTs)
-    .sort((a,b) => a[0] - b[0])
-    .map(([,r]) => r);
-  if (rows.length < 3) return null;
-  // 꼬리 포함: 각 캔들의 전체 High/Low 반영
-  return {
-    high: Math.max(...rows.map(r => Number(r.high))),
-    low: Math.min(...rows.map(r => Number(r.low)))
-  };
-}
-
-function addOpeningBodyLines(chart, body){
-  if (!chart || !body) return;
+function addOpeningRangeLines(chart, range){
+  if (!chart || !range) return;
+  const rangeText = `${hiMeta.start || '08:45'}~${hiMeta.end || '09:14'}`;
   chart.yAxis[0].addPlotLine({
-    id:'body0900_hi', value:body.high, color:HI_COLOR, width:2,
-    label:{ text:'꼬리 포함 고 ' + body.high.toFixed(2), align:'left', x:5, style:{fontSize:'10px', color:HI_COLOR} }
+    id:'opening0845_hi', value:range.high, color:HI_COLOR, width:2,
+    label:{ text:rangeText + ' 고 ' + range.high.toFixed(2), align:'left', x:5, style:{fontSize:'10px', color:HI_COLOR} }
   });
   chart.yAxis[0].addPlotLine({
-    id:'body0900_lo', value:body.low, color:LO_COLOR, width:2,
-    label:{ text:'꼬리 포함 저 ' + body.low.toFixed(2), align:'left', x:5, style:{fontSize:'10px', color:LO_COLOR} }
+    id:'opening0845_lo', value:range.low, color:LO_COLOR, width:2,
+    label:{ text:rangeText + ' 저 ' + range.low.toFixed(2), align:'left', x:5, style:{fontSize:'10px', color:LO_COLOR} }
   });
 }
 
 function addSessionOpenLine(chart){
   if (!chart || open_0845 == null) return;
   chart.yAxis[0].addPlotLine({
-    id:'lvl_op', value:+open_0845, color:OPEN_COLOR, width:3, dashStyle:'Dash',
+    id:'lvl_op', value:+open_0845, color:OPEN_COLOR, width:2,
     label:{ text:'시가 ' + (+open_0845).toFixed(2), align:'left', x:5, style:{fontSize:'9px', color:'#111'} }
   });
 }
@@ -897,21 +1286,25 @@ function addSessionOpenLine(chart){
 function drawPlanChartReferenceLines(nowTs){
   // 모든 표시 차트에 장 시가(08:45) 표시
   clearLevelLines(c15);
+  clearOpeningRangeLines(c15);
   addSessionOpenLine(c15);
 
-  // 1분봉/5분봉은 기존 장초 고/저 대신 09:00~09:14 세 봉의 꼬리 포함 고/저 표시
+  // API의 hilo_main(08:45~09:14) 고/저를 09:15부터 표시
   clearLevelLines(c1);
-  clearOpeningBodyLines(c1);
+  clearOpeningRangeLines(c1);
   clearLevelLines(c5);
-  clearOpeningBodyLines(c5);
+  clearOpeningRangeLines(c5);
   addSessionOpenLine(c1);
   addSessionOpenLine(c5);
+
   const revealTs = toTSLocal(DATE, '09:15:00');
   if (!Number.isFinite(nowTs) || nowTs < revealTs) return;
-  const body = getOpeningBodyRange();
-  if (!body) return;
-  addOpeningBodyLines(c1, body);
-  addOpeningBodyLines(c5, body);
+  if (!Number.isFinite(hi_0845) || !Number.isFinite(lo_0845)) return;
+
+  const openingRange = { high:hi_0845, low:lo_0845 };
+  addOpeningRangeLines(c1, openingRange);
+  addOpeningRangeLines(c5, openingRange);
+  addOpeningRangeLines(c15, openingRange);
 }
 
 function drawLevelLines(chart, lvl){
@@ -1474,7 +1867,9 @@ function bsFeedTrades(trades){
 
 /** ================== 맵 생성(키=ms) ================== */
 function buildMaps(){
+  map1Index = new Map();
   map5 = new Map(); map15 = new Map(); map60 = new Map();
+  (today1||[]).forEach((r, i) => map1Index.set(toMs(r.datetime), i));
   (today5||[]).forEach(r  => map5.set(toMs(r.datetime), r));
   (today15||[]).forEach(r => map15.set(toMs(r.datetime), r));
   (today60||[]).forEach(r => map60.set(toMs(r.datetime), r));
@@ -1483,7 +1878,8 @@ function buildMaps(){
 /** ================== 안전 upsert(x 기준) ================== */
 function ensureCandleAtX(chart, x, o,h,l,c){
   const s = chart.series[0];
-  const pts = s.points || [];
+  // redraw:false로 방금 추가된 점까지 찾아야 중복 x가 생기지 않는다.
+  const pts = (s.data && s.data.length) ? s.data : (s.points || []);
   const last = pts[pts.length - 1];
   const style = bsCandleStyle(chart, x, o, c);
 
@@ -1496,19 +1892,23 @@ function ensureCandleAtX(chart, x, o,h,l,c){
 }
 function ensureVolAtX(chart, x, v){
   const s = chart.series[4];
-  const pts = s.points || [];
+  const pts = (s.data && s.data.length) ? s.data : (s.points || []);
   const last = pts[pts.length - 1];
+  const candle = chart.series[0];
+  const candlePts = (candle.data && candle.data.length) ? candle.data : (candle.points || []);
+  const candlePoint = candlePts.find(p => p && p.x === x);
+  const color = candlePoint && candlePoint.close >= candlePoint.open ? '#f45b5b' : '#2f7ed8';
 
-  if (last && last.x === x) { last.update({ y:v }, false); return; }
+  if (last && last.x === x) { last.update({ y:v, color }, false); return; }
   const same = pts.find(p => p && p.x === x);
-  if (same) { same.update({ y:v }, false); return; }
+  if (same) { same.update({ y:v, color }, false); return; }
 
   if (last && x < last.x) return;
-  s.addPoint([x, v], false);
+  s.addPoint({ x, y:v, color }, false);
 }
 function upsertLinePoint(series, x, y){
   if (y == null) return;
-  const pts = series.points || [];
+  const pts = (series.data && series.data.length) ? series.data : (series.points || []);
   const last = pts[pts.length - 1];
 
   if (last && last.x === x) { last.update({ y }, false); return; }
@@ -1519,27 +1919,24 @@ function upsertLinePoint(series, x, y){
   series.addPoint([x, y], false);
 }
 
-function syncSma10FromChart(chart){
-  if (!chart || chart._indMode !== 'sma10') return;
-  const points = chart.series?.[0]?.points || [];
-  const visibleX = new Set(points.map(p => p.x));
-  const closes = [];
-  const data = [];
-  [...sma10CloseByTs.entries()].sort((a,b) => a[0] - b[0]).forEach(([x, close]) => {
-    closes.push(Number(close));
-    if (closes.length > 10) closes.shift();
-    const value = closes.length === 10
-      ? closes.reduce((sum, v) => sum + v, 0) / 10
-      : null;
-    if (visibleX.has(x)) data.push([x, value]);
-  });
-  chart.series[1].setData(data, false);
+/** 진행봉의 현재 누적 상태를 차트에 한 번 반영 */
+function renderPartialSafe(chart, p){
+  if (!chart || !p) return;
+
+  ensureCandleAtX(chart, p.bucketTs, p.o, p.h, p.l, p.c);
+  ensureVolAtX(chart, p.bucketTs, p.v);
+
+  if (chart._indMode === 'vwap'){
+    upsertLinePoint(chart.series[1], p.bucketTs, p.vwap);
+  }
+  if (chart === c15){
+    upsertLinePoint(chart.series[5], p.bucketTs, p.vwap);
+  }
 }
 
 /** ================== 5/15/60 진행봉 업데이트(핵심) ================== */
 function updatePartialSafe(chart, bucketMin, bar, officialMap, partialRef){
   const isVwap = (chart._indMode === 'vwap');
-  const isSma10 = (chart._indMode === 'sma10');
   const bucketTs = bucketStart(bar.x, bucketMin);
 
   // 버킷이 넘어가면 직전 버킷을 "공식 데이터"로 확정
@@ -1559,11 +1956,15 @@ function updatePartialSafe(chart, bucketMin, bar, officialMap, partialRef){
         const s5 = ensureSma5Extra(chart);
         s5 && upsertLinePoint(s5, prevTs, off.sma_5 != null ? +off.sma_5 : null);
 
-      } else if (!isSma10) {
+      } else {
         upsertLinePoint(chart.series[1], prevTs, off.sma_5   != null ? +off.sma_5   : null);
         upsertLinePoint(chart.series[2], prevTs, off.sma_20  != null ? +off.sma_20  : null);
         upsertLinePoint(chart.series[3], prevTs, off.sma_120 != null ? +off.sma_120 : null);
+        if (chart === c15) upsertLinePoint(chart.series[5], prevTs, (off.vwap_session != null ? +off.vwap_session : null));
       }
+    } else if (BATCH_REPLAY) {
+      // 공식봉이 없더라도 배치 중 누적한 직전 진행봉은 한 번 확정한다.
+      renderPartialSafe(chart, partialRef.obj);
     }
   }
 
@@ -1572,29 +1973,21 @@ function updatePartialSafe(chart, bucketMin, bar, officialMap, partialRef){
     partialRef.obj = {
       bucketTs,
       o:bar.o, h:bar.h, l:bar.l, c:bar.c, v:bar.v,
-      vwap: isVwap ? bar.vwap : null
+      vwap: (isVwap || chart === c15) ? bar.vwap : null
     };
   } else {
     partialRef.obj.h = Math.max(partialRef.obj.h, bar.h);
     partialRef.obj.l = Math.min(partialRef.obj.l, bar.l);
     partialRef.obj.c = bar.c;
     partialRef.obj.v += bar.v;
-    if (isVwap) partialRef.obj.vwap = bar.vwap; // ✅ 최신 vwap로 갱신
+    if (isVwap || chart === c15) partialRef.obj.vwap = bar.vwap; // ✅ 최신 vwap로 갱신
   }
 
   const p = partialRef.obj;
 
-  ensureCandleAtX(chart, p.bucketTs, p.o, p.h, p.l, p.c);
-  ensureVolAtX(chart, p.bucketTs, p.v);
-
-  // ✅ VWAP는 진행 중에도 계속 업데이트
-  if (isVwap){
-    upsertLinePoint(chart.series[1], p.bucketTs, p.vwap);
-  }
-  if (isSma10){
-    sma10CloseByTs.set(p.bucketTs, p.c);
-    syncSma10FromChart(chart);
-  }
+  // PageUp 배치 중에는 매 1분마다 차트에 쓰지 않는다.
+  // 누적 상태만 유지하고 배치 마지막에 시간대별로 한 번만 그린다.
+  if (!BATCH_REPLAY) renderPartialSafe(chart, p);
 }
 
 /** ================== 트림 ================== */
@@ -1625,6 +2018,42 @@ function trimChartByCandles(chart, maxCandles){
       if (!p || p.x == null || p.x >= xMin) break;
       if (p.remove) p.remove(false);
       else break;
+    }
+  }
+}
+
+/** ================== 배치에서 실제 추가된 봉 수만큼만 트림 ================== */
+function getSeriesDataPoints(series){
+  if (!series) return [];
+  const src = (series.data && series.data.length) ? series.data : (series.points || []);
+  return src.filter(p => p && p.x != null);
+}
+
+function getCandleCount(chart){
+  return getSeriesDataPoints(chart?.series?.[0]).length;
+}
+
+function trimAddedCandles(chart, removeCount){
+  if (!chart || removeCount <= 0) return;
+
+  const candleSeries = chart.series?.[0];
+  if (!candleSeries) return;
+
+  // removePoint는 redraw 전이라 Point 객체가 아직 없어도 원본 데이터에서 제거된다.
+  for (let i = 0; i < removeCount; i++){
+    if (!candleSeries.xData?.length) break;
+    candleSeries.removePoint(0, false);
+  }
+
+  const xMin = candleSeries.xData?.[0];
+  if (xMin == null) return;
+
+  for (const series of (chart.series || [])){
+    if (!series || series === candleSeries) continue;
+    if (series.type !== 'line' && series.type !== 'column') continue;
+
+    while (series.xData?.length && series.xData[0] < xMin){
+      series.removePoint(0, false);
     }
   }
 }
@@ -1678,6 +2107,9 @@ function lockUiOps(){
 
 function unlockUiOps(){
   UI_LOCK = false;
+  if (redrawQueue.length && !redrawRaf){
+    redrawRaf = requestAnimationFrame(processRedrawQueue);
+  }
 }
 
 function queueRedraw(chart){
@@ -1709,6 +2141,8 @@ function processRedrawQueue(){
   const t0 = performance.now();
   try{
     applyFollowView(chart);
+    chart.redraw(false);
+    fitYAxisToCandles(chart, 0.18);
     chart.redraw(false);
     bsApplyCandleGraphicStyles(chart);
 
@@ -1778,17 +2212,24 @@ function initializeReplayView(){
   c5.series[4].setData(rowsToVol(init5), false);
 
   c15.series[0].setData(rowsToCandles(init15), false);
-  sma10CloseByTs = new Map((init15 || []).map(r => [toMs(r.datetime), Number(r.close)]));
-  c15.series[1].setData(rowsToSma(init15, 10), false);
-  c15.series[2].setData([], false);
-  c15.series[3].setData([], false);
+  c15.series[1].setData(rowsToLine(init15, 'sma_5'), false);
+  c15.series[2].setData(rowsToLine(init15, 'sma_20'), false);
+  c15.series[3].setData(rowsToLine(init15, 'sma_120'), false);
   c15.series[4].setData(rowsToVol(init15), false);
+  c15.series[5].setData(rowsToLine(init15, 'vwap_session'), false);
 
   c60.series[0].setData(rowsToCandles(init60), false);
   c60.series[1].setData(rowsToLine(init60, 'sma_5'), false);
   c60.series[2].setData(rowsToLine(init60, 'sma_20'), false);
   c60.series[3].setData(rowsToLine(init60, 'sma_120'), false);
   c60.series[4].setData(rowsToVol(init60), false);
+
+  // 캔들을 먼저 그린 뒤 캔들 시리즈의 실제 고가/저가로 가격축을 맞춘다.
+  [c1,c5,c15,c60].forEach(chart => {
+    chart.redraw(false);
+    fitYAxisToCandles(chart, 0.18);
+    chart.redraw(false);
+  });
   
   drawLevelLinesAll();
   bsMarkChartReady();
@@ -1843,11 +2284,23 @@ function addOrUpdate1m(bar){
   const vPts = vS.points || [];
   const vLast = vPts[vPts.length - 1];
 
-  if (vLast && vLast.x === bar.x) vLast.update({ y:bar.v }, false);
-  else vS.addPoint([bar.x, bar.v], false);
+  const volumeColor = bar.c >= bar.o ? '#f45b5b' : '#2f7ed8';
+
+  if (vLast && vLast.x === bar.x) {
+    vLast.update({
+      y: bar.v,
+      color: volumeColor
+    }, false);
+  } else {
+    vS.addPoint({
+      x: bar.x,
+      y: bar.v,
+      color: volumeColor
+    }, false);
+  }
 }
 
-function addOne(opts){
+async function addOne(opts){
   if (UI_LOCK) return;
 
   opts = opts || {};
@@ -1883,10 +2336,12 @@ function addOne(opts){
 
   updateTimeMarksAll(bar.x);
 
-  if (c1.series[0].points.length  > FIX_MAX_1  + 2) trimChartByCandles(c1,  FIX_MAX_1);
-  if (c5.series[0].points.length  > FIX_MAX_5  + 2) trimChartByCandles(c5,  FIX_MAX_5);
-  if (c15.series[0].points.length > FIX_MAX_15 + 2) trimChartByCandles(c15, FIX_MAX_15);
-  if (c60.series[0].points.length > FIX_MAX_60 + 2) trimChartByCandles(c60, FIX_MAX_60);
+  if (!BATCH_REPLAY) {
+    if (c1.series[0].points.length  > FIX_MAX_1  + 2) trimChartByCandles(c1,  FIX_MAX_1);
+    if (c5.series[0].points.length  > FIX_MAX_5  + 2) trimChartByCandles(c5,  FIX_MAX_5);
+    if (c15.series[0].points.length > FIX_MAX_15 + 2) trimChartByCandles(c15, FIX_MAX_15);
+    if (c60.series[0].points.length > FIX_MAX_60 + 2) trimChartByCandles(c60, FIX_MAX_60);
+  }
 
   idx++;
 
@@ -1898,7 +2353,9 @@ function addOne(opts){
   dbgKV();
 
   if (doKpi) updateLiveKpis();
-  if (doPlan) processPlanBar(bar);
+  // 계획 조건 검사/API 처리가 끝난 뒤에만 다음 봉으로 진행한다.
+  // 이를 기다리지 않으면 계획 체결 중 UI_LOCK과 5분 배치 루프가 충돌할 수 있다.
+  if (doPlan) await processPlanBar(bar);
 }
 
 /** ================== 재생 루프 ================== */
@@ -1926,7 +2383,7 @@ function stop(){
   dbgLine('PAUSE');
 }
 
-function tick(){
+async function tick(){
   if (!playing) return;
 
   // ✅ 재진입 방지(겹친 tick 차단)
@@ -1938,7 +2395,7 @@ function tick(){
   DBG.lastTickAt = t0;
 
   try{
-    addOne();
+    await addOne();
   }catch(e){
     console.error(e);
     dbgLine(`tick crash: ${e.message || e}`);
@@ -1963,37 +2420,116 @@ function tick(){
   }
 }
 
-/** ✅ 수동 캔들 진행 (버튼 클릭 시 1회만 진행) */
-function stepNext(){
-  // 이미 자동 재생 중이면 무시
+/** ✅ 목표 1분봉까지 내부 처리하고 마지막에 한 번만 화면 갱신 */
+async function stepToIndex(targetIdx, label){
   if (playing) {
     alert('자동 재생 중입니다. 정지 후 수동으로 진행하세요.');
     return;
   }
-
-  // 재진입 방지
-  if (tickRunning) return;
-  tickRunning = true;
-
-  const t0 = performance.now();
-
-  try{
-    addOne();
-  }catch(e){
-    console.error(e);
-    dbgLine(`stepNext crash: ${e.message || e}`);
-    setStat('중단: stepNext crash (DBG 확인)');
-    tickRunning = false;
-    dbgKV();
+  if (tickRunning || UI_LOCK) return;
+  if (!today1.length || idx >= today1.length) {
+    setStat('끝');
     return;
   }
 
-  const dt = performance.now() - t0;
-  DBG.lastTickMs = dt;
-  if (dt > 60) dbgLine(`slow step ${dt.toFixed(1)}ms at idx=${idx} last=${lastBarDt||''}`);
-  dbgKV();
+  targetIdx = Math.min(targetIdx, today1.length - 1);
+  if (targetIdx < idx) return;
 
-  tickRunning = false;
+  tickRunning = true;
+  BATCH_REPLAY = true;
+  const t0 = performance.now();
+
+  try{
+    const startIdx = idx;
+    const beforeBuckets = {
+      c5: partial5?.bucketTs ?? null,
+      c15: partial15?.bucketTs ?? null,
+      c60: partial60?.bucketTs ?? null
+    };
+
+    while (idx <= targetIdx && idx < today1.length) {
+      // 중간 봉은 정상 처리하되 차트 redraw/KPI/상태표시는 생략한다.
+      // plan은 끄지 않아 매 1분봉마다 계획매매 조건을 검사한다.
+      const beforeIdx = idx;
+      await addOne({ redraw:false, stat:false, kpi:false });
+      if (idx === beforeIdx) throw new Error('진행 인덱스가 갱신되지 않았습니다.');
+    }
+
+    // 배치의 최종 진행봉을 시간대별로 한 번만 차트에 반영한다.
+    renderPartialSafe(c5, partial5);
+    renderPartialSafe(c15, partial15);
+    renderPartialSafe(c60, partial60);
+
+    // Highcharts 내부 개수에 의존하지 않고 실제 진행량으로 트림한다.
+    trimAddedCandles(c1, idx - startIdx);
+    trimAddedCandles(c5,  partial5?.bucketTs  !== beforeBuckets.c5  ? 1 : 0);
+    trimAddedCandles(c15, partial15?.bucketTs !== beforeBuckets.c15 ? 1 : 0);
+    trimAddedCandles(c60, partial60?.bucketTs !== beforeBuckets.c60 ? 1 : 0);
+
+    setStat(`${lastBarDt} (${idx}/${today1.length})`);
+    updateLiveKpis();
+    queueRedrawAll();
+  }catch(e){
+    console.error(e);
+    dbgLine(`${label} crash: ${e.message || e}`);
+    setStat(`중단: ${label} 오류 (DBG 확인)`);
+  }finally{
+    BATCH_REPLAY = false;
+    const dt = performance.now() - t0;
+    DBG.lastTickMs = dt;
+    if (dt > 60) dbgLine(`slow ${label} ${dt.toFixed(1)}ms at idx=${idx} last=${lastBarDt||''}`);
+    dbgKV();
+    tickRunning = false;
+  }
+}
+
+/** ✅ ArrowRight/버튼: 다음 1분봉 한 개 진행 */
+function stepNext(){
+  stepToIndex(idx, 'stepNext');
+}
+
+/** ✅ ArrowDown: 현재 표시 시각에서 정확히 5분 뒤까지 진행 */
+function stepNext5(){
+  if (playing) {
+    alert('자동 재생 중입니다. 정지 후 수동으로 진행하세요.');
+    return;
+  }
+  if (tickRunning || !today1.length || idx >= today1.length) return;
+
+  // idx는 다음 처리 위치이므로 현재 화면의 마지막 봉은 idx - 1이다.
+  // 아직 진행 전이면 초기 화면의 마지막 1분봉을 기준 시각으로 사용한다.
+  const currentRow = (idx > 0)
+    ? today1[idx - 1]
+    : (init1.length ? init1[init1.length - 1] : null);
+
+  if (!currentRow?.datetime) {
+    setStat('중단: 현재 기준 봉이 없습니다.');
+    return;
+  }
+
+  const currentMs = toMs(currentRow.datetime);
+  if (!Number.isFinite(currentMs)) {
+    setStat('중단: 현재 시간 파싱 실패');
+    return;
+  }
+
+  const targetMs = currentMs + (5 * 60 * 1000);
+  let targetIdx = map1Index.get(targetMs);
+
+  // 장 마감 부근에서 정확히 +5분 봉이 없으면 남은 마지막 봉까지만 진행한다.
+  if (targetIdx == null) {
+    const lastIdx = today1.length - 1;
+    const lastMs = toMs(today1[lastIdx]?.datetime);
+    if (Number.isFinite(lastMs) && targetMs > lastMs) targetIdx = lastIdx;
+  }
+
+  if (targetIdx == null || targetIdx < idx) {
+    dbgLine(`5분 뒤 캔들 없음: ${new Date(targetMs).toISOString()}`);
+    setStat('5분 뒤 캔들을 찾을 수 없습니다.');
+    return;
+  }
+
+  stepToIndex(targetIdx, 'stepNext5');
 }
 
 /** ================== 데이터 로드 ================== */
@@ -2113,13 +2649,31 @@ document.getElementById('btnPlay').addEventListener('click', play);
 document.getElementById('btnPause').addEventListener('click', stop);
 document.getElementById('btnStepNext').addEventListener('click', stepNext);
 
-// ✅ 엔터키로도 다음 캔들 진행
-document.addEventListener('keydown', (e)=>{
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    stepNext();
+// ✅ ArrowRight: 1분 진행 / ArrowDown: 5분 진행
+document.addEventListener('keydown', (e) => {
+  const target = e.target;
+  const tag = target?.tagName;
+
+  // 입력 요소에서는 방향키 기본 기능 유지
+  if (
+    tag === 'INPUT' ||
+    tag === 'SELECT' ||
+    tag === 'TEXTAREA' ||
+    target?.isContentEditable
+  ) {
+    return;
   }
-});
+
+  if (e.key === 'ArrowRight') {
+    e.preventDefault();
+    e.stopPropagation();
+    stepNext();
+  } else if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    e.stopPropagation();
+    stepNext5();
+  }
+}, true); // 핵심: 캡처 단계에서 처리
 
 document.getElementById('btnPrev').addEventListener('click', ()=>{
   const d = document.getElementById('prevDate').value;
@@ -2134,12 +2688,27 @@ document.getElementById('btnNext').addEventListener('click', ()=>{
   document.querySelector('form').submit();
 });
 
+// 시간 바로가기
+document.querySelectorAll('.quickTimeBtn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const t = btn.dataset.time;
+
+    const inp = document.querySelector('input[name="start_at"]');
+    if (!inp || !t) return;
+
+    inp.value = t;
+
+    // 해당 시간으로 즉시 다시 불러오기
+    inp.closest('form').submit();
+  });
+});
+
 // ✅ R/S 기준(20/60) 변경 시 즉시 반영
 document.getElementById('lvlMode')?.addEventListener('change', (e)=>{
   const m = parseInt(e.target.value, 10) || 60;
 
   // ✅ base에 따라 시작시간 자동 변경
-  const startMap = { 20:'09:14', 60:'09:44' };
+  const startMap = { 30:'09:34', 60:'09:44' };
   const inp = document.querySelector('input[name="start_at"]');
   if (inp && startMap[m]) inp.value = startMap[m];
 
@@ -2179,6 +2748,7 @@ const TRADE_API = 'futures_replay_plan_trade_api.php';
 // 표시/계산 상수
 const POINT_VALUE = 50000; // 1pt=5만원(코스피 미니선물)
 const FEE_RATE = 0.00003;    // 0.003% (서버도 동일 적용)
+const READ_ONLY_RUN_ID = 1;   // 실제 매매내역 업로드 회차
 
 // 상태
 let simRunId = 0;
@@ -2199,6 +2769,49 @@ let planBusy = false;
 // localStorage key (일자 바뀌어도 회차 유지)
 const LS_RUN_ID_KEY = 'futures_sim_run_id';
 
+function isReadOnlyRun(){
+  return Number(simRunId) === READ_ONLY_RUN_ID;
+}
+
+function applyRunWriteLock(){
+  const locked = isReadOnlyRun();
+  const ids = [
+    'planSide','planQty','planEntryPrice','planStopPrice',
+    'btnPlanSave','btnPlanCancel',
+    'btnQty1','btnQty2','btnQty3','tradeQty',
+    'btnOpenLong','btnOpenShort','btnClosePart','btnCloseAll','btnUndo'
+  ];
+
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (locked) {
+      el.disabled = true;
+      el.title = '1번 회차는 실제 매매내역이므로 변경할 수 없습니다.';
+    } else {
+      el.disabled = apiBusy;
+      el.removeAttribute('title');
+    }
+  });
+
+  document.getElementById('runReadOnlyNotice')?.classList.toggle('show', locked);
+  renderPlanLockState();
+}
+
+function renderPlanLockState(){
+  const status = String(simPlan?.status || '');
+  const save = document.getElementById('btnPlanSave');
+  const cancel = document.getElementById('btnPlanCancel');
+  if (save) save.disabled = isReadOnlyRun() || apiBusy || planBusy || status === 'ENTERED';
+  if (cancel) cancel.disabled = isReadOnlyRun() || apiBusy || planBusy || status !== 'WAITING';
+}
+
+function rejectReadOnlyRun(){
+  if (!isReadOnlyRun()) return false;
+  toast('1번 회차는 실제 매매내역이므로 변경할 수 없습니다.');
+  return true;
+}
+
 function setBusy(on){
   apiBusy = !!on;
   const ids = [
@@ -2211,6 +2824,7 @@ function setBusy(on){
     if (el) el.disabled = apiBusy;
   });
   if (document.getElementById('planStatus')) renderPlan(simPlan);
+  applyRunWriteLock();
 }
 
 function toast(msg){ alert(msg); }
@@ -2246,53 +2860,192 @@ function setText(id, v){
 function updateLiveKpis(){
   const row = getDecisionRow();
 
-  const hhmm = row?.datetime ? row.datetime.slice(11,16) : '-';
+  const hhmm = row?.datetime
+    ? row.datetime.slice(11, 16)
+    : '-';
 
-  const open1  = row?.open  != null ? Number(row.open)  : NaN;
-  const high1  = row?.high  != null ? Number(row.high)  : NaN;
-  const low1   = row?.low   != null ? Number(row.low)   : NaN;
-  const close1 = row?.close != null ? Number(row.close) : NaN;
+  const open1 = row?.open != null
+    ? Number(row.open)
+    : NaN;
 
-  const closeTxt = Number.isFinite(close1) ? close1.toFixed(2) : '-';
+  const high1 = row?.high != null
+    ? Number(row.high)
+    : NaN;
 
-  // ✅ 주문 입력 패널(결정봉)
+  const low1 = row?.low != null
+    ? Number(row.low)
+    : NaN;
+
+  const close1 = row?.close != null
+    ? Number(row.close)
+    : NaN;
+
+  // 현재 결정봉
   setText('kpiNowDt', hhmm);
-  setText('kpiNowClose', closeTxt);
-  setText('kpiNowOpen', Number.isFinite(open1) ? open1.toFixed(2) : '-');
-  setText('kpiNowHigh', Number.isFinite(high1) ? high1.toFixed(2) : '-');
-  setText('kpiNowLow',  Number.isFinite(low1)  ? low1.toFixed(2)  : '-');
+
+  setText(
+    'kpiNowClose',
+    Number.isFinite(close1)
+      ? close1.toFixed(2)
+      : '-'
+  );
+
+  setText(
+    'kpiNowOpen',
+    Number.isFinite(open1)
+      ? open1.toFixed(2)
+      : '-'
+  );
+
+  setText(
+    'kpiNowHigh',
+    Number.isFinite(high1)
+      ? high1.toFixed(2)
+      : '-'
+  );
+
+  setText(
+    'kpiNowLow',
+    Number.isFinite(low1)
+      ? low1.toFixed(2)
+      : '-'
+  );
 
   // 포지션/평단
   const posQty = Number(simDayState?.pos_qty || 0);
-  const avg = (simDayState?.avg_price != null) ? Number(simDayState.avg_price) : NaN;
 
-  setText('kpiPos', posQty === 0 ? 'FLAT' : (posQty > 0 ? `LONG x${posQty}` : `SHORT x${Math.abs(posQty)}`));
-  setText('kpiAvg', Number.isFinite(avg) ? avg.toFixed(2) : '-');
+  const avg = simDayState?.avg_price != null
+    ? Number(simDayState.avg_price)
+    : NaN;
 
-  // 이격(내 포지션 기준 +가 유리)
+  setText(
+    'kpiPos',
+    posQty === 0
+      ? 'FLAT'
+      : posQty > 0
+        ? `LONG x${posQty}`
+        : `SHORT x${Math.abs(posQty)}`
+  );
+
+  setText(
+    'kpiAvg',
+    Number.isFinite(avg)
+      ? avg.toFixed(2)
+      : '-'
+  );
+
+  // 현재 종가와 평단 이격
   let gapPts = null;
-  if (posQty !== 0 && Number.isFinite(avg) && Number.isFinite(close1)){
-    gapPts = (posQty > 0) ? (close1 - avg) : (avg - close1);
-  }
-  setText('kpiGapPts', (gapPts == null) ? '-' : gapPts.toFixed(2));
-  setText('kpiGapAmt', (gapPts == null) ? '-' : fmtInt(gapPts * POINT_VALUE));
 
-  // 총손익(pts): realized + unrealized
-  const realizedPts = Number(simDayState?.pnl_points || 0);
+  if (
+    posQty !== 0 &&
+    Number.isFinite(avg) &&
+    Number.isFinite(close1)
+  ){
+    gapPts = posQty > 0
+      ? close1 - avg
+      : avg - close1;
+  }
+
+  setText(
+    'kpiGapPts',
+    gapPts != null
+      ? gapPts.toFixed(2)
+      : '-'
+  );
+
+  setText(
+    'kpiGapAmt',
+    gapPts != null
+      ? fmtInt(gapPts * POINT_VALUE)
+      : '-'
+  );
+
+  /*
+   * run_id = 1
+   * 실제 매매내역은 DB 손익을 그대로 표시
+   */
+  if (isReadOnlyRun()){
+    const dbPnlPoints =
+      simDayState?.pnl_points != null
+        ? Number(simDayState.pnl_points)
+        : NaN;
+
+    const dbNetAmount =
+      simDayState?.pnl_amount_net != null
+        ? Number(simDayState.pnl_amount_net)
+        : NaN;
+
+    setText(
+      'kpiPnlPts',
+      Number.isFinite(dbPnlPoints)
+        ? dbPnlPoints.toFixed(2)
+        : '-'
+    );
+
+    setText(
+      'kpiNetAmt',
+      Number.isFinite(dbNetAmount)
+        ? fmtInt(dbNetAmount)
+        : '-'
+    );
+
+    return;
+  }
+
+  /*
+   * 일반 연습 회차
+   * DB 확정손익 + 현재 미청산 평가손익
+   */
+  const realizedPts =
+    simDayState?.pnl_points != null
+      ? Number(simDayState.pnl_points)
+      : 0;
+
+  const feeTotal =
+    simDayState?.fee_total != null
+      ? Number(simDayState.fee_total)
+      : 0;
+
   let unrealPts = 0;
-  if (posQty !== 0 && Number.isFinite(avg) && Number.isFinite(close1)){
-    unrealPts = (close1 - avg) * posQty; // posQty 부호로 숏 자동 반영
-  }
-  const totalPts = realizedPts + unrealPts;
-  setText('kpiPnlPts', Number.isFinite(totalPts) ? totalPts.toFixed(2) : '-');
 
-  // 순손익(원): pts*POINT_VALUE - 수수료누적
-  const feeTotal = Number(simDayState?.fee_total || 0);
-  const netAmt = Math.round(totalPts * POINT_VALUE) - feeTotal;
-  setText('kpiNetAmt', Number.isFinite(netAmt) ? fmtInt(netAmt) : '-');
+  if (
+    posQty !== 0 &&
+    Number.isFinite(avg) &&
+    Number.isFinite(close1)
+  ){
+    // posQty가 음수이면 숏 손익으로 자동 계산
+    unrealPts = (close1 - avg) * posQty;
+  }
+
+  const totalPts = realizedPts + unrealPts;
+
+  setText(
+    'kpiPnlPts',
+    Number.isFinite(totalPts)
+      ? totalPts.toFixed(2)
+      : '-'
+  );
+
+  const netAmt =
+    Math.round(totalPts * POINT_VALUE) - feeTotal;
+
+  setText(
+    'kpiNetAmt',
+    Number.isFinite(netAmt)
+      ? fmtInt(netAmt)
+      : '-'
+  );
 }
 
 async function apiPost(mode, payload){
+  const writeModes = new Set([
+    'trade_add','trade_undo','plan_set','plan_cancel','plan_execute'
+  ]);
+  if (isReadOnlyRun() && writeModes.has(mode)) {
+    throw new Error('1번 회차는 실제 매매내역이므로 변경할 수 없습니다.');
+  }
+
   const fd = new FormData();
   fd.append('mode', mode);
   Object.entries(payload || {}).forEach(([k,v]) => fd.append(k, v));
@@ -2358,9 +3111,27 @@ function renderDay(day){
 
   simDayState = {
     pos_qty: Number(day.pos_qty || 0),
-    avg_price: (day.avg_price != null ? Number(day.avg_price) : null),
-    pnl_points: Number(day.pnl_points || 0),
-    fee_total: Number(day.fee_total || 0),
+
+    avg_price: day.avg_price != null
+      ? Number(day.avg_price)
+      : null,
+
+    // DB 저장값
+    pnl_points: day.pnl_points != null
+      ? Number(day.pnl_points)
+      : 0,
+
+    pnl_amount: day.pnl_amount != null
+      ? Number(day.pnl_amount)
+      : 0,
+
+    fee_total: day.fee_total != null
+      ? Number(day.fee_total)
+      : 0,
+
+    pnl_amount_net: day.pnl_amount_net != null
+      ? Number(day.pnl_amount_net)
+      : 0
   };
 
   simDayId = Number(day.day_id || 0);
@@ -2412,11 +3183,7 @@ function renderPlan(plan){
     document.getElementById('planStopPrice').value = Number(simPlan.stop_price).toFixed(2);
   }
 
-  const status = String(simPlan?.status || '');
-  const save = document.getElementById('btnPlanSave');
-  const cancel = document.getElementById('btnPlanCancel');
-  if (save) save.disabled = apiBusy || planBusy || status === 'ENTERED';
-  if (cancel) cancel.disabled = apiBusy || planBusy || status !== 'WAITING';
+  renderPlanLockState();
 }
 
 async function loadPlan(){
@@ -2429,7 +3196,7 @@ async function loadPlan(){
 }
 
 async function savePlan(){
-  stop();
+  if (rejectReadOnlyRun()) return;
   if (!simRunId){
     toast('먼저 회차를 선택하거나 생성해줘.');
     return;
@@ -2454,6 +3221,10 @@ async function savePlan(){
     return;
   }
 
+  // 자동 재생 중 등록했다면 API 처리 동안만 멈추고 완료 후 이어서 재생한다.
+  const resumeAfter = playing;
+  if (resumeAfter) stop();
+
   setBusy(true);
   try{
     const j = await apiPost('plan_set', {
@@ -2466,12 +3237,17 @@ async function savePlan(){
   }finally{
     setBusy(false);
     renderPlan(simPlan);
+    if (resumeAfter && idx < today1.length) play();
   }
 }
 
 async function cancelPlan(){
-  stop();
+  if (rejectReadOnlyRun()) return;
   if (!simDayId) return;
+
+  const resumeAfter = playing;
+  if (resumeAfter) stop();
+
   setBusy(true);
   try{
     const j = await apiPost('plan_cancel', { day_id:simDayId });
@@ -2481,6 +3257,7 @@ async function cancelPlan(){
   }finally{
     setBusy(false);
     renderPlan(simPlan);
+    if (resumeAfter && idx < today1.length) play();
   }
 }
 
@@ -2490,6 +3267,7 @@ function barTouchesPrice(bar, price){
 }
 
 async function executePlanEvent(event, bar){
+  if (isReadOnlyRun()) return null;
   const j = await apiPost('plan_execute', {
     day_id:simDayId,
     event,
@@ -2511,6 +3289,7 @@ async function executePlanEvent(event, bar){
 }
 
 async function processPlanBar(bar){
+  if (isReadOnlyRun()) return;
   if (planBusy || !simDayId || !simPlan) return;
   const status = String(simPlan.status || '');
   if (status !== 'WAITING' && status !== 'ENTERED') return;
@@ -2542,7 +3321,8 @@ async function processPlanBar(bar){
     planBusy = false;
     unlockUiOps();
     renderPlan(simPlan);
-    queueRedrawAll();
+    // 5분 수동 배치에서는 외부 stepToIndex가 마지막에 한 번만 redraw한다.
+    if (!BATCH_REPLAY) queueRedrawAll();
     if (resumeAfter && idx < today1.length) play();
   }
 }
@@ -2557,8 +3337,8 @@ function simSetNowTsLabel(){
 // ✅ addOne 끝날 때마다 현재 결정봉 시각 갱신
 (function attachLiveUpdate(){
   const _addOne = addOne;
-  addOne = function(opts){
-    _addOne(opts);
+  addOne = async function(opts){
+    await _addOne(opts);
     simSetNowTsLabel();
   };
 })();
@@ -2577,6 +3357,7 @@ async function loadRunListAndRestore(){
     const sel = document.getElementById('simRunSelect');
     if (sel && simRunId){
       sel.value = String(simRunId);
+      applyRunWriteLock();
 
       lockUiOps();
       try{
@@ -2592,6 +3373,7 @@ async function loadRunListAndRestore(){
       renderTrades([]);
       renderDay({ day_id:0, trade_date:DATE, start_at:INIT_TIME, pos_qty:0, avg_price:null, pnl_points:0, fee_total:0, pos_text:'FLAT' });
       renderPlan(null);
+      applyRunWriteLock();
     }
   }catch(e){
     toast(e.message || String(e));
@@ -2614,6 +3396,7 @@ async function createRun(){
       start_date: DATE,
     });
     simRunId = Number(j.run_id || 0);
+    applyRunWriteLock();
     localStorage.setItem(LS_RUN_ID_KEY, String(simRunId));
 
     const j2 = await apiPost('run_list', {});
@@ -2641,6 +3424,7 @@ async function ensureDay(){
     simDayId = 0;
     document.getElementById('simDayIdKpi').textContent = '-';
     renderPlan(null);
+    await loadUserLines();
     return;
   }
 
@@ -2663,6 +3447,7 @@ async function ensureDay(){
       console.error(e);
     }
     await loadPlan();
+    await loadUserLines();
   }catch(e){
     toast(e.message || String(e));
   }finally{
@@ -2672,6 +3457,7 @@ async function ensureDay(){
 
 async function tradeAdd(action){
   stop(); // 버튼 누르면 자동 정지
+  if (rejectReadOnlyRun()) return;
 
   if (!simRunId){
     toast('먼저 회차를 선택/생성해줘.');
@@ -2721,6 +3507,7 @@ async function tradeAdd(action){
 
 async function tradeUndo(){
   stop();
+  if (rejectReadOnlyRun()) return;
   if (!simDayId){
     toast('취소할 day가 없습니다. 회차 선택 후 진행해줘.');
     return;
@@ -2768,6 +3555,18 @@ document.getElementById('btnRunReload').addEventListener('click', loadRunListAnd
 document.getElementById('btnRunCreate').addEventListener('click', createRun);
 document.getElementById('btnPlanSave')?.addEventListener('click', savePlan);
 document.getElementById('btnPlanCancel')?.addEventListener('click', cancelPlan);
+document.getElementById('btnUserLineSave')?.addEventListener('click', saveUserLine);
+document.getElementById('btnUserLineCancel')?.addEventListener('click', resetUserLineForm);
+document.getElementById('userLineComment')?.addEventListener('keydown', (e)=>{
+  if (e.key === 'Enter'){
+    e.preventDefault();
+    saveUserLine();
+  }
+});
+document.getElementById('chkUserLinesAll')?.addEventListener('change', (e)=>{
+  localStorage.setItem(LS_USER_LINES_ALL, e.target.checked ? '1' : '0');
+  renderUserLinesAll();
+});
 
 document.getElementById('simRunSelect').addEventListener('change', async (e)=>{
   lockUiOps();
@@ -2775,6 +3574,7 @@ document.getElementById('simRunSelect').addEventListener('change', async (e)=>{
     const v = e.target.value;
     simRunId = v ? Number(v) : 0;
     simDayId = 0;
+    applyRunWriteLock();
 
     if (simRunId) localStorage.setItem(LS_RUN_ID_KEY, String(simRunId));
     else localStorage.removeItem(LS_RUN_ID_KEY);
@@ -2814,6 +3614,7 @@ document.getElementById('chkSma5')?.addEventListener('change', (e)=>{
 
 // 초기 active
 setQty(parseInt(document.getElementById('tradeQty')?.value || '1', 10) || 1);
+applyRunWriteLock();
 
 // 사용자가 직접 숫자 바꾸면 active도 따라가게
 document.getElementById('tradeQty')?.addEventListener('input', (e)=>{
@@ -2843,7 +3644,10 @@ document.getElementById('btnPlayR')?.addEventListener('click', play);
 document.getElementById('btnPauseR')?.addEventListener('click', stop);
 
 // 초기 표시
+setupRightTabs();
 document.getElementById('simDateKpi').textContent = DATE;
+const savedUserLinesAll = localStorage.getItem(LS_USER_LINES_ALL);
+document.getElementById('chkUserLinesAll').checked = savedUserLinesAll !== '0';
 simSetNowTsLabel();
 updateLiveKpis();
 
@@ -2855,6 +3659,7 @@ loadRunListAndRestore();
 /** ================== 최초 ================== */
 resetCharts();
 loadData();
+loadUserLines();
 
 </script>
 </body>

@@ -308,25 +308,94 @@ $init5  = buildInitSeries($prevTail5,  array_merge($today5_done,  $partial5_row)
 $init15 = buildInitSeries($prevTail15, array_merge($today15_done, $partial15_row), $init_max_15m);
 $init60 = buildInitSeries($prevTail60, array_merge($today60_done, $partial60_row), $init_max_60m);
 
-// 고저/시가(1분 N개)
-$hilo_rows = fetchFirstN_1m($mysqli, $date, $start_time, $hi_lo_n);
+// 고저/시가(기존 08:45부터 1분봉 N개 계산)
+// 임시 테스트 위해 주석거리
+// $hilo_rows = fetchFirstN_1m($mysqli, $date, $start_time, $hi_lo_n);
+
+// $hilo = null;
+
+// if ($hilo_rows && count($hilo_rows)){
+//   $open = (float)$hilo_rows[0]['open'];
+//   $high = (float)$hilo_rows[0]['high'];
+//   $low  = (float)$hilo_rows[0]['low'];
+
+//   foreach ($hilo_rows as $r){
+//     $high = max($high, (float)$r['high']);
+//     $low  = min($low,  (float)$r['low']);
+//   }
+
+//   $start_hhmm = substr($start_time, 0, 5);
+//   $end_hhmm = substr(
+//     $hilo_rows[count($hilo_rows)-1]['datetime'],
+//     11,
+//     5
+//   );
+
+//   $hilo = [
+//     'open'       => $open,
+//     'high'       => $high,
+//     'low'        => $low,
+//     'n'          => $hi_lo_n,
+//     'start_hhmm' => $start_hhmm,
+//     'end_hhmm'   => $end_hhmm
+//   ];
+// }
+
+
+// =====================================================
+// 임시 테스트
+// open  : 기존 장 시작 08:45 시가 유지
+// high  : futures_5min의 09:30 봉 고가
+// low   : futures_5min의 09:30 봉 저가
+// 범위  : 09:30~09:34
+// =====================================================
+
 $hilo = null;
-if ($hilo_rows && count($hilo_rows)){
-  $open = (float)$hilo_rows[0]['open'];
-  $high = (float)$hilo_rows[0]['high'];
-  $low  = (float)$hilo_rows[0]['low'];
-  foreach ($hilo_rows as $r){
-    $high = max($high, (float)$r['high']);
-    $low  = min($low,  (float)$r['low']);
-  }
-  $start_hhmm = substr($start_time,0,5);
-  $end_hhmm = substr(substr($hilo_rows[count($hilo_rows)-1]['datetime'],11,5),0,5);
+$test_hilo_time = '09:30:00';
+
+// 기존 장 시작 시가를 가져오기 위한 첫 번째 1분봉
+$session_open_rows = fetchFirstN_1m(
+  $mysqli,
+  $date,
+  $start_time,
+  1
+);
+
+// 09:30 5분봉 조회
+$sql = "
+  SELECT datetime, high, low
+  FROM futures_5min
+  WHERE date = ?
+    AND time = ?
+  LIMIT 1
+";
+
+$stmt = $mysqli->prepare($sql);
+$stmt->bind_param('ss', $date, $test_hilo_time);
+$stmt->execute();
+
+$result = $stmt->get_result();
+$test_hilo_row = $result->fetch_assoc();
+$stmt->close();
+
+if (
+  $test_hilo_row &&
+  $session_open_rows &&
+  count($session_open_rows) > 0
+) {
+  $open = (float)$session_open_rows[0]['open'];
+  $high = (float)$test_hilo_row['high'];
+  $low  = (float)$test_hilo_row['low'];
+  $high = 0;
+  $low  = 0;
 
   $hilo = [
-    'open'=>$open, 'high'=>$high, 'low'=>$low,
-    'n'=>$hi_lo_n,
-    'start_hhmm'=>$start_hhmm,
-    'end_hhmm'=>$end_hhmm
+    'open'       => $open,
+    'high'       => $high,
+    'low'        => $low,
+    'n'          => 1,
+    'start_hhmm' => '09:30',
+    'end_hhmm'   => '09:34'
   ];
 }
 

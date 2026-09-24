@@ -259,6 +259,39 @@ function fetch_plan($mysqli, $day_id){
  *  mode handlers
  * ----------------------------- */
 
+// run_id=1 실제 매매내역 보호
+$protected_modes = [
+    'plan_set',
+    'plan_cancel',
+    'plan_execute',
+    'trade_add',
+    'trade_undo'
+];
+
+if (in_array($mode, $protected_modes, true)) {
+    $day_id = as_int(req('day_id', 0));
+
+    if ($day_id > 0) {
+        $stmt = $mysqli->prepare("
+            SELECT run_id
+            FROM futures_sim_run_day
+            WHERE day_id = ?
+        ");
+        $stmt->bind_param('i', $day_id);
+        $stmt->execute();
+        $stmt->bind_result($target_run_id);
+        $stmt->fetch();
+        $stmt->close();
+
+        if ((int)$target_run_id === 1) {
+            json_out([
+                'ok'  => false,
+                'msg' => '1번 회차는 실제 매매내역이므로 변경할 수 없습니다.'
+            ], 403);
+        }
+    }
+}
+
 if ($mode === 'run_list'){
   $rows = [];
   $q = $mysqli->query("
@@ -290,40 +323,128 @@ if ($mode === 'run_create'){
 }
 
 if ($mode === 'day_get'){
+
   $run_id = as_int(req('run_id', 0));
   $trade_date = trim((string)req('trade_date',''));
 
-  if ($run_id <= 0) json_out(['ok'=>false,'msg'=>'run_id is required'], 400);
-  if ($trade_date === '') json_out(['ok'=>false,'msg'=>'trade_date is required'], 400);
+  if ($run_id <= 0) {
+    json_out(['ok'=>false,'msg'=>'run_id is required'], 400);
+  }
 
-  // ✅ (run_id, trade_date) 유니크로 day 1개 고정
-  // ✅ 중복이면 기존 day_id를 LAST_INSERT_ID로 되돌려 받음
+  if ($trade_date === '') {
+    json_out(['ok'=>false,'msg'=>'trade_date is required'], 400);
+  }
+
+
+  // (run_id, trade_date) 유니크로 day 1개 고정
+  // 중복이면 기존 day_id를 LAST_INSERT_ID로 되돌려 받음
   $stmt = $mysqli->prepare("
     INSERT INTO futures_sim_run_day (run_id, trade_date)
     VALUES (?, ?)
     ON DUPLICATE KEY UPDATE day_id = LAST_INSERT_ID(day_id)
   ");
+
   $stmt->bind_param('is', $run_id, $trade_date);
+
   $ok = $stmt->execute();
   $day_id = $stmt->insert_id;
+
   $stmt->close();
 
-  if (!$ok || $day_id <= 0) json_out(['ok'=>false,'msg'=>'day_get failed'], 500);
+  if (!$ok || $day_id <= 0) {
+    json_out(['ok'=>false,'msg'=>'day_get failed'], 500);
+  }
 
-  // trades + state
+
+  // 체결내역 조회
   $trades = fetch_trades($mysqli, $day_id);
+
+
+  // =========================================================
+  // run_id = 1
+  // 엑셀/Python 업로드 데이터
+  //
+  // Python에서 전일 이월포지션까지 포함하여
+  // 실현손익을 이미 계산해서 저장하므로
+  // 여기서는 절대 다시 계산하거나 UPDATE하지 않는다.
+  // =========================================================
+  if ($run_id === 1) {
+
+    $stmt = $mysqli->prepare("
+      SELECT
+        day_id,
+        run_id,
+        trade_date,
+        pnl_points,
+        pnl_amount,
+        fee_total,
+        pnl_amount_net,
+        day_comment
+      FROM futures_sim_run_day
+      WHERE day_id = ?
+      LIMIT 1
+    ");
+
+    $stmt->bind_param('i', $day_id);
+    $stmt->execute();
+
+    $res = $stmt->get_result();
+    $day = $res->fetch_assoc();
+
+    $stmt->close();
+
+
+    // 조회만 하고 종료
+    json_out([
+      'ok' => true,
+      'day' => $day,
+      'trades' => $trades
+    ]);
+  }
+
+
+  // =========================================================
+  // run_id != 1
+  // 기존 시뮬레이션 데이터는 기존 방식 그대로 유지
+  // =========================================================
+
   [$ok2, $msg2, $state] = calc_state_from_trades($trades, false);
-  if (!$ok2) json_out(['ok'=>false,'msg'=>$msg2], 400);
+
+  if (!$ok2) {
+    json_out(['ok'=>false,'msg'=>$msg2], 400);
+  }
+
 
   // fee_total 합산
   $fee_total = 0;
-  foreach($trades as $t) $fee_total += intval($t['fee_amount'] ?? 0);
 
-  // day 요약 동기화
-  update_day_summary($mysqli, $day_id, $state['pnl_points'], $fee_total, $POINT_VALUE);
-  $day = day_payload($mysqli, $day_id, $state, $POINT_VALUE);
+  foreach($trades as $t) {
+    $fee_total += intval($t['fee_amount'] ?? 0);
+  }
 
-  json_out(['ok'=>true, 'day'=>$day, 'trades'=>$trades]);
+
+  // 기존 방식대로 day 요약 동기화
+  update_day_summary(
+    $mysqli,
+    $day_id,
+    $state['pnl_points'],
+    $fee_total,
+    $POINT_VALUE
+  );
+
+  $day = day_payload(
+    $mysqli,
+    $day_id,
+    $state,
+    $POINT_VALUE
+  );
+
+
+  json_out([
+    'ok' => true,
+    'day' => $day,
+    'trades' => $trades
+  ]);
 }
 
 if ($mode === 'plan_get'){
